@@ -57,7 +57,7 @@ function PriceRaisedModal({
           {request.origin.address} → {request.destination.address}
         </div>
         <div style={{ fontSize: 13, color: '#5A6A7A', marginTop: 4 }}>
-          {request.days.join(', ')} · {request.departure_time} ·{' '}
+          {request.days.join(', ')} · {request.departure_to} ·{' '}
           {request.trip_type === 'one_way' ? 'One way' : 'Round trip'}
         </div>
       </div>
