@@ -1,4 +1,4 @@
-import type { CycleRequestCore } from './shared';
+import type { CycleRequestCore, GenderPref, WalkMinutes } from './shared';
 
 export type {
   WeekDay,
