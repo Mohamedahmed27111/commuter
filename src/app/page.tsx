@@ -1,101 +1,237 @@
-import Image from "next/image";
+'use client';
+
+import { useState } from 'react';
+import Link from 'next/link';
+import { Car, Users } from 'lucide-react';
+
+type Role = 'driver' | 'passenger';
+
+const ROLES = {
+  driver: {
+    icon: <Car size={26} color="#0B1E3D" strokeWidth={2.5} />,
+    iconBg: '#00C2A8',
+    accentColor: '#00C2A8',
+    title: "I'm a Driver",
+    description: 'Drive weekly routes, earn predictable income on your own schedule.',
+    primaryBtn:   { label: 'Apply now', href: '/driver/sign-up' },
+    secondaryBtn: { label: 'Sign in',   href: '/driver/sign-in' },
+  },
+  passenger: {
+    icon: <Users size={26} color="#0B1E3D" strokeWidth={2.5} />,
+    iconBg: '#00C2A8',
+    accentColor: '#00C2A8',
+    title: "I'm a Passenger",
+    description: 'Book pooled rides and save on your daily commute every week.',
+    primaryBtn:   { label: 'Sign up', href: '/sign-up' },
+    secondaryBtn: { label: 'Sign in', href: '/sign-in' },
+  },
+} as const;
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const [active,    setActive]    = useState<Role>('driver');
+  const [displayed, setDisplayed] = useState<Role>('driver');
+  const [phase,     setPhase]     = useState<'idle' | 'exiting' | 'entering'>('idle');
+  const [direction, setDirection] = useState<'right' | 'left'>('right');
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  function switchTo(r: Role) {
+    if (r === active || phase !== 'idle') return;
+    const enterFrom: 'right' | 'left' = r === 'passenger' ? 'right' : 'left';
+    setDirection(enterFrom);
+    setActive(r);
+    setPhase('exiting');
+    setTimeout(() => {
+      setDisplayed(r);
+      setPhase('entering');
+      setTimeout(() => setPhase('idle'), 250);
+    }, 200);
+  }
+
+  const role = ROLES[displayed];
+  const animClass =
+    phase === 'exiting'  ? (direction === 'right' ? 'commuter-exit-left'  : 'commuter-exit-right') :
+    phase === 'entering' ? (direction === 'right' ? 'commuter-enter-right' : 'commuter-enter-left') :
+    '';
+
+  return (
+    <>
+    <style>{`
+      @keyframes commuterSlideFromRight {
+        from { opacity: 0; transform: translateX(52px); }
+        to   { opacity: 1; transform: translateX(0); }
+      }
+      @keyframes commuterSlideFromLeft {
+        from { opacity: 0; transform: translateX(-52px); }
+        to   { opacity: 1; transform: translateX(0); }
+      }
+      @keyframes commuterSlideToLeft {
+        from { opacity: 1; transform: translateX(0); }
+        to   { opacity: 0; transform: translateX(-52px); }
+      }
+      @keyframes commuterSlideToRight {
+        from { opacity: 1; transform: translateX(0); }
+        to   { opacity: 0; transform: translateX(52px); }
+      }
+      .commuter-enter-right { animation: commuterSlideFromRight 0.25s cubic-bezier(0.4,0,0.2,1) both; }
+      .commuter-enter-left  { animation: commuterSlideFromLeft  0.25s cubic-bezier(0.4,0,0.2,1) both; }
+      .commuter-exit-left   { animation: commuterSlideToLeft    0.2s  cubic-bezier(0.4,0,0.2,1) both; }
+      .commuter-exit-right  { animation: commuterSlideToRight   0.2s  cubic-bezier(0.4,0,0.2,1) both; }
+    `}</style>
+    <div style={{
+      minHeight: '100vh',
+      background: '#0B1E3D',
+      display: 'flex',
+      flexDirection: 'column',
+      fontFamily: 'Inter, system-ui, -apple-system, sans-serif',
+    }}>
+
+      {/* ── Header ── */}
+      <header style={{ padding: '24px 32px', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{
+          width: 36, height: 36, borderRadius: 10,
+          background: '#00C2A8',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          flexShrink: 0,
+        }}>
+          <span style={{ color: '#0B1E3D', fontWeight: 900, fontSize: 17, lineHeight: 1 }}>C</span>
+        </div>
+        <span style={{ color: '#ffffff', fontWeight: 700, fontSize: 20, letterSpacing: '0.02em' }}>commuter</span>
+      </header>
+
+      {/* ── Hero ── */}
+      <main style={{
+        flex: 1,
+        display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center',
+        padding: '40px 24px 64px',
+        textAlign: 'center',
+      }}>
+        <h1 style={{
+          color: '#ffffff',
+          fontSize: 'clamp(28px, 5vw, 52px)',
+          fontWeight: 800, lineHeight: 1.1,
+          margin: '0 0 14px',
+          letterSpacing: '-0.02em',
+        }}>
+          Welcome to Commuter
+        </h1>
+        <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 17, margin: '0 0 48px', lineHeight: 1.5 }}>
+          Egypt&apos;s smarter way to share the ride.
+        </p>
+
+        {/* ── Toggle pill ── */}
+        <div style={{
+          display: 'inline-flex',
+          background: '#132A4A',
+          borderRadius: 60,
+          padding: 5,
+          marginBottom: 36,
+          border: '1px solid rgba(255,255,255,0.08)',
+        }}>
+          {(['driver', 'passenger'] as Role[]).map((key) => {
+            const isActive = active === key;
+            const bg       = isActive ? '#00C2A8' : 'transparent';
+            const color    = isActive ? '#0B1E3D' : 'rgba(255,255,255,0.5)';
+            return (
+              <button
+                key={key}
+                onClick={() => switchTo(key)}
+                style={{
+                  padding: '10px 36px',
+                  borderRadius: 56,
+                  background: bg,
+                  color,
+                  fontWeight: isActive ? 700 : 500,
+                  fontSize: 15,
+                  border: 'none',
+                  cursor: 'pointer',
+                  transition: 'background 0.22s, color 0.22s',
+                  whiteSpace: 'nowrap',
+                  fontFamily: 'inherit',
+                  letterSpacing: '0.01em',
+                }}
+              >
+                {key === 'driver' ? 'Driver' : 'Passenger'}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* ── Animated card ── */}
+        <div
+          key={displayed}
+          className={animClass}
+          style={{ width: '100%', maxWidth: 420 }}
+        >
+          <div style={{
+            background: '#1C3557',
+            border: '1.5px solid rgba(255,255,255,0.09)',
+            borderRadius: 22,
+            padding: '40px 36px',
+            display: 'flex', flexDirection: 'column',
+            gap: 24,
+            textAlign: 'left',
+          }}>
+            {/* Icon badge */}
+            <div style={{
+              width: 56, height: 56, borderRadius: 15,
+              background: role.iconBg,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              flexShrink: 0,
+            }}>
+              {role.icon}
+            </div>
+
+            {/* Text */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <h2 style={{ color: '#ffffff', fontSize: 24, fontWeight: 700, margin: 0, lineHeight: 1.2 }}>
+                {role.title}
+              </h2>
+              <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 15, lineHeight: 1.65, margin: 0 }}>
+                {role.description}
+              </p>
+            </div>
+
+            {/* Buttons */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <Link
+                href={role.primaryBtn.href}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  height: 48, borderRadius: 11,
+                  background: role.accentColor,
+                  color: '#0B1E3D',
+                  fontSize: 15, fontWeight: 700,
+                  textDecoration: 'none',
+                  letterSpacing: '0.01em',
+                }}
+              >
+                {role.primaryBtn.label}
+              </Link>
+              <Link
+                href={role.secondaryBtn.href}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  height: 48, borderRadius: 11,
+                  border: '1.5px solid rgba(255,255,255,0.22)',
+                  color: 'rgba(255,255,255,0.8)',
+                  fontSize: 15, fontWeight: 600,
+                  textDecoration: 'none',
+                  background: 'transparent',
+                  letterSpacing: '0.01em',
+                }}
+              >
+                {role.secondaryBtn.label}
+              </Link>
+            </div>
+          </div>
         </div>
       </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
+
+      {/* ── Footer ── */}
+      <footer style={{ textAlign: 'center', padding: '20px 32px', color: 'rgba(255,255,255,0.25)', fontSize: 12 }}>
+        © 2026 Commuter · Egypt Standard Time (UTC+2)
       </footer>
     </div>
+    </>
   );
 }

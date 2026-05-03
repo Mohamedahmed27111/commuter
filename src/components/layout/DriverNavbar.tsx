@@ -1,0 +1,239 @@
+'use client';
+
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
+import { useState, useEffect, useRef } from 'react';
+import { Menu, X, ChevronDown, LogOut, User } from 'lucide-react';
+import { getName, clearSession } from '@/lib/auth';
+
+const LINKS = [
+  { label: 'Requests',  href: '/driver/requests'  },
+  { label: 'My Cycles', href: '/driver/my-cycles'  },
+  { label: 'Profile',   href: '/driver/profile'    },
+];
+
+export default function DriverNavbar() {
+  const pathname    = usePathname();
+  const router      = useRouter();
+  const [mobileOpen,    setMobileOpen]    = useState(false);
+  const [dropdownOpen,  setDropdownOpen]  = useState(false);
+  const [driverName,    setDriverName]    = useState('Driver');
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const n = getName();
+    if (n) setDriverName(n);
+  }, []);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  // Close mobile menu whenever the route changes
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
+
+  function handleLogout() {
+    clearSession();
+    router.push('/');
+  }
+
+  const initials = driverName
+    .split(' ')
+    .map((p) => p[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+
+  return (
+    <>
+      <style>{`
+        .cnav-link { text-decoration: none; transition: color 0.15s; }
+        .cnav-link:hover { color: #fff !important; }
+        .cnav-drop-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; font-size: 14px; font-weight: 500; text-decoration: none; width: 100%; background: none; border: none; cursor: pointer; font-family: inherit; }
+        .cnav-drop-item:hover { background: #EFF7F6; }
+        .cnav-drop-danger:hover { background: #FEF2F2; }
+        .mobile-link { display: flex; align-items: center; height: 48px; padding: 0 20px; font-size: 15px; font-weight: 500; text-decoration: none; transition: color 0.15s; }
+        @media (max-width: 767px) {
+          .cnav-bar { padding: 0 16px !important; }
+        }
+      `}</style>
+
+      <nav style={{
+        position: 'sticky', top: 0, zIndex: 50,
+        height: 64, background: '#0B1E3D',
+        display: 'flex', alignItems: 'center',
+        padding: '0 32px', gap: 0,
+        borderBottom: '1px solid rgba(255,255,255,0.08)',
+        fontFamily: 'Inter, system-ui, sans-serif',
+      }}
+      className="cnav-bar">
+        {/* Logo — left */}
+        <Link href="/driver/requests" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none', flexShrink: 0, position: 'relative', zIndex: 1 }}>
+          <div style={{ width: 32, height: 32, borderRadius: 8, background: '#00C2A8', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ color: '#0B1E3D', fontWeight: 900, fontSize: 16, lineHeight: 1 }}>C</span>
+          </div>
+          <span style={{ color: '#fff', fontWeight: 600, fontSize: 18 }}>commuter</span>
+        </Link>
+
+        {/* Center nav links — true center of full navbar width */}
+        <div
+          style={{
+            position: 'absolute',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            alignItems: 'center',
+            gap: 32,
+          }}
+          className="hidden md:flex"
+        >
+          {LINKS.map(({ label, href }) => {
+            const active = pathname === href || pathname.startsWith(href + '/');
+            return (
+              <Link
+                key={href}
+                href={href}
+                className="cnav-link"
+                style={{
+                  color: active ? '#fff' : 'rgba(255,255,255,0.65)',
+                  fontSize: 14,
+                  fontWeight: active ? 600 : 500,
+                  borderBottom: active ? '2px solid #00C2A8' : '2px solid transparent',
+                  paddingBottom: 2,
+                }}
+              >
+                {label}
+              </Link>
+            );
+          })}
+        </div>
+
+        {/* Right slot — user dropdown (desktop) */}
+        <div ref={dropdownRef} style={{ marginLeft: 'auto', position: 'relative', zIndex: 1 }} className="hidden md:block">
+          <button
+            onClick={() => setDropdownOpen((v) => !v)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              background: 'transparent', border: 'none', cursor: 'pointer',
+              color: '#fff', fontFamily: 'inherit', padding: 0,
+            }}
+            aria-haspopup="true"
+            aria-expanded={dropdownOpen}
+          >
+            <div style={{
+              width: 34, height: 34, borderRadius: '50%',
+              background: '#00C2A8',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 13, fontWeight: 700, color: '#0B1E3D', flexShrink: 0,
+            }}>
+              {initials}
+            </div>
+            <span style={{ fontSize: 14, fontWeight: 500, maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {driverName}
+            </span>
+            <ChevronDown
+              size={14}
+              style={{ opacity: 0.7, transition: 'transform 0.15s', transform: dropdownOpen ? 'rotate(180deg)' : 'none' }}
+            />
+          </button>
+
+          {dropdownOpen && (
+            <div style={{
+              position: 'absolute', right: 0, top: 'calc(100% + 10px)',
+              background: '#fff', borderRadius: 10,
+              border: '1px solid #E2E8F0',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+              minWidth: 168, overflow: 'hidden', zIndex: 100,
+            }}>
+              <Link
+                href="/driver/profile"
+                onClick={() => setDropdownOpen(false)}
+                className="cnav-drop-item"
+                style={{ color: '#0B1E3D' }}
+              >
+                <User size={15} /> Profile
+              </Link>
+              <button
+                onClick={handleLogout}
+                className="cnav-drop-item cnav-drop-danger"
+                style={{ color: '#E74C3C', textAlign: 'left' }}
+              >
+                <LogOut size={15} /> Sign out
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Mobile hamburger */}
+        <button
+          onClick={() => setMobileOpen((v) => !v)}
+          style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: '#fff', padding: 4, position: 'relative', zIndex: 1 }}
+          className="md:hidden"
+          aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
+        >
+          {mobileOpen ? <X size={22} /> : <Menu size={22} />}
+        </button>
+      </nav>
+
+      {/* Backdrop — tap outside to close */}
+      {mobileOpen && (
+        <div
+          style={{ position: 'fixed', inset: 0, top: 64, zIndex: 47, background: 'rgba(0,0,0,0.4)' }}
+          onClick={() => setMobileOpen(false)}
+          aria-hidden
+        />
+      )}
+
+      {/* Mobile menu panel — fixed below sticky navbar so scroll position doesn't matter */}
+      <div style={{
+        display: mobileOpen ? 'flex' : 'none',
+        position: 'fixed', top: 64, left: 0, right: 0, zIndex: 48,
+        background: '#0B1E3D', flexDirection: 'column',
+        borderBottom: '1px solid rgba(255,255,255,0.1)',
+        paddingBottom: 12,
+      }}>
+        {LINKS.map(({ label, href }) => {
+          const active = pathname === href || pathname.startsWith(href + '/');
+          return (
+            <Link
+              key={href}
+              href={href}
+              onClick={() => setMobileOpen(false)}
+              className="mobile-link"
+              style={{
+                color: active ? '#00C2A8' : 'rgba(255,255,255,0.75)',
+                fontWeight: active ? 600 : 500,
+                borderLeft: active ? '3px solid #00C2A8' : '3px solid transparent',
+              }}
+            >
+              {label}
+            </Link>
+          );
+        })}
+
+        <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', margin: '8px 0 0', paddingTop: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 20px' }}>
+            <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#00C2A8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#0B1E3D' }}>
+              {initials}
+            </div>
+            <span style={{ color: 'rgba(255,255,255,0.9)', fontSize: 14, fontWeight: 500 }}>{driverName}</span>
+          </div>
+          <button
+            onClick={handleLogout}
+            className="mobile-link"
+            style={{ color: '#E74C3C', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', width: '100%', textAlign: 'left' }}
+          >
+            <LogOut size={16} style={{ marginRight: 10 }} /> Sign out
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
