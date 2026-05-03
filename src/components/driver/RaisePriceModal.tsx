@@ -134,7 +134,7 @@ export default function RaisePriceModal({
             </div>
             {newPrice > estimatedMax && (
               <div style={{ fontSize: 12, color: '#B45309', background: '#FEF3C7', borderRadius: 6, padding: '4px 10px', display: 'flex', alignItems: 'center', gap: 4 }}>
-                ⚠️ Exceeds passenger's estimate
+                ⚠️ Exceeds passenger&apos;s estimate
               </div>
             )}
           </div>

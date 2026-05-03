@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import type { WeekDay, RideType } from '@/types/user';
-import { computeDeparture, formatTime12h, addHours, timeDiffMinutes, formatTimeWindow } from '@/lib/timeUtils';
+import { computeDeparture, addHours, timeDiffMinutes, formatTimeWindow } from '@/lib/timeUtils';
 import { calculatePriceRange } from '@/lib/pricing';
 import DaysPicker from './DaysPicker';
 import SeatSelector, { type SelectedSeat } from './SeatSelector';
@@ -493,7 +493,7 @@ function PriceStrip({
   breakdown,
   distanceKm,
   rideType,
-  seatCost,
+  seatCost: _seatCost,
   selectedSeatLabel,
   walkMinutes,
   tripType,

@@ -1,4 +1,4 @@
-import type { CycleRequestCore, PickupPoint } from './shared';
+import type { CycleRequestCore } from './shared';
 
 export type {
   RequestStatus,

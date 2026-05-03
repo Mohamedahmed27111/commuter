@@ -120,7 +120,6 @@ export default function MapPage() {
   const { lat: userLat, lng: userLng, loading: locating, locate } = useUserLocation();
 
   const userLocPoint = userLat && userLng ? { lat: userLat, lng: userLng } : null;
-  const route = routes[selectedRouteIndex] ?? null;
 
   // When GPS resolves and a pending field is waiting, fill it in
   useEffect(() => {
