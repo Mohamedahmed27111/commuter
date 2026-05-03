@@ -241,7 +241,6 @@ export default function RequestForm({
         breakdown={priceRange.breakdown}
         distanceKm={distanceKm}
         rideType={data.ride_type}
-        seatCost={seatCostEGP}
         selectedSeatLabel={
           data.seat_preference === 'any'
             ? 'Any'
@@ -493,7 +492,6 @@ function PriceStrip({
   breakdown,
   distanceKm,
   rideType,
-  seatCost: _seatCost,
   selectedSeatLabel,
   walkMinutes,
   tripType,
@@ -504,7 +502,6 @@ function PriceStrip({
   breakdown: ReturnType<typeof calculatePriceRange>['breakdown'];
   distanceKm: number;
   rideType: RideType;
-  seatCost: number;
   selectedSeatLabel: string;
   walkMinutes: 0 | 5 | 10;
   tripType: 'one_way' | 'round_trip';
