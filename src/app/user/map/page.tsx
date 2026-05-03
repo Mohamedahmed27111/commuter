@@ -198,7 +198,7 @@ export default function MapPage() {
           userLoc={userLocPoint}
           pickingField={pickingField}
           onMapPick={handleMapPick}
-          walk_minutes={formData.walk_minutes}
+          walk_minutes={mockUser.walk_minutes}
         />
       </div>
 
