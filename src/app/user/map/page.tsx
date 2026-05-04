@@ -39,73 +39,6 @@ const defaultForm: RequestFormData = {
 };
 
 // ── Draggable, closeable nearby-commuters chip ─────────────────────────────
-function NearbyCommutersChip() {
-  const [count, setCount] = useState<number | null>(null);
-  const [visible, setVisible] = useState(false);
-  const [closed, setClosed] = useState(false);
-  const [showTip, setShowTip] = useState(false);
-  const [offset, setOffset] = useState({ x: 0, y: 0 });
-  const dragStart = useRef<{ mx: number; my: number; ox: number; oy: number } | null>(null);
-  const isDragging = useRef(false);
-
-  useEffect(() => {
-    setCount(Math.floor(Math.random() * 10) + 3);
-    const t = setTimeout(() => setVisible(true), 600);
-    return () => clearTimeout(t);
-  }, []);
-
-  if (closed) return null;
-
-  function onPointerDown(e: React.PointerEvent) {
-    isDragging.current = false;
-    dragStart.current = { mx: e.clientX, my: e.clientY, ox: offset.x, oy: offset.y };
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-  }
-  function onPointerMove(e: React.PointerEvent) {
-    if (!dragStart.current) return;
-    const dx = e.clientX - dragStart.current.mx;
-    const dy = e.clientY - dragStart.current.my;
-    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) isDragging.current = true;
-    if (isDragging.current) setOffset({ x: dragStart.current.ox + dx, y: dragStart.current.oy + dy });
-  }
-  function onPointerUp() { dragStart.current = null; }
-
-  return (
-    <div
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      style={{
-        position: 'absolute', bottom: 280, left: 16, zIndex: 1000,
-        opacity: visible && count !== null ? 1 : 0,
-        transform: `translate(${offset.x}px, ${offset.y}px)`,
-        transition: dragStart.current ? 'none' : 'opacity 400ms',
-        touchAction: 'none', cursor: 'grab', userSelect: 'none',
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', background: 'white', border: '1px solid #E2E8F0', borderRadius: 24, boxShadow: '0 2px 12px rgba(0,0,0,0.12)', overflow: 'hidden' }}>
-        <button
-          onClick={() => { if (!isDragging.current) setShowTip((s) => !s); }}
-          style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'none', border: 'none', cursor: 'grab', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, color: '#0B1E3D', minHeight: 40 }}
-        >
-          <span style={{ color: '#00C2A8' }}>{count}</span> commuters nearby
-        </button>
-        <button
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => { e.stopPropagation(); setClosed(true); }}
-          style={{ padding: '4px 10px', background: 'none', border: 'none', borderLeft: '1px solid #F0F0F0', cursor: 'pointer', color: '#A0AEC0', fontSize: 14, lineHeight: 1, minHeight: 40, fontFamily: 'inherit' }}
-          title="Dismiss"
-        >✕</button>
-      </div>
-      {showTip && count !== null && (
-        <div style={{ position: 'absolute', bottom: '110%', left: 0, background: '#0B1E3D', color: '#fff', borderRadius: 10, padding: '8px 12px', fontSize: 12, whiteSpace: 'nowrap', boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }}>
-          {count} people commuting in your area this week
-        </div>
-      )}
-    </div>
-  );
-}
-
 export default function MapPage() {
   const router = useRouter();
   const [from, setFrom] = useState<LocationValue | null>(null);
@@ -124,10 +57,12 @@ export default function MapPage() {
   // When GPS resolves and a pending field is waiting, fill it in
   useEffect(() => {
     if (pendingLocField && userLat && userLng) {
-      const loc: LocationValue = { address: 'Current location', lat: userLat, lng: userLng };
-      if (pendingLocField === 'from') setFrom(loc);
-      else setTo(loc);
-      setPendingLocField(null);
+      reverseGeocode(userLat, userLng).then((address) => {
+        const loc: LocationValue = { address, lat: userLat, lng: userLng };
+        if (pendingLocField === 'from') setFrom(loc);
+        else setTo(loc);
+        setPendingLocField(null);
+      });
     }
   }, [userLat, userLng, pendingLocField]);
 
@@ -164,9 +99,10 @@ export default function MapPage() {
   }
 
   // Handle "Current location" from search bar
-  function handleCurrentLocation(field: 'from' | 'to') {
+  async function handleCurrentLocation(field: 'from' | 'to') {
     if (userLat && userLng) {
-      const loc: LocationValue = { address: 'Current location', lat: userLat, lng: userLng };
+      const address = await reverseGeocode(userLat, userLng);
+      const loc: LocationValue = { address, lat: userLat, lng: userLng };
       if (field === 'from') setFrom(loc);
       else setTo(loc);
     } else {
@@ -245,9 +181,6 @@ export default function MapPage() {
           Calculating route…
         </div>
       )}
-
-      {/* Nearby commuters chip */}
-      <NearbyCommutersChip />
 
       {/* ── Bottom sheet (all screen sizes) ─────────────────────── */}
       <MapBottomSheet

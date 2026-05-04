@@ -188,7 +188,7 @@ export default function MapBottomSheet({
   const maxHeightMap: Record<typeof sheetState, string> = {
     hidden: '0',
     half: '45vh',
-    full: '85vh',
+    full: 'calc(100dvh - 232px)',
   };
 
   return (
