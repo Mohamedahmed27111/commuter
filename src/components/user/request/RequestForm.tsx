@@ -323,6 +323,17 @@ export default function RequestForm({
         </div>
       </div>
 
+      {/* 6. Arrival window */}
+      <ArrivalWindowPicker
+        label="When do you want to arrive?"
+        arrival_from={data.arrival_from}
+        arrival_to={data.arrival_to}
+        departure_from={data.departure_from}
+        departure_to={data.departure_to}
+        onChange={handleArrivalWindowChange}
+        error={arrivalError}
+      />
+
       {/* 7. Return arrival window — round trip only */}
       <div
         style={{

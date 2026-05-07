@@ -32,11 +32,12 @@ export async function GET(req: NextRequest) {
   if (data.status !== 'OK')
     return NextResponse.json({ error: data.status }, { status: 422 });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const routes = (data.routes as any[]).map((r: any) => {
+  interface GDirectionsLeg { distance: { value: number }; duration: { value: number } }
+  interface GDirectionsRoute { legs: GDirectionsLeg[]; overview_polyline: { points: string } }
+  const routes = (data.routes as GDirectionsRoute[]).map((r) => {
     // Sum all legs (multi-stop routes have multiple legs)
-    const totalDistM  = r.legs.reduce((s: number, l: any) => s + l.distance.value, 0);
-    const totalDurS   = r.legs.reduce((s: number, l: any) => s + l.duration.value, 0);
+    const totalDistM  = r.legs.reduce((s: number, l) => s + l.distance.value, 0);
+    const totalDurS   = r.legs.reduce((s: number, l) => s + l.duration.value, 0);
     const points = decodePolyline(r.overview_polyline.points);
     return {
       coordinates: points,                                           // [lat, lng][]

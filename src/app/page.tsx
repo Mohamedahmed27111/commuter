@@ -10,7 +10,6 @@ type Role = 'driver' | 'passenger';
 
 export default function Home() {
   const t = useTranslations('home');
-  const tCommon = useTranslations('common');
 
   const ROLES = {
     driver: {
