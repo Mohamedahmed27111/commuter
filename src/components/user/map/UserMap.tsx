@@ -59,7 +59,6 @@ export default function UserMap({
   userHeading = null,
   userAccuracy = null,
   liveTracking = false,
-  onLocateMe: _onLocateMe,
   pickingField = null,
   onMapPick,
   walk_minutes = 0,
