@@ -1,8 +1,9 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import toast from 'react-hot-toast';
 import FloatingSearchBar, { type LocationValue, saveRecentRoute } from '@/components/user/map/FloatingSearchBar';
 import MapBottomSheet from '@/components/user/map/MapBottomSheet';
@@ -28,6 +29,10 @@ const defaultForm: RequestFormData = {
   seat_preference:      'any',
   start_date:           '',
   days:                 ['Sun', 'Mon', 'Tue', 'Wed', 'Thu'] as WeekDay[],
+  timeMode:             'same',
+  unifiedTimeFrom:      '07:30',
+  unifiedTimeTo:        '09:00',
+  perDayTimes:          {},
   arrival_from:         '08:30',
   arrival_to:           '09:30',
   departure_from:       '',
@@ -41,16 +46,20 @@ const defaultForm: RequestFormData = {
 // ── Draggable, closeable nearby-commuters chip ─────────────────────────────
 export default function MapPage() {
   const router = useRouter();
+  const t = useTranslations('map');
   const [from, setFrom] = useState<LocationValue | null>(null);
   const [to, setTo] = useState<LocationValue | null>(null);
+  const [viaStops, setViaStops] = useState<LocationValue[]>([]);
+  const [pickingStopIdx, setPickingStopIdx] = useState(-1);
   const [routes, setRoutes] = useState<OSRMRoute[]>([]);
   const [selectedRouteIndex, setSelectedRouteIndex] = useState(0);
   const [routeLoading, setRouteLoading] = useState(false);
   const [formData, setFormData] = useState<RequestFormData>(defaultForm);
   const [step, setStep] = useState<'map' | 'form' | 'review'>('map');
-  const [pickingField, setPickingField] = useState<'from' | 'to' | null>(null);
+  const [pickingField, setPickingField] = useState<'from' | 'to' | 'stop' | null>(null);
   const [pendingLocField, setPendingLocField] = useState<'from' | 'to' | null>(null);
-  const { lat: userLat, lng: userLng, loading: locating, locate } = useUserLocation();
+  const routeRequestId = useRef(0);
+  const { lat: userLat, lng: userLng, heading: userHeading, accuracy: userAccuracy, loading: locating, live: liveTracking, locate, startLive, stopLive } = useUserLocation();
 
   const userLocPoint = userLat && userLng ? { lat: userLat, lng: userLng } : null;
 
@@ -66,36 +75,69 @@ export default function MapPage() {
     }
   }, [userLat, userLng, pendingLocField]);
 
-  const loadRoutes = useCallback(async () => {
-    if (!from || !to) return;
-    setRouteLoading(true);
-    try {
-      const results = await fetchRoadRoutes([from, to]);
-      setRoutes(results);
-      setSelectedRouteIndex(0);
-    } catch {
-      toast.error('Could not calculate route. Try again.');
-    } finally {
-      setRouteLoading(false);
-    }
-  }, [from, to]);
-
+  // ── Routing: single effect, all cases handled inline ────────────────────
   useEffect(() => {
-    if (from && to) {
-      loadRoutes();
-    } else {
+    // No endpoints → clear immediately
+    if (!from || !to) {
+      routeRequestId.current++;
       setRoutes([]);
+      setRouteLoading(false);
       setStep('map');
+      return;
     }
-  }, [from, to, loadRoutes]);
+
+    // Stops present but at least one not yet resolved → clear and wait
+    const resolvedStops = viaStops.filter((s) => s.lat !== 0 || s.lng !== 0);
+    if (viaStops.length > resolvedStops.length) {
+      routeRequestId.current++;
+      setRoutes([]);
+      setRouteLoading(false);
+      return;
+    }
+
+    // All waypoints valid — fire fetch
+    const id = ++routeRequestId.current;
+    setRoutes([]);
+    setRouteLoading(true);
+
+    fetchRoadRoutes([from, ...resolvedStops, to])
+      .then((results) => {
+        if (id !== routeRequestId.current) return;
+        setRoutes(results.slice(0, 1));
+        setSelectedRouteIndex(0);
+      })
+      .catch(() => {
+        if (id !== routeRequestId.current) return;
+        toast.error(t('route_error'));
+      })
+      .finally(() => {
+        if (id === routeRequestId.current) setRouteLoading(false);
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [from, to, viaStops]);
+
+  // Auto-lock to private when stops are added
+  useEffect(() => {
+    if (viaStops.length > 0) {
+      setFormData((prev) => prev.ride_type !== 'private' ? { ...prev, ride_type: 'private' } : prev);
+    }
+  }, [viaStops.length]);
 
   // Handle "Pick on map" — reverse geocode then set field
   async function handleMapPick(lat: number, lng: number) {
-    setPickingField(null);
     const address = await reverseGeocode(lat, lng);
     const loc: LocationValue = { address, lat, lng };
-    if (pickingField === 'from') setFrom(loc);
-    else if (pickingField === 'to') setTo(loc);
+    if (pickingStopIdx >= 0) {
+      const next = [...viaStops];
+      next[pickingStopIdx] = loc;
+      setViaStops(next);
+      setPickingStopIdx(-1);
+    } else if (pickingField === 'from') {
+      setFrom(loc);
+    } else if (pickingField === 'to') {
+      setTo(loc);
+    }
+    setPickingField(null);
   }
 
   // Handle "Current location" from search bar
@@ -108,33 +150,57 @@ export default function MapPage() {
     } else {
       setPendingLocField(field);
       locate();
-      toast('Getting your location…', { icon: '📡' });
+      toast(t('getting_location'), { icon: '📡' });
     }
   }
 
+  // Handle locate-me button: toggle live tracking + re-centre map
+  const mapPanRef = useRef<((lat: number, lng: number) => void) | null>(null);
+
+  function handleLocateMe() {
+    if (liveTracking) {
+      stopLive();
+    } else {
+      startLive();
+    }
+  }
+
+  // Re-centre whenever live position updates
+  useEffect(() => {
+    if (liveTracking && userLat && userLng && mapPanRef.current) {
+      mapPanRef.current(userLat, userLng);
+    }
+  }, [liveTracking, userLat, userLng]);
+
   function handleSubmit() {
     if (from && to) saveRecentRoute(from, to);
-    toast.success('Request submitted! Finding you a driver…');
+    toast.success(t('request_submitted'));
     router.push('/user/my-requests');
   }
 
   return (
     <div
+      dir="ltr"
       className="relative"
       style={{ width: '100vw', height: 'calc(100dvh - 64px)', overflow: 'hidden', marginLeft: 'calc(-50vw + 50%)', position: 'relative' }}
     >
       {/* Full-screen map */}
       <div style={{ position: 'absolute', inset: 0, zIndex: 0 }}>
-        <UserMap
+      <UserMap
           from={from}
           to={to}
           routes={routes}
           selectedRouteIndex={selectedRouteIndex}
           onRouteClick={setSelectedRouteIndex}
           userLoc={userLocPoint}
+          userHeading={userHeading}
+          userAccuracy={userAccuracy}
+          liveTracking={liveTracking}
+          onLocateMe={handleLocateMe}
           pickingField={pickingField}
           onMapPick={handleMapPick}
           walk_minutes={mockUser.walk_minutes}
+          viaStops={viaStops}
         />
       </div>
 
@@ -147,12 +213,15 @@ export default function MapPage() {
         savedLocations={mockUser.saved_locations}
         onPickOnMap={(field) => { setPickingField(field); }}
         onCurrentLocation={handleCurrentLocation}
+        viaStops={viaStops}
+        onViaStopsChange={(stops) => setViaStops(stops.slice(0, 2))}
+        onPickStopOnMap={(idx) => { setPickingStopIdx(idx); setPickingField('stop'); }}
       />
 
       {/* Locate-me button */}
       <button
-        onClick={locate}
-        title="Use my location"
+        onClick={handleLocateMe}
+        title={t('locate_me')}
         style={{ position: 'absolute', top: 16, right: 16, zIndex: 1000, background: '#fff', border: 'none', borderRadius: 12, width: 44, height: 44, boxShadow: '0 2px 12px rgba(0,0,0,0.15)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
       >
         {locating ? (
@@ -160,25 +229,26 @@ export default function MapPage() {
             <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
           </svg>
         ) : (
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0B1E3D" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={liveTracking ? '#4361EE' : '#0B1E3D'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+            <circle cx="12" cy="12" r="7" strokeOpacity="0.3" />
           </svg>
         )}
       </button>
 
       {/* Pick-on-map instruction banner */}
-      {pickingField && (
+      {(pickingField || pickingStopIdx >= 0) && (
         <div style={{ position: 'absolute', top: 80, left: '50%', transform: 'translateX(-50%)', zIndex: 1001, background: '#0B1E3D', color: '#fff', borderRadius: 20, padding: '10px 20px', fontSize: 13, fontWeight: 600, boxShadow: '0 2px 12px rgba(0,0,0,0.25)', display: 'flex', alignItems: 'center', gap: 10, whiteSpace: 'nowrap' }}>
           <span>🗺</span>
-          Tap the map to pick your {pickingField === 'from' ? 'starting point' : 'destination'}
-          <button onClick={() => setPickingField(null)} style={{ background: 'none', border: 'none', color: '#A0AEC0', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: 0 }}>✕</button>
+          {pickingStopIdx >= 0 ? t('pick_stop') : pickingField === 'from' ? t('pick_start') : t('pick_dest')}
+          <button onClick={() => { setPickingField(null); setPickingStopIdx(-1); }} style={{ background: 'none', border: 'none', color: '#A0AEC0', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: 0 }}>{t('pick_banner_cancel')}</button>
         </div>
       )}
 
       {/* Route loading indicator */}
-      {routeLoading && !pickingField && (
+      {routeLoading && !pickingField && pickingStopIdx < 0 && (
         <div style={{ position: 'absolute', top: 80, left: '50%', transform: 'translateX(-50%)', zIndex: 1000, background: 'white', borderRadius: 20, padding: '8px 16px', fontSize: 13, color: '#5A6A7A', boxShadow: '0 2px 12px rgba(0,0,0,0.12)' }}>
-          Calculating route…
+          {t('calculating_route')}
         </div>
       )}
 
@@ -195,6 +265,7 @@ export default function MapPage() {
           onSubmit={handleSubmit}
           step={step}
           onStepChange={setStep}
+          hasStops={viaStops.length > 0}
         />
 
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>

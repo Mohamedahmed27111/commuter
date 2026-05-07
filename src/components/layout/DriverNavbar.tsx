@@ -5,16 +5,20 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react';
 import { Menu, X, ChevronDown, LogOut, User } from 'lucide-react';
 import { getName, clearSession } from '@/lib/auth';
-
-const LINKS = [
-  { label: 'Requests',  href: '/driver/requests'  },
-  { label: 'My Cycles', href: '/driver/my-cycles'  },
-  { label: 'Profile',   href: '/driver/profile'    },
-];
+import LanguageToggle from './LanguageToggle';
+import { useTranslations } from 'next-intl';
 
 export default function DriverNavbar() {
+  const t = useTranslations('nav');
+  const tCommon = useTranslations('common');
   const pathname    = usePathname();
   const router      = useRouter();
+
+  const LINKS = [
+    { label: t('requests'),   href: '/driver/requests'  },
+    { label: t('my_cycles'),  href: '/driver/my-cycles' },
+    { label: t('profile'),    href: '/driver/profile'   },
+  ];
   const [mobileOpen,    setMobileOpen]    = useState(false);
   const [dropdownOpen,  setDropdownOpen]  = useState(false);
   const [driverName,    setDriverName]    = useState('Driver');
@@ -115,8 +119,10 @@ export default function DriverNavbar() {
           })}
         </div>
 
-        {/* Right slot — user dropdown (desktop) */}
-        <div ref={dropdownRef} style={{ marginLeft: 'auto', position: 'relative', zIndex: 1 }} className="hidden md:block">
+        {/* Right slot — language toggle + user dropdown (desktop) */}
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, position: 'relative', zIndex: 1 }} className="hidden md:flex">
+          <LanguageToggle inverted />
+        <div ref={dropdownRef} style={{ position: 'relative' }}>
           <button
             onClick={() => setDropdownOpen((v) => !v)}
             style={{
@@ -158,17 +164,18 @@ export default function DriverNavbar() {
                 className="cnav-drop-item"
                 style={{ color: '#0B1E3D' }}
               >
-                <User size={15} /> Profile
+                <User size={15} /> {t('profile')}
               </Link>
               <button
                 onClick={handleLogout}
                 className="cnav-drop-item cnav-drop-danger"
                 style={{ color: '#E74C3C', textAlign: 'left' }}
               >
-                <LogOut size={15} /> Sign out
+                <LogOut size={15} /> {tCommon('sign_out')}
               </button>
             </div>
           )}
+        </div>
         </div>
 
         {/* Mobile hamburger */}
@@ -230,7 +237,7 @@ export default function DriverNavbar() {
             className="mobile-link"
             style={{ color: '#E74C3C', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', width: '100%', textAlign: 'left' }}
           >
-            <LogOut size={16} style={{ marginRight: 10 }} /> Sign out
+            <LogOut size={16} style={{ marginRight: 10 }} /> {tCommon('sign_out')}
           </button>
         </div>
       </div>

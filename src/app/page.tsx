@@ -3,31 +3,35 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { Car, Users } from 'lucide-react';
+import { useTranslations } from 'next-intl';
+import LanguageToggle from '@/components/layout/LanguageToggle';
 
 type Role = 'driver' | 'passenger';
 
-const ROLES = {
-  driver: {
-    icon: <Car size={26} color="#0B1E3D" strokeWidth={2.5} />,
-    iconBg: '#00C2A8',
-    accentColor: '#00C2A8',
-    title: "I'm a Driver",
-    description: 'Drive weekly routes, earn predictable income on your own schedule.',
-    primaryBtn:   { label: 'Apply now', href: '/driver/sign-up' },
-    secondaryBtn: { label: 'Sign in',   href: '/driver/sign-in' },
-  },
-  passenger: {
-    icon: <Users size={26} color="#0B1E3D" strokeWidth={2.5} />,
-    iconBg: '#00C2A8',
-    accentColor: '#00C2A8',
-    title: "I'm a Passenger",
-    description: 'Book pooled rides and save on your daily commute every week.',
-    primaryBtn:   { label: 'Sign up', href: '/sign-up' },
-    secondaryBtn: { label: 'Sign in', href: '/sign-in' },
-  },
-} as const;
-
 export default function Home() {
+  const t = useTranslations('home');
+  const tCommon = useTranslations('common');
+
+  const ROLES = {
+    driver: {
+      icon: <Car size={26} color="#0B1E3D" strokeWidth={2.5} />,
+      iconBg: '#00C2A8',
+      accentColor: '#00C2A8',
+      title: t('driver_card_title'),
+      description: t('driver_card_desc'),
+      primaryBtn:   { label: t('driver_cta_apply'),  href: '/driver/sign-up' },
+      secondaryBtn: { label: t('driver_cta_signin'), href: '/driver/sign-in' },
+    },
+    passenger: {
+      icon: <Users size={26} color="#0B1E3D" strokeWidth={2.5} />,
+      iconBg: '#00C2A8',
+      accentColor: '#00C2A8',
+      title: t('passenger_card_title'),
+      description: t('passenger_card_desc'),
+      primaryBtn:   { label: t('passenger_cta_signup'), href: '/sign-up' },
+      secondaryBtn: { label: t('passenger_cta_signin'), href: '/sign-in' },
+    },
+  } as const;
   const [active,    setActive]    = useState<Role>('driver');
   const [displayed, setDisplayed] = useState<Role>('driver');
   const [phase,     setPhase]     = useState<'idle' | 'exiting' | 'entering'>('idle');
@@ -95,6 +99,9 @@ export default function Home() {
           <span style={{ color: '#0B1E3D', fontWeight: 900, fontSize: 17, lineHeight: 1 }}>C</span>
         </div>
         <span style={{ color: '#ffffff', fontWeight: 700, fontSize: 20, letterSpacing: '0.02em' }}>commuter</span>
+        <div style={{ marginLeft: 'auto', filter: 'invert(1) brightness(2)' }}>
+          <LanguageToggle />
+        </div>
       </header>
 
       {/* ── Hero ── */}
@@ -112,10 +119,10 @@ export default function Home() {
           margin: '0 0 14px',
           letterSpacing: '-0.02em',
         }}>
-          Welcome to Commuter
+          {t('headline')}
         </h1>
         <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 17, margin: '0 0 48px', lineHeight: 1.5 }}>
-          Egypt&apos;s smarter way to share the ride.
+          {t('subheadline')}
         </p>
 
         {/* ── Toggle pill ── */}
@@ -150,7 +157,7 @@ export default function Home() {
                   letterSpacing: '0.01em',
                 }}
               >
-                {key === 'driver' ? 'Driver' : 'Passenger'}
+                {key === 'driver' ? t('driver_card_title') : t('passenger_card_title')}
               </button>
             );
           })}

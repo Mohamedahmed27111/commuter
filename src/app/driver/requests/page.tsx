@@ -8,20 +8,12 @@ import RequestDetailDrawer from '@/components/driver/RequestDetailDrawer';
 import RaisePriceModal from '@/components/driver/RaisePriceModal';
 import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useTranslations } from 'next-intl';
 
 type SortKey     = 'nearest-start' | 'farthest-start' | 'shortest-distance' | 'longest-distance' | 'most-passengers' | 'highest-price';
 type RideTypeFlt = 'any' | 'shared' | 'private';
 type GenderFlt   = 'any' | 'mixed' | 'same';
 type WalkFlt     = 'any' | '0' | '5' | '10';
-
-const SORT_OPTIONS: { key: SortKey; label: string }[] = [
-  { key: 'nearest-start',     label: 'Nearest start date' },
-  { key: 'farthest-start',    label: 'Farthest start date' },
-  { key: 'shortest-distance', label: 'Shortest distance' },
-  { key: 'longest-distance',  label: 'Longest distance' },
-  { key: 'most-passengers',   label: 'Most passengers' },
-  { key: 'highest-price',     label: 'Highest price' },
-];
 
 const DRIVER_GENDER = mockDriver.gender;
 
@@ -45,6 +37,16 @@ function pageBtn(active: boolean, disabled: boolean): React.CSSProperties {
 }
 
 export default function RequestsPage() {
+  const t = useTranslations('driver_requests');
+
+  const SORT_OPTIONS: { key: SortKey; label: string }[] = [
+    { key: 'nearest-start',     label: t('sort_nearest') },
+    { key: 'farthest-start',    label: t('sort_farthest') },
+    { key: 'shortest-distance', label: t('sort_shortest') },
+    { key: 'longest-distance',  label: t('sort_longest') },
+    { key: 'most-passengers',   label: t('sort_most_passengers') },
+    { key: 'highest-price',     label: t('sort_highest_price') },
+  ];
   const [requests,      setRequests]      = useState<DriverCycleRequest[]>(
     () => mockRequests.filter((r) => r.status === 'available')
   );
@@ -122,9 +124,9 @@ export default function RequestsPage() {
 
       {/* Page header */}
       <div>
-        <h1 style={{ fontSize: 26, fontWeight: 700, color: '#0B1E3D', margin: 0 }}>Available Requests</h1>
+        <h1 style={{ fontSize: 26, fontWeight: 700, color: '#0B1E3D', margin: 0 }}>{t('page_title')}</h1>
         <p style={{ color: '#5A6A7A', fontSize: 14, margin: '4px 0 0' }}>
-          Cycles looking for a driver — review and respond
+          {t('page_subtitle')}
         </p>
       </div>
 
@@ -170,10 +172,10 @@ export default function RequestsPage() {
         }}>
           <Calendar size={40} style={{ color: '#00C2A8', margin: '0 auto 16px' }} />
           <p style={{ fontSize: 18, fontWeight: 600, color: '#0B1E3D', margin: '0 0 8px' }}>
-            No available requests right now.
+            {t('empty_title')}
           </p>
           <p style={{ fontSize: 14, color: '#5A6A7A', margin: 0 }}>
-            New cycles are posted every week. Check back soon!
+            {t('empty_subtitle')}
           </p>
         </div>
       ) : (

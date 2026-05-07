@@ -77,7 +77,7 @@ export default function ProfilePage() {
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <span style={{ color: '#F5A623', fontSize: 18 }}>â˜…</span>
+                <span style={{ color: '#F5A623', fontSize: 18 }}>{'\u2605'}</span>
                 <span style={{ fontSize: 16, fontWeight: 700, color: '#0B1E3D' }}>
                   {profile.rating.toFixed(1)}
                 </span>

@@ -1,5 +1,4 @@
-// TODO: replace with self-hosted OSRM instance in production
-const OSRM_URL = 'https://router.project-osrm.org/route/v1/driving';
+// Routing powered by Google Directions API (via /api/directions)
 
 export interface Waypoint {
   lat: number;
@@ -8,27 +7,16 @@ export interface Waypoint {
 }
 
 export interface OSRMRoute {
-  coordinates:      [number, number][]; // [lat, lng] pairs for Leaflet
+  coordinates:      [number, number][]; // [lat, lng] pairs
   distance_km:      number;
   duration_minutes: number;
 }
 
-function parseRoute(route: { geometry: { coordinates: [number, number][] }; distance: number; duration: number }): OSRMRoute {
-  return {
-    coordinates: route.geometry.coordinates.map(
-      ([lng, lat]: [number, number]) => [lat, lng] as [number, number]
-    ),
-    distance_km:      Math.round((route.distance / 1000) * 10) / 10,
-    duration_minutes: Math.round(route.duration / 60),
-  };
-}
-
 function cacheKey(waypoints: Waypoint[]): string {
-  return `osrm:${waypoints.map((w) => `${w.lat.toFixed(4)},${w.lng.toFixed(4)}`).join('→')}`;
+  return `directions:${waypoints.map((w) => `${w.lat.toFixed(4)},${w.lng.toFixed(4)}`).join('→')}`;
 }
 
 export async function fetchRoadRoute(waypoints: Waypoint[]): Promise<OSRMRoute> {
-  if (waypoints.length < 2) throw new Error('Need at least 2 waypoints');
   const routes = await fetchRoadRoutes(waypoints);
   return routes[0];
 }
@@ -42,18 +30,24 @@ export async function fetchRoadRoutes(waypoints: Waypoint[]): Promise<OSRMRoute[
     if (cached) return JSON.parse(cached);
   }
 
-  const coords = waypoints.map((w) => `${w.lng},${w.lat}`).join(';');
-  const url = `${OSRM_URL}/${coords}?overview=full&geometries=geojson&steps=false&alternatives=true`;
+  const origin = `${waypoints[0].lat},${waypoints[0].lng}`;
+  const dest   = `${waypoints[waypoints.length - 1].lat},${waypoints[waypoints.length - 1].lng}`;
 
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`OSRM request failed: ${res.status}`);
+  const url = new URL('/api/directions', typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000');
+  url.searchParams.set('origin', origin);
+  url.searchParams.set('dest', dest);
 
-  const data = await res.json();
-  if (data.code !== 'Ok' || !data.routes?.length) {
-    throw new Error('No route found');
+  // Middle stops (everything except first and last)
+  const stops = waypoints.slice(1, -1);
+  if (stops.length > 0) {
+    url.searchParams.set('waypoints', stops.map((w) => `${w.lat},${w.lng}`).join('|'));
   }
 
-  const result: OSRMRoute[] = (data.routes as typeof data.routes[0][]).map(parseRoute);
+  const res = await fetch(url.toString());
+  if (!res.ok) throw new Error(`Directions request failed: ${res.status}`);
+
+  const result: OSRMRoute[] = await res.json();
+  if (!result.length) throw new Error('No route found');
 
   if (typeof sessionStorage !== 'undefined') {
     try { sessionStorage.setItem(key, JSON.stringify(result)); } catch { /* quota */ }
@@ -61,3 +55,4 @@ export async function fetchRoadRoutes(waypoints: Waypoint[]): Promise<OSRMRoute[
 
   return result;
 }
+

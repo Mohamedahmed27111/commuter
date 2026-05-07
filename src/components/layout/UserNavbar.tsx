@@ -6,17 +6,21 @@ import { useState, useEffect, useRef } from 'react';
 import { ChevronDown, LogOut, User, Wallet, Bell } from 'lucide-react';
 import { getName, clearSession } from '@/lib/auth';
 import { mockNotifications } from '@/lib/mockUser';
-
-const LINKS = [
-  { label: 'Map', href: '/user/map' },
-  { label: 'My Requests', href: '/user/my-requests' },
-  { label: 'Profile', href: '/user/profile' },
-];
+import LanguageToggle from './LanguageToggle';
+import { useTranslations } from 'next-intl';
 
 export default function UserNavbar() {
+  const t = useTranslations('nav');
+  const tCommon = useTranslations('common');
   const pathname = usePathname();
   const router = useRouter();
   const isMapPage = pathname === '/user/map';
+
+  const LINKS = [
+    { label: t('map'),         href: '/user/map' },
+    { label: t('my_requests'), href: '/user/my-requests' },
+    { label: t('profile'),     href: '/user/profile' },
+  ];
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [userName, setUserName] = useState('User');
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -61,6 +65,7 @@ export default function UserNavbar() {
 
       {/* Desktop only */}
       <nav
+        dir="ltr"
         className={`hidden md:flex ${isMapPage ? 'navbar-glass' : ''}`}
         style={{
           position: 'sticky',
@@ -137,8 +142,10 @@ export default function UserNavbar() {
           })}
         </div>
 
-        {/* Right: user avatar + dropdown */}
-        <div style={{ marginLeft: 'auto', position: 'relative', zIndex: 1 }} ref={dropdownRef}>
+        {/* Right: language toggle + user avatar + dropdown */}
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, position: 'relative', zIndex: 1 }}>
+          <LanguageToggle />
+        <div ref={dropdownRef} style={{ position: 'relative' }}>
           <button
             onClick={() => setDropdownOpen((o) => !o)}
             style={{
@@ -215,15 +222,15 @@ export default function UserNavbar() {
             >
               <Link href="/user/profile" className="unav-drop-item" onClick={() => setDropdownOpen(false)}>
                 <User size={16} />
-                Profile
+                {t('profile')}
               </Link>
               <Link href="/user/wallet" className="unav-drop-item" onClick={() => setDropdownOpen(false)}>
                 <Wallet size={16} />
-                Wallet
+                {t('wallet')}
               </Link>
               <Link href="/user/notifications" className="unav-drop-item" onClick={() => setDropdownOpen(false)}>
                 <Bell size={16} />
-                Notifications
+                {t('notifications')}
                 {unreadCount > 0 && (
                   <span
                     style={{
@@ -243,10 +250,11 @@ export default function UserNavbar() {
               <div style={{ height: 1, background: '#E2E8F0', margin: '4px 0' }} />
               <button className="unav-drop-item unav-drop-danger" onClick={handleLogout}>
                 <LogOut size={16} />
-                Sign out
+                {tCommon('sign_out')}
               </button>
             </div>
           )}
+        </div>
         </div>
       </nav>
     </>

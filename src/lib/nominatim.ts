@@ -1,49 +1,40 @@
-const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search';
+// Address search powered by Google Places API (via /api/places/*)
 
 export interface NominatimResult {
-  place_id: number;
-  display_name: string;
-  lat: string;
-  lon: string;
+  place_id: string;     // Google place_id
+  display_name: string; // Full description e.g. "Tahrir Square, Cairo, Egypt"
 }
 
 export async function searchAddress(query: string): Promise<NominatimResult[]> {
   if (!query || query.length < 3) return [];
-
-  const params = new URLSearchParams({
-    q: query + ', Egypt',
-    format: 'json',
-    addressdetails: '1',
-    limit: '5',
-    countrycodes: 'eg',
-  });
-
-  const res = await fetch(`${NOMINATIM_URL}?${params}`, {
-    headers: {
-      'Accept-Language': 'en',
-      'User-Agent': 'Commuter-App/1.0 (contact@commuter.eg)',
-    },
-  });
-
-  if (!res.ok) throw new Error('Nominatim search failed');
-  return res.json();
+  try {
+    const res = await fetch(`/api/places/autocomplete?q=${encodeURIComponent(query)}`);
+    if (!res.ok) return [];
+    return res.json();
+  } catch {
+    return [];
+  }
 }
 
 export function formatDisplayName(displayName: string): string {
-  const parts = displayName.split(', ');
-  return parts.slice(0, 3).join(', ');
+  // Remove trailing ", Egypt" or ", مصر" for cleaner display
+  return displayName.replace(/, (Egypt|مصر)$/, '').trim();
+}
+
+export async function getPlaceDetails(placeId: string): Promise<{ lat: number; lng: number }> {
+  const res = await fetch(`/api/places/details?id=${encodeURIComponent(placeId)}`);
+  if (!res.ok) throw new Error('Place details fetch failed');
+  return res.json();
 }
 
 export async function reverseGeocode(lat: number, lng: number): Promise<string> {
   try {
-    const params = new URLSearchParams({ lat: String(lat), lon: String(lng), format: 'json' });
-    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?${params}`, {
-      headers: { 'Accept-Language': 'en', 'User-Agent': 'Commuter-App/1.0 (contact@commuter.eg)' },
-    });
+    const res = await fetch(`/api/geocode/reverse?lat=${lat}&lng=${lng}`);
     if (!res.ok) throw new Error();
     const data = await res.json();
-    return formatDisplayName(data.display_name ?? '');
+    return data.address ?? `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
   } catch {
     return `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
   }
 }
+

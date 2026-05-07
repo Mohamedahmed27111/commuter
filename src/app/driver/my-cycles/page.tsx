@@ -8,18 +8,14 @@ import RequestDetailDrawer from '@/components/driver/RequestDetailDrawer';
 import RaisePriceModal from '@/components/driver/RaisePriceModal';
 import { MapPin, Users, RotateCcw, ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useTranslations } from 'next-intl';
 
 type TabKey       = 'currently' | 'pending' | 'completed';
 type SubFilter    = 'all' | 'nextweek' | 'nextmonth' | 'next3months';
 type SortKey      = 'newest' | 'oldest' | 'highest-earnings' | 'most-passengers';
 
 const COMPLETED_PAGE_SIZE = 15;
-const SORT_OPTIONS: { key: SortKey; label: string }[] = [
-  { key: 'newest',           label: 'Newest first' },
-  { key: 'oldest',           label: 'Oldest first' },
-  { key: 'highest-earnings', label: 'Highest earnings' },
-  { key: 'most-passengers',  label: 'Most passengers' },
-];
+const SORT_KEYS: SortKey[] = ['newest', 'oldest', 'highest-earnings', 'most-passengers'];
 
 // ── Date helpers ────────────────────────────────────────────────────────
 const today = () => new Date();
@@ -240,6 +236,7 @@ function CancelDialog({ cycle, onConfirm, onClose }: {
 
 // ── Main page ────────────────────────────────────────────────────────────
 export default function MyCyclesPage() {
+  const t = useTranslations('my_cycles');
   const [cycles,        setCycles]        = useState<DriverCycleRequest[]>(mockRequests);
   const [activeTab,     setActiveTab]     = useState<TabKey>('currently');
   const [subFilter,     setSubFilter]     = useState<SubFilter>('all');
@@ -315,9 +312,9 @@ export default function MyCyclesPage() {
 
   // ── Tab bar ──────────────────────────────────────────────────────────
   const TABS: { key: TabKey; label: string }[] = [
-    { key: 'currently', label: 'Currently' },
-    { key: 'pending',   label: 'Pending' },
-    { key: 'completed', label: 'Completed' },
+    { key: 'currently', label: t('tab_currently') },
+    { key: 'pending',   label: t('tab_pending') },
+    { key: 'completed', label: t('tab_completed') },
   ];
 
   return (
@@ -328,9 +325,9 @@ export default function MyCyclesPage() {
 
       {/* Page header */}
       <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 26, fontWeight: 700, color: '#0B1E3D', margin: 0 }}>My Cycles</h1>
+        <h1 style={{ fontSize: 26, fontWeight: 700, color: '#0B1E3D', margin: 0 }}>{t('page_title')}</h1>
         <p style={{ color: '#5A6A7A', fontSize: 14, margin: '4px 0 0' }}>
-          Your accepted cycles — past, present and upcoming
+          {t('page_subtitle')}
         </p>
       </div>
 
@@ -459,13 +456,20 @@ export default function MyCyclesPage() {
               />
             </div>
             <select value={sortKey} onChange={(e) => { setSortKey(e.target.value as SortKey); setPage(1); }} style={SEL}>
-              {SORT_OPTIONS.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
+              {SORT_KEYS.map((key) => (
+                <option key={key} value={key}>
+                  {key === 'newest'           ? t('sort_newest')
+                 : key === 'oldest'           ? t('sort_oldest')
+                 : key === 'highest-earnings' ? t('sort_earnings')
+                 :                             t('sort_passengers')}
+                </option>
+              ))}
             </select>
           </div>
 
           {filteredCompleted.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '48px 24px', background: '#fff', borderRadius: 12, border: '1px solid #E2E8F0' }}>
-              <p style={{ fontSize: 16, fontWeight: 600, color: '#0B1E3D', margin: '0 0 6px' }}>No completed cycles found.</p>
+              <p style={{ fontSize: 16, fontWeight: 600, color: '#0B1E3D', margin: '0 0 6px' }}>{t('empty_completed')}</p>
               <p style={{ fontSize: 14, color: '#5A6A7A', margin: 0 }}>{search ? 'Try a different search term.' : 'Completed cycles will appear here.'}</p>
             </div>
           ) : (

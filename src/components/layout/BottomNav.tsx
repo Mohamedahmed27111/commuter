@@ -1,62 +1,56 @@
-'use client';
+﻿'use client';
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { mockNotifications } from '@/lib/mockUser';
 
-const NAV_ITEMS = [
-  {
-    label: 'Map',
-    href: '/user/map',
-    icon: (active: boolean) => (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={active ? '#00C2A8' : '#5A6A7A'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21" />
-        <line x1="9" y1="3" x2="9" y2="18" />
-        <line x1="15" y1="6" x2="15" y2="21" />
-      </svg>
-    ),
-  },
-  {
-    label: 'Requests',
-    href: '/user/my-requests',
-    icon: (active: boolean) => (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={active ? '#00C2A8' : '#5A6A7A'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-        <polyline points="14 2 14 8 20 8" />
-        <line x1="16" y1="13" x2="8" y2="13" />
-        <line x1="16" y1="17" x2="8" y2="17" />
-        <polyline points="10 9 9 9 8 9" />
-      </svg>
-    ),
-  },
-  {
-    label: 'Alerts',
-    href: '/user/notifications',
-    icon: (active: boolean) => (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={active ? '#00C2A8' : '#5A6A7A'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-        <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-      </svg>
-    ),
-  },
-  {
-    label: 'Profile',
-    href: '/user/profile',
-    icon: (active: boolean) => (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={active ? '#00C2A8' : '#5A6A7A'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-        <circle cx="12" cy="7" r="4" />
-      </svg>
-    ),
-  },
-];
+const NAV_ICONS = {
+  map: (active: boolean) => (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={active ? '#00C2A8' : '#5A6A7A'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21" />
+      <line x1="9" y1="3" x2="9" y2="18" />
+      <line x1="15" y1="6" x2="15" y2="21" />
+    </svg>
+  ),
+  requests: (active: boolean) => (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={active ? '#00C2A8' : '#5A6A7A'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <polyline points="14 2 14 8 20 8" />
+      <line x1="16" y1="13" x2="8" y2="13" />
+      <line x1="16" y1="17" x2="8" y2="17" />
+      <polyline points="10 9 9 9 8 9" />
+    </svg>
+  ),
+  notifications: (active: boolean) => (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={active ? '#00C2A8' : '#5A6A7A'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+    </svg>
+  ),
+  profile: (active: boolean) => (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={active ? '#00C2A8' : '#5A6A7A'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
+    </svg>
+  ),
+} as const;
 
 export default function BottomNav() {
+  const t = useTranslations('nav');
   const pathname = usePathname();
   const unreadCount = mockNotifications.filter((n) => !n.isRead).length;
 
+  const NAV_ITEMS = [
+    { key: 'map' as const,           label: t('map'),           href: '/user/map' },
+    { key: 'requests' as const,      label: t('my_requests'),   href: '/user/my-requests' },
+    { key: 'notifications' as const, label: t('notifications'), href: '/user/notifications' },
+    { key: 'profile' as const,       label: t('profile'),       href: '/user/profile' },
+  ];
+
   return (
     <nav
+      dir="ltr"
       className="flex md:hidden"
       style={{
         position: 'fixed',
@@ -74,7 +68,7 @@ export default function BottomNav() {
     >
       {NAV_ITEMS.map((item) => {
         const active = pathname === item.href || pathname.startsWith(item.href + '/');
-        const isAlerts = item.href === '/user/notifications';
+        const isAlerts = item.key === 'notifications';
 
         return (
           <Link
@@ -92,7 +86,6 @@ export default function BottomNav() {
               minHeight: 44,
             }}
           >
-            {/* Active indicator dot */}
             {active && (
               <div
                 style={{
@@ -106,9 +99,8 @@ export default function BottomNav() {
               />
             )}
 
-            {/* Icon with optional badge */}
             <div style={{ position: 'relative' }}>
-              {item.icon(active)}
+              {NAV_ICONS[item.key](active)}
               {isAlerts && unreadCount > 0 && (
                 <span
                   style={{

@@ -7,6 +7,7 @@ import { mockRequests } from '@/lib/mockUser';
 import RequestStatusCard from '@/components/user/my-requests/RequestStatusCard';
 import PriceRaisedBanner from '@/components/user/request/PriceRaisedBanner';
 import EmptyState from '@/components/shared/EmptyState';
+import { useTranslations } from 'next-intl';
 
 type Tab = 'active' | 'pending' | 'completed' | 'cancelled';
 
@@ -25,6 +26,7 @@ function filterByTab(requests: UserRequest[], tab: Tab): UserRequest[] {
 }
 
 export default function MyRequestsPage() {
+  const t = useTranslations('my_requests');
   const [requests, setRequests] = useState<UserRequest[]>(mockRequests);
   const [activeTab, setActiveTab] = useState<Tab>('active');
 
@@ -42,7 +44,7 @@ export default function MyRequestsPage() {
     setRequests((prev) =>
       prev.map((r) => (r.id === id ? { ...r, status: 'cancelled' as RequestStatus } : r))
     );
-    toast.success('Request cancelled.');
+    toast.success(t('toast_cancelled'));
   }
 
   function handleAcceptPrice(id: string) {
@@ -51,7 +53,7 @@ export default function MyRequestsPage() {
         r.id === id ? { ...r, status: 'confirmed' as RequestStatus, base_price: r.offered_price ?? r.base_price } : r
       )
     );
-    toast.success('Ride confirmed! 🎉');
+    toast.success(t('toast_confirmed'));
   }
 
   function handleDeclinePrice(id: string) {
@@ -60,14 +62,14 @@ export default function MyRequestsPage() {
         r.id === id ? { ...r, status: 'matching' as RequestStatus, offered_price: undefined } : r
       )
     );
-    toast('Looking for another driver for you.', { icon: '🔍' });
+    toast(t('toast_finding_driver'), { icon: '🔍' });
   }
 
   const TABS: { key: Tab; label: string }[] = [
-    { key: 'active', label: 'Active' },
-    { key: 'pending', label: 'Pending' },
-    { key: 'completed', label: 'Completed' },
-    { key: 'cancelled', label: 'Cancelled' },
+    { key: 'active',    label: t('tab_active') },
+    { key: 'pending',   label: t('tab_pending') },
+    { key: 'completed', label: t('tab_completed') },
+    { key: 'cancelled', label: t('tab_cancelled') },
   ];
 
   return (
@@ -81,10 +83,10 @@ export default function MyRequestsPage() {
       {/* Header */}
       <div style={{ marginBottom: 20 }}>
         <h1 style={{ margin: '0 0 4px', fontSize: 24, fontWeight: 700, color: '#0B1E3D' }}>
-          My Requests
+          {t('page_title')}
         </h1>
         <p style={{ margin: 0, fontSize: 14, color: '#5A6A7A' }}>
-          Track all your pooling requests
+          {t('page_subtitle')}
         </p>
       </div>
 
@@ -141,16 +143,16 @@ export default function MyRequestsPage() {
             icon={activeTab === 'completed' ? '🏁' : activeTab === 'cancelled' ? '❌' : '📋'}
             title={
               activeTab === 'active'
-                ? 'No active requests'
+                ? t('empty_active')
                 : activeTab === 'pending'
-                ? 'No pending requests'
+                ? t('empty_pending')
                 : activeTab === 'completed'
-                ? 'No completed cycles yet'
-                : 'No cancelled requests'
+                ? t('empty_completed')
+                : t('empty_cancelled')
             }
             description={
               activeTab === 'active' || activeTab === 'pending'
-                ? 'Go to the map to submit a new ride request.'
+                ? t('empty_active_desc')
                 : undefined
             }
           />

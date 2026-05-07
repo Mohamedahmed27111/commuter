@@ -13,6 +13,11 @@ export interface RequestFormData {
   seat_preference:      SelectedSeat | 'any';
   start_date:           string;
   days:                 WeekDay[];
+  // Per-day departure times
+  timeMode:             'same' | 'per_day';
+  unifiedTimeFrom:      string;              // departure window start (same-time mode)
+  unifiedTimeTo:        string;              // departure window end (same-time mode)
+  perDayTimes:          Partial<Record<WeekDay, { from: string; to: string }>>;
   arrival_from:         string;
   arrival_to:           string;
   return_arrival_from:  string;
@@ -30,6 +35,8 @@ interface RequestFormProps {
   showErrors?: boolean;
   distanceKm: number;
   durationMinutes: number;
+  /** When true (via stops added), shared ride button is locked to private */
+  lockedToPrivate?: boolean;
   /** Profile-level preferences (read-only, not shown in form) */
   walkMinutes?: 0 | 5 | 10;
 }
@@ -41,6 +48,7 @@ export default function RequestForm({
   showErrors = false,
   distanceKm,
   durationMinutes,
+  lockedToPrivate = false,
   walkMinutes = 0,
 }: RequestFormProps) {
   const [shake, setShake] = useState(false);
@@ -123,25 +131,33 @@ export default function RequestForm({
         }
       `}</style>
 
-      {/* 1. Trip type */}
+      {/* 1. Ride type */}
       <div>
         <div style={{ fontSize: 13, fontWeight: 600, color: '#5A6A7A', marginBottom: 8 }}>
           Trip type
         </div>
-        <RideTypeCards value={data.ride_type} onChange={(v) => update({ ride_type: v })} />
+        <RideTypeCards value={data.ride_type} onChange={(v) => update({ ride_type: v })} lockedToPrivate={lockedToPrivate} />
+        {lockedToPrivate && (
+          <div style={{ marginTop: 8, display: 'flex', alignItems: 'flex-start', gap: 8, background: '#FAEEDA', border: '1px solid #F6D580', borderRadius: 8, padding: '10px 12px' }}>
+            <span style={{ fontSize: 16, flexShrink: 0 }}>🔒</span>
+            <span style={{ fontSize: 12, color: '#BA7517', lineHeight: 1.4 }}>Shared ride unavailable — stop points require a private car.</span>
+          </div>
+        )}
       </div>
 
-      {/* 2. Seat preference */}
-      <div>
-        <div style={{ fontSize: 13, fontWeight: 600, color: '#5A6A7A', marginBottom: 12 }}>
-          Seat preference
+      {/* 2. Seat preference — only for shared rides */}
+      {data.ride_type === 'shared' && (
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: '#5A6A7A', marginBottom: 12 }}>
+            Seat preference
+          </div>
+          <SeatSelector
+            selectedSeat={data.seat_preference}
+            onSeatSelect={(s) => update({ seat_preference: s })}
+            takenSeats={[]}
+          />
         </div>
-        <SeatSelector
-          selectedSeat={data.seat_preference}
-          onSeatSelect={(s) => update({ seat_preference: s })}
-          takenSeats={[]}
-        />
-      </div>
+      )}
 
       {/* 3. Trip type */}
       <div>
@@ -190,29 +206,122 @@ export default function RequestForm({
         )}
       </div>
 
-      {/* 5. Days of the week */}
+      {/* 5. Days of the week + departure time */}
       <div>
-        <div style={{ fontSize: 13, fontWeight: 600, color: '#5A6A7A', marginBottom: 8 }}>
-          Days of the week
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: '#5A6A7A' }}>Days of the week</div>
+          {/* Mode toggle */}
+          <div style={{ display: 'flex', border: '1.5px solid #E2E8F0', borderRadius: 8, overflow: 'hidden' }}>
+            {(['same', 'per_day'] as const).map((mode) => (
+              <button key={mode} type="button"
+                onClick={() => {
+                  if (mode === data.timeMode) return;
+                  if (mode === 'per_day') {
+                    const filled: Partial<Record<WeekDay, { from: string; to: string }>> = {};
+                    data.days.forEach((d) => {
+                      filled[d] = data.perDayTimes[d] || { from: data.unifiedTimeFrom || '07:30', to: data.unifiedTimeTo || '09:00' };
+                    });
+                    update({ timeMode: 'per_day', perDayTimes: filled });
+                  } else {
+                    const first = data.days[0];
+                    const firstVal = first && data.perDayTimes[first];
+                    update({
+                      timeMode: 'same',
+                      unifiedTimeFrom: firstVal?.from || data.unifiedTimeFrom || '07:30',
+                      unifiedTimeTo:   firstVal?.to   || data.unifiedTimeTo   || '09:00',
+                    });
+                  }
+                }}
+                style={{ padding: '5px 12px', fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer', fontFamily: 'inherit', background: data.timeMode === mode ? '#0B1E3D' : '#fff', color: data.timeMode === mode ? '#fff' : '#5A6A7A', transition: 'all 0.15s' }}
+              >
+                {mode === 'same' ? 'Same time' : 'Per day'}
+              </button>
+            ))}
+          </div>
         </div>
         <DaysPicker
           selected={data.days}
-          onChange={(days) => update({ days })}
+          onChange={(days) => {
+            const filled: Partial<Record<WeekDay, { from: string; to: string }>> = {};
+            days.forEach((d) => {
+              filled[d] = data.perDayTimes[d] || { from: data.unifiedTimeFrom || '07:30', to: data.unifiedTimeTo || '09:00' };
+            });
+            update({ days, perDayTimes: filled });
+          }}
           error={daysError}
           startDate={data.start_date}
         />
+        {/* Time input(s) */}
+        <div style={{ marginTop: 12 }}>
+          {data.timeMode === 'same' ? (
+            <div>
+              <div style={{ fontSize: 12, color: '#5A6A7A', marginBottom: 6 }}>Departure window for all selected days</div>
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 11, color: '#A0AEC0', marginBottom: 4 }}>From</div>
+                  <input type="time" value={data.unifiedTimeFrom || '07:30'}
+                    onChange={(e) => {
+                      const from = e.target.value;
+                      const filled: Partial<Record<WeekDay, { from: string; to: string }>> = {};
+                      data.days.forEach((d) => { filled[d] = { from, to: data.perDayTimes[d]?.to || data.unifiedTimeTo || '09:00' }; });
+                      update({ unifiedTimeFrom: from, perDayTimes: filled });
+                    }}
+                    style={{ width: '100%', height: 44, border: `1.5px solid ${daysError ? '#EF4444' : '#E2E8F0'}`, borderRadius: 10, padding: '0 12px', fontSize: 14, color: '#0B1E3D', background: '#fff', outline: 'none', fontFamily: 'inherit', cursor: 'pointer', boxSizing: 'border-box' }}
+                  />
+                </div>
+                <div style={{ color: '#CBD5E0', paddingBottom: 12, flexShrink: 0, fontSize: 16 }}>—</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 11, color: '#A0AEC0', marginBottom: 4 }}>To</div>
+                  <input type="time" value={data.unifiedTimeTo || '09:00'}
+                    onChange={(e) => {
+                      const to = e.target.value;
+                      const filled: Partial<Record<WeekDay, { from: string; to: string }>> = {};
+                      data.days.forEach((d) => { filled[d] = { from: data.perDayTimes[d]?.from || data.unifiedTimeFrom || '07:30', to }; });
+                      update({ unifiedTimeTo: to, perDayTimes: filled });
+                    }}
+                    style={{ width: '100%', height: 44, border: `1.5px solid ${daysError ? '#EF4444' : '#E2E8F0'}`, borderRadius: 10, padding: '0 12px', fontSize: 14, color: '#0B1E3D', background: '#fff', outline: 'none', fontFamily: 'inherit', cursor: 'pointer', boxSizing: 'border-box' }}
+                  />
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {data.days.map((day) => {
+                const val = data.perDayTimes[day] || { from: '', to: '' };
+                const hasErr = showErrors && (!val.from || !val.to);
+                return (
+                  <div key={day} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <div style={{ width: 32, fontSize: 12, fontWeight: 600, color: '#5A6A7A', flexShrink: 0 }}>{day}</div>
+                    <input type="time" value={val.from}
+                      onChange={(e) => {
+                        const next = { ...data.perDayTimes, [day]: { from: e.target.value, to: val.to } };
+                        update({ perDayTimes: next });
+                      }}
+                      style={{ flex: 1, height: 40, border: `1.5px solid ${hasErr && !val.from ? '#EF4444' : '#E2E8F0'}`, borderRadius: 8, padding: '0 8px', fontSize: 12, color: '#0B1E3D', background: '#fff', outline: 'none', fontFamily: 'inherit', cursor: 'pointer', boxSizing: 'border-box' }}
+                    />
+                    <div style={{ color: '#CBD5E0', fontSize: 13, flexShrink: 0 }}>—</div>
+                    <input type="time" value={val.to}
+                      onChange={(e) => {
+                        const next = { ...data.perDayTimes, [day]: { from: val.from, to: e.target.value } };
+                        update({ perDayTimes: next });
+                      }}
+                      style={{ flex: 1, height: 40, border: `1.5px solid ${hasErr && !val.to ? '#EF4444' : '#E2E8F0'}`, borderRadius: 8, padding: '0 8px', fontSize: 12, color: '#0B1E3D', background: '#fff', outline: 'none', fontFamily: 'inherit', cursor: 'pointer', boxSizing: 'border-box' }}
+                    />
+                    <button type="button"
+                      onClick={() => {
+                        const next: Partial<Record<WeekDay, { from: string; to: string }>> = {};
+                        data.days.forEach((d) => { next[d] = { from: val.from, to: val.to }; });
+                        update({ perDayTimes: next });
+                      }}
+                      style={{ fontSize: 10, color: '#00C2A8', background: 'none', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', padding: '0 2px', fontFamily: 'inherit', fontWeight: 600, flexShrink: 0 }}
+                    >Copy all</button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
-
-      {/* 6. Arrival time window */}
-      <ArrivalWindowPicker
-        label="When do you want to arrive?"
-        arrival_from={data.arrival_from}
-        arrival_to={data.arrival_to}
-        departure_from={data.departure_from}
-        departure_to={data.departure_to}
-        onChange={handleArrivalWindowChange}
-        error={arrivalError}
-      />
 
       {/* 7. Return arrival window — round trip only */}
       <div
@@ -284,9 +393,11 @@ export default function RequestForm({
 function RideTypeCards({
   value,
   onChange,
+  lockedToPrivate = false,
 }: {
   value: RideType;
   onChange: (v: RideType) => void;
+  lockedToPrivate?: boolean;
 }) {
   const options: Array<{
     key: RideType;
@@ -303,18 +414,19 @@ function RideTypeCards({
     <div className="trip-mode-cards" style={{ display: 'flex', gap: 10 }}>
       {options.map((opt) => {
         const active = value === opt.key;
+        const locked = lockedToPrivate && opt.key === 'shared';
         return (
           <button
             key={opt.key}
             type="button"
-            onClick={() => onChange(opt.key)}
+            onClick={() => !locked && onChange(opt.key)}
             style={{
               flex: 1,
               minHeight: 100,
               border: active ? '2px solid #00C2A8' : '1.5px solid #E2E8F0',
               borderRadius: 10,
               background: active ? '#EFF7F6' : '#fff',
-              cursor: 'pointer',
+              cursor: locked ? 'not-allowed' : 'pointer',
               fontFamily: 'inherit',
               padding: '12px 10px',
               display: 'flex',
@@ -322,6 +434,8 @@ function RideTypeCards({
               alignItems: 'flex-start',
               gap: 4,
               transition: 'all 0.15s',
+              opacity: locked ? 0.38 : 1,
+              pointerEvents: locked ? 'none' : undefined,
             }}
           >
             <div

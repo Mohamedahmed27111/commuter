@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
-import { searchAddress, formatDisplayName, type NominatimResult } from '@/lib/nominatim';
+import { searchAddress, formatDisplayName, getPlaceDetails, type NominatimResult } from '@/lib/nominatim';
 import type { SavedLocation } from '@/types/user';
 
 interface LocationValue {
@@ -75,20 +75,36 @@ export default function LocationSearch({
     debounceSearch(val, setToResults, setToLoading, toTimer);
   }
 
-  function selectFrom(result: NominatimResult) {
+  async function selectFrom(result: NominatimResult) {
     const addr = formatDisplayName(result.display_name);
     setFromText(addr);
-    setFromResults([]);
-    onFromChange({ address: addr, lat: parseFloat(result.lat), lng: parseFloat(result.lon) });
-    setActiveField(null);
+    setFromLoading(true);
+    try {
+      const details = await getPlaceDetails(result.place_id);
+      setFromResults([]);
+      onFromChange({ address: addr, lat: details.lat, lng: details.lng });
+    } catch {
+      setFromResults([]);
+    } finally {
+      setFromLoading(false);
+      setActiveField(null);
+    }
   }
 
-  function selectTo(result: NominatimResult) {
+  async function selectTo(result: NominatimResult) {
     const addr = formatDisplayName(result.display_name);
     setToText(addr);
-    setToResults([]);
-    onToChange({ address: addr, lat: parseFloat(result.lat), lng: parseFloat(result.lon) });
-    setActiveField(null);
+    setToLoading(true);
+    try {
+      const details = await getPlaceDetails(result.place_id);
+      setToResults([]);
+      onToChange({ address: addr, lat: details.lat, lng: details.lng });
+    } catch {
+      setToResults([]);
+    } finally {
+      setToLoading(false);
+      setActiveField(null);
+    }
   }
 
   function selectSavedFrom(loc: SavedLocation) {

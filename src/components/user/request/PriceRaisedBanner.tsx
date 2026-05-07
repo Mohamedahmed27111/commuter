@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import type { UserRequest } from '@/types/user';
 import BottomSheet from '@/components/shared/BottomSheet';
 
@@ -30,6 +31,7 @@ function PriceRaisedModal({
   onAccept: () => void;
   onDecline: () => void;
 }) {
+  const t = useTranslations('my_requests');
   const OFFER_DURATION = 24 * 60 * 60; // 24h in seconds
   const [secondsLeft, setSecondsLeft] = useState(OFFER_DURATION);
 
@@ -52,13 +54,13 @@ function PriceRaisedModal({
   const content = (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div>
-        <div style={{ fontSize: 13, color: '#5A6A7A', marginBottom: 2 }}>Route</div>
+        <div style={{ fontSize: 13, color: '#5A6A7A', marginBottom: 2 }}>{t('modal_route_label')}</div>
         <div style={{ fontSize: 14, fontWeight: 700, color: '#0B1E3D' }}>
           {request.origin.address} → {request.destination.address}
         </div>
         <div style={{ fontSize: 13, color: '#5A6A7A', marginTop: 4 }}>
           {request.days.join(', ')} · {request.departure_to} ·{' '}
-          {request.trip_type === 'one_way' ? 'One way' : 'Round trip'}
+          {request.trip_type === 'one_way' ? t('one_way') : t('round_trip')}
         </div>
       </div>
 
@@ -74,13 +76,13 @@ function PriceRaisedModal({
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
-          <span style={{ color: '#5A6A7A' }}>Original price</span>
+          <span style={{ color: '#5A6A7A' }}>{t('price_raised_original')}</span>
           <span style={{ fontWeight: 600, color: '#0B1E3D' }}>
             EGP {request.base_price} / week
           </span>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15 }}>
-          <span style={{ color: '#5A6A7A' }}>New price</span>
+          <span style={{ color: '#5A6A7A' }}>{t('price_raised_new')}</span>
           <span style={{ fontWeight: 700, color: '#F57F17' }}>
             EGP {request.offered_price} / week
             <span style={{ fontSize: 12, marginLeft: 6, color: '#5A6A7A' }}>
@@ -125,7 +127,7 @@ function PriceRaisedModal({
             </div>
             {request.driver_rating && (
               <div style={{ fontSize: 12, color: '#5A6A7A' }}>
-                ★ {request.driver_rating}
+                {'★'} {request.driver_rating}
               </div>
             )}
           </div>
@@ -146,7 +148,7 @@ function PriceRaisedModal({
       >
         <span>⏳</span>
         <span style={{ color: '#0B1E3D' }}>
-          Offer expires in{' '}
+          {t('price_raised_expires')}{' '}
           <strong style={{ fontVariantNumeric: 'tabular-nums' }}>
             {formatCountdown(secondsLeft)}
           </strong>
@@ -171,7 +173,7 @@ function PriceRaisedModal({
             minHeight: 48,
           }}
         >
-          Decline — find another driver
+          {t('price_raised_decline')}
         </button>
         <button
           onClick={onAccept}
@@ -189,7 +191,7 @@ function PriceRaisedModal({
             minHeight: 48,
           }}
         >
-          Accept new price
+          {t('price_raised_accept')}
         </button>
       </div>
     </div>
@@ -226,8 +228,8 @@ function PriceRaisedModal({
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                 <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#0B1E3D' }}>
-                  Driver&apos;s new price offer
-                </h3>
+                {t('price_raised_modal_title')}
+              </h3>
                 <button
                   onClick={onClose}
                   style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, color: '#5A6A7A', minWidth: 44, minHeight: 44 }}
@@ -241,7 +243,7 @@ function PriceRaisedModal({
         )}
       </div>
       <div className="md:hidden">
-        <BottomSheet isOpen={isOpen} onClose={onClose} title="Driver's new price offer">
+        <BottomSheet isOpen={isOpen} onClose={onClose} title={t('price_raised_modal_title')}>
           {content}
         </BottomSheet>
       </div>
@@ -254,6 +256,7 @@ export default function PriceRaisedBanner({
   onAccept,
   onDecline,
 }: PriceRaisedBannerProps) {
+  const t = useTranslations('my_requests');
   const [modalOpen, setModalOpen] = useState(false);
 
   function handleAccept() {
@@ -276,22 +279,23 @@ export default function PriceRaisedBanner({
           padding: 16,
           display: 'flex',
           flexDirection: 'column',
-          gap: 8,
+          gap: 12,
           marginBottom: 16,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-          <span style={{ fontSize: 18 }}>⚠️</span>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 700, fontSize: 14, color: '#0B1E3D' }}>
-              A driver has offered a new price for one of your rides
-            </div>
-            <div style={{ fontSize: 13, color: '#5A6A7A', marginTop: 2 }}>
-              {request.origin.address} → {request.destination.address} ·{' '}
-              <strong style={{ color: '#F57F17' }}>EGP {request.offered_price}/week</strong>
-              {' '}(was EGP {request.base_price})
-            </div>
-          </div>
+        <div style={{ fontWeight: 700, fontSize: 14, color: '#0B1E3D' }}>
+          {t('banner_updated_title')}
+        </div>
+        <div style={{ fontSize: 13, color: '#5A6A7A' }}>
+          {t('banner_subtitle')}
+        </div>
+        <div style={{ fontSize: 13, color: '#0B1E3D', fontWeight: 600 }}>
+          {request.origin.address} → {request.destination.address}
+        </div>
+        <div style={{ fontSize: 13, color: '#0B1E3D', fontWeight: 600 }}>
+          <span style={{ color: '#5A6A7A' }}>EGP {request.base_price}/week</span>
+          {' → '}
+          <span style={{ color: '#F57F17' }}>EGP {request.offered_price}/week</span>
         </div>
         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
           <button
@@ -309,7 +313,7 @@ export default function PriceRaisedBanner({
               minHeight: 40,
             }}
           >
-            Review offer
+            {t('price_raised_review_btn')}
           </button>
         </div>
       </div>

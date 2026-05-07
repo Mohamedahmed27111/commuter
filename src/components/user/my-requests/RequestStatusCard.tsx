@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import type { UserRequest } from '@/types/user';
 import StatusPill from '@/components/shared/StatusPill';
 import StatusTimeline from './StatusTimeline';
@@ -48,6 +49,7 @@ export default function RequestStatusCard({
   onCancel,
   onViewDetails,
 }: RequestStatusCardProps) {
+  const t = useTranslations('my_requests');
   const [expanded, setExpanded] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
 
@@ -102,7 +104,7 @@ export default function RequestStatusCard({
         >
           <span>{request.distance_km} km</span>
           <span>·</span>
-          <span>{request.trip_type === 'one_way' ? 'One way' : 'Round trip'}</span>
+          <span>{request.trip_type === 'one_way' ? t('one_way') : t('round_trip')}</span>
           <span>·</span>
           {request.seat_preference !== 'any' && (
             <>
@@ -150,7 +152,7 @@ export default function RequestStatusCard({
             </div>
             <span style={{ fontWeight: 600, color: '#0B1E3D' }}>{request.driver_name}</span>
             {request.driver_rating && (
-              <span style={{ color: '#5A6A7A' }}>★ {request.driver_rating}</span>
+              <span style={{ color: '#5A6A7A' }}>{'★'} {request.driver_rating}</span>
             )}
           </div>
         )}
@@ -171,15 +173,15 @@ export default function RequestStatusCard({
             }}
           >
             <div style={{ fontSize: 12, fontWeight: 700, color: '#5A6A7A', padding: '8px 14px 4px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              Your preferences
+              {t('prefs_title')}
             </div>
             {[
-              ['Trip type', request.ride_type === 'shared' ? '🧑‍🤝‍🧑 Shared ride' : '🚗 Private'],
-              ['Gender preference', request.gender_pref === 'same' ? '♂♀ Same gender' : '♂♀ Mixed'],
-              ['Walk to pickup',
-                request.walk_minutes === 10 ? '🚶 10 min (~800 m) · -15%' :
-                request.walk_minutes === 5  ? '🚶 5 min (~400 m) · -8%' :
-                '🚶 No walk (door pickup)'],
+              [t('pref_ride_type'), request.ride_type === 'shared' ? `🧑‍🤝‍🧑 ${t('ride_shared')}` : `🚗 ${t('ride_private')}`],
+              [t('pref_gender'), request.gender_pref === 'same' ? `♂♀ ${t('gender_same')}` : `♂♀ ${t('gender_mixed')}`],
+              [t('pref_walk'),
+                request.walk_minutes === 10 ? `🚶 ${t('walk_10')}` :
+                request.walk_minutes === 5  ? `🚶 ${t('walk_5')}` :
+                `🚶 ${t('walk_door')}`],
             ].map(([label, value], i) => (
               <div
                 key={label}
@@ -208,12 +210,12 @@ export default function RequestStatusCard({
                 fontSize: 13,
               }}
             >
-              <span style={{ color: '#5A6A7A' }}>Seat preference</span>
+              <span style={{ color: '#5A6A7A' }}>{t('pref_seat')}</span>
               {request.seat_preference === 'any' ? (
                 <span style={{ color: '#0B1E3D', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  💺 Any seat
+                  🚺 {t('seat_any')}
                   <span style={{ fontSize: 11, color: '#166534', background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 20, padding: '1px 8px' }}>
-                    Free
+                    {t('seat_free')}
                   </span>
                 </span>
               ) : (
@@ -246,7 +248,7 @@ export default function RequestStatusCard({
                 minHeight: 36,
               }}
             >
-              {expanded ? 'Hide co-riders' : 'Co-riders'}
+              {expanded ? t('hide_riders') : t('show_riders')}
             </button>
           )}
           <button
@@ -264,7 +266,7 @@ export default function RequestStatusCard({
               minHeight: 36,
             }}
           >
-            {expanded ? 'Hide details' : 'View details'}
+            {expanded ? t('hide_details') : t('view_details')}
           </button>
           {canCancel && (
             <button
@@ -282,7 +284,7 @@ export default function RequestStatusCard({
                 minHeight: 36,
               }}
             >
-              Cancel
+              {t('cancel_btn')}
             </button>
           )}
         </div>

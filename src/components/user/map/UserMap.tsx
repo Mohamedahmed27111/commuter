@@ -39,9 +39,14 @@ interface UserMapProps {
   selectedRouteIndex: number;
   onRouteClick: (i: number) => void;
   userLoc: { lat: number; lng: number } | null;
-  pickingField?: 'from' | 'to' | null;
+  userHeading?: number | null;
+  userAccuracy?: number | null;
+  liveTracking?: boolean;
+  onLocateMe?: () => void;
+  pickingField?: 'from' | 'to' | 'stop' | null;
   onMapPick?: (lat: number, lng: number) => void;
   walk_minutes?: 0 | 5 | 10;
+  viaStops?: { lat: number; lng: number; address: string }[];
 }
 
 export default function UserMap({
@@ -51,9 +56,14 @@ export default function UserMap({
   selectedRouteIndex,
   onRouteClick,
   userLoc,
+  userHeading = null,
+  userAccuracy = null,
+  liveTracking = false,
+  onLocateMe,
   pickingField = null,
   onMapPick,
   walk_minutes = 0,
+  viaStops = [],
 }: UserMapProps) {
   const { isLoaded } = useJsApiLoader({ id: 'google-map-script', googleMapsApiKey: API_KEY });
   const mapRef   = useRef<google.maps.Map | null>(null);
@@ -184,6 +194,20 @@ export default function UserMap({
           />
         )}
 
+        {/* ── Via stop markers (amber numbered) ─────────────── */}
+        {viaStops.map((s, i) => (
+          <Marker
+            key={`stop-${i}`}
+            position={{ lat: s.lat, lng: s.lng }}
+            icon={{
+              url: `data:image/svg+xml;utf-8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36"><circle cx="18" cy="18" r="16" fill="%23F59E0B" stroke="%23fff" stroke-width="2.5"/><text x="18" y="23" text-anchor="middle" font-family="Arial,sans-serif" font-size="14" font-weight="700" fill="%23fff">${i + 1}</text></svg>`)}`,
+              scaledSize: new google.maps.Size(36, 36),
+              anchor: new google.maps.Point(18, 18),
+            }}
+            zIndex={15}
+          />
+        ))}
+
         {/* ── Destination marker ───────────────────────────────── */}
         {to && (
           <Marker
@@ -193,7 +217,19 @@ export default function UserMap({
           />
         )}
 
-        {/* ── Pulsing GPS dot ──────────────────────────────────── */}
+        {/* ── Accuracy circle ──────────────────────────────────── */}
+        {userLoc && userAccuracy != null && userAccuracy < 500 && (
+          <Circle
+            center={{ lat: userLoc.lat, lng: userLoc.lng }}
+            radius={userAccuracy}
+            options={{
+              strokeColor: '#4361EE', strokeOpacity: 0.35, strokeWeight: 1,
+              fillColor: '#4361EE', fillOpacity: 0.06,
+            }}
+          />
+        )}
+
+        {/* ── Live GPS dot with optional heading cone ───────────── */}
         {userLoc && (
           <OverlayView
             position={{ lat: userLoc.lat, lng: userLoc.lng }}
@@ -201,8 +237,15 @@ export default function UserMap({
             getPixelPositionOffset={() => ({ x: -20, y: -20 })}
           >
             <div className="gps-overlay">
-              <div className="gps-ring" />
-              <div className="gps-ring gps-ring-delay" />
+              {/* Heading cone — only show when heading is available */}
+              {userHeading != null && (
+                <div
+                  className="gps-heading-cone"
+                  style={{ transform: `rotate(${userHeading}deg)` }}
+                />
+              )}
+              {liveTracking && <div className="gps-ring" />}
+              {liveTracking && <div className="gps-ring gps-ring-delay" />}
               <div className="gps-core" />
             </div>
           </OverlayView>

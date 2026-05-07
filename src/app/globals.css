@@ -182,6 +182,46 @@ body {
     0 0 0 4px rgba(37, 99, 235, 0.14);
 }
 
+/* ── Heading cone (direction arrow) ─────────────────────── */
+.gps-heading-cone {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  /* Triangle pointing up; rotated by heading in JS */
+  width: 0;
+  height: 0;
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+  border-bottom: 24px solid rgba(37, 99, 235, 0.38);
+  transform-origin: 0 12px;
+  margin-left: -7px;
+  margin-top: -22px;
+  pointer-events: none;
+  filter: blur(1px);
+}
+
+/* ── Locate-me button ────────────────────────────────────── */
+.map-locate-btn {
+  position: absolute;
+  right: 16px;
+  bottom: 236px;   /* just above zoom controls */
+  z-index: 500;
+  width: 44px;
+  height: 44px;
+  background: #ffffff;
+  border: none;
+  border-radius: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #0B1E3D;
+  box-shadow:
+    0 2px 16px rgba(0, 0, 0, 0.13),
+    0 0 0 1px rgba(0, 0, 0, 0.06);
+  transition: background 0.15s, color 0.15s;
+}
+
 /* ── Route distance/time badge ───────────────────────────── */
 .route-badge {
   display: inline-flex;
@@ -257,4 +297,127 @@ body {
   right: 4px !important;
   opacity: 0.55;
 }
+
+/* ══════════════════════════════════════════════════════════
+   FONTS — Arabic / RTL
+   ══════════════════════════════════════════════════════════ */
+
+[dir="rtl"] body {
+  font-family: var(--font-cairo), system-ui, sans-serif;
+}
+
+/* ══════════════════════════════════════════════════════════
+   RTL GLOBAL OVERRIDES
+   ══════════════════════════════════════════════════════════ */
+
+/* Default text alignment flip */
+[dir="rtl"] {
+  text-align: right;
+}
+
+/* Inline-block directional icons (arrows, chevrons) */
+[dir="rtl"] .icon-directional {
+  transform: scaleX(-1);
+}
+
+/* Route arrow between origin and destination */
+[dir="rtl"] .route-arrow {
+  transform: scaleX(-1);
+  display: inline-block;
+}
+
+/* Left-border accents flip to right */
+[dir="rtl"] .border-l-accent {
+  border-left: none;
+  border-right: 4px solid #00C2A8;
+}
+
+/* Floating search bar — swap left to right */
+[dir="rtl"] .floating-search {
+  left: auto;
+  right: 1rem;
+}
+
+/* Locate me button — swap right to left */
+[dir="rtl"] .locate-btn {
+  right: auto;
+  left: 1rem;
+}
+
+/* Nearby commuters chip — swap left to right */
+[dir="rtl"] .nearby-chip {
+  left: auto;
+  right: 1rem;
+}
+
+/* Drawer — slides from left in RTL */
+[dir="rtl"] .drawer {
+  right: auto;
+  left: 0;
+  transform: translateX(-100%);
+}
+[dir="rtl"] .drawer.open {
+  transform: translateX(0);
+}
+
+/* Status timeline — reverse direction */
+[dir="rtl"] .status-timeline {
+  flex-direction: row-reverse;
+}
+
+/* Price raised banner — border flips */
+[dir="rtl"] .price-raised-banner {
+  border-left: none;
+  border-right: 4px solid #F57F17;
+  border-radius: 0 8px 8px 0;
+}
+
+/* Input icons — swap padding side */
+[dir="rtl"] .input-icon-left {
+  padding-left: 16px;
+  padding-right: 48px;
+}
+
+/* Seat map — mirror car diagram horizontally */
+[dir="rtl"] .seat-map-svg {
+  transform: scaleX(-1);
+}
+
+/* Map zoom controls — flip to left side in RTL */
+[dir="rtl"] .map-zoom-controls {
+  right: auto;
+  left: 16px;
+}
+
+/* Leaflet popup text direction */
+[dir="rtl"] .leaflet-popup-content {
+  direction: rtl;
+  text-align: right;
+}
+
+/* Chip rows — RTL scroll direction */
+[dir="rtl"] .chip-row {
+  direction: rtl;
+}
+
+/* Slide-in animation RTL flip */
+[dir="rtl"] @keyframes slideInRight {
+  from { transform: translateX(120%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+
+/* Auth mobile bar border flip */
+[dir="rtl"] .auth-mobile-bar {
+  flex-direction: row-reverse;
+}
+
+/* Driver navbar mobile menu active border flip */
+[dir="rtl"] .mobile-link {
+  border-left: none;
+  border-right: 3px solid transparent;
+}
+[dir="rtl"] .mobile-link.active-link {
+  border-right-color: #00C2A8;
+}
+
 

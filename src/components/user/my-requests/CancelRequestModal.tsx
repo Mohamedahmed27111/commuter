@@ -1,5 +1,6 @@
 ﻿'use client';
 
+import { useTranslations } from 'next-intl';
 import type { UserRequest } from '@/types/user';
 import BottomSheet from '@/components/shared/BottomSheet';
 
@@ -16,17 +17,18 @@ export default function CancelRequestModal({
   request,
   onConfirm,
 }: CancelRequestModalProps) {
+  const t = useTranslations('my_requests');
   const hasDriver = ['confirmed', 'active', 'driver_offered', 'price_raised'].includes(request.status);
 
   const content = (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div style={{ fontSize: 15, fontWeight: 700, color: '#0B1E3D' }}>
-        Cancel this request?
+        {t('cancel_modal_title')}
       </div>
 
       <div style={{ fontSize: 14, color: '#5A6A7A' }}>
         <strong style={{ color: '#0B1E3D' }}>{request.origin.address}</strong>
-        {' â†’ '}
+        {' → '}
         <strong style={{ color: '#0B1E3D' }}>{request.destination.address}</strong>
         <br />
         {request.days.join(', ')} · {request.departure_from ?? ''}
@@ -44,13 +46,13 @@ export default function CancelRequestModal({
       >
         {hasDriver ? (
           <>
-            <strong>âš  After driver confirmed:</strong>
-            <br />A cancellation fee may apply
+            <strong>⚠ {t('cancel_after_title')}</strong>
+            <br />{t('cancel_after_body')}
           </>
         ) : (
           <>
-            <strong>âš  Before a driver is matched:</strong>
-            <br />Free cancellation â€” no charge
+            <strong>⚠ {t('cancel_before_title')}</strong>
+            <br />{t('cancel_before_body')}
           </>
         )}
       </div>
@@ -72,7 +74,7 @@ export default function CancelRequestModal({
             minHeight: 48,
           }}
         >
-          Keep my request
+          {t('cancel_keep_btn')}
         </button>
         <button
           onClick={onConfirm}
@@ -90,7 +92,7 @@ export default function CancelRequestModal({
             minHeight: 48,
           }}
         >
-          Yes, cancel it
+          {t('cancel_confirm_btn')}
         </button>
       </div>
     </div>
@@ -135,7 +137,7 @@ export default function CancelRequestModal({
 
       {/* Mobile bottom sheet */}
       <div className="md:hidden">
-        <BottomSheet isOpen={isOpen} onClose={onClose} title="Cancel request">
+        <BottomSheet isOpen={isOpen} onClose={onClose} title={t('cancel_sheet_title')}>
           {content}
         </BottomSheet>
       </div>

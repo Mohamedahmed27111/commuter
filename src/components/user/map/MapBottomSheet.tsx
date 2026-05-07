@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { differenceInDays, addDays } from 'date-fns';
 import type { OSRMRoute } from '@/lib/osrm';
 import type { LocationValue } from './FloatingSearchBar';
@@ -18,6 +19,7 @@ function getNextCycleDate(): Date {
 }
 
 function NextCycleCard() {
+  const t = useTranslations('map');
   const next = getNextCycleDate();
   const daysAway = differenceInDays(next, new Date());
   const [seats, setSeats] = useState<number | null>(null);
@@ -28,12 +30,12 @@ function NextCycleCard() {
 
   return (
     <div style={{ background: '#EFF7F6', borderLeft: '3px solid #00C2A8', borderRadius: 8, padding: '12px 16px', flexShrink: 0 }}>
-      <div style={{ fontSize: 12, fontWeight: 700, color: '#00C2A8', marginBottom: 2 }}>Next cycle available</div>
+      <div style={{ fontSize: 12, fontWeight: 700, color: '#00C2A8', marginBottom: 2 }}>{t('next_cycle_label')}</div>
       <div style={{ fontSize: 14, fontWeight: 600, color: '#0B1E3D' }}>
         {next.toLocaleDateString('en-EG', { weekday: 'short', month: 'short', day: 'numeric' })}
-        <span style={{ color: '#5A6A7A', fontWeight: 400 }}> · in {daysAway} day{daysAway !== 1 ? 's' : ''}</span>
+        <span style={{ color: '#5A6A7A', fontWeight: 400 }}> · {t('next_cycle_days', { count: daysAway })}</span>
       </div>
-      <div style={{ fontSize: 12, color: '#5A6A7A', marginTop: 2 }}>{seats !== null ? `${seats} seats remaining in this zone` : 'Checking availability…'}</div>
+      <div style={{ fontSize: 12, color: '#5A6A7A', marginTop: 2 }}>{seats !== null ? `${seats} ${t('next_cycle_seats')}` : t('availability_checking')}</div>
     </div>
   );
 }
@@ -44,10 +46,11 @@ function RouteSelector({ routes, selected, onSelect }: {
   selected: number;
   onSelect: (i: number) => void;
 }) {
+  const t = useTranslations('map');
   if (routes.length < 2) return null;
   return (
     <div>
-      <div style={{ fontSize: 13, fontWeight: 600, color: '#5A6A7A', marginBottom: 8 }}>Choose route</div>
+      <div style={{ fontSize: 13, fontWeight: 600, color: '#5A6A7A', marginBottom: 8 }}>{t('choose_route')}</div>
       <div style={{ display: 'flex', gap: 8 }}>
         {routes.map((r, i) => (
           <button key={i} onClick={() => onSelect(i)} style={{
@@ -55,7 +58,7 @@ function RouteSelector({ routes, selected, onSelect }: {
             borderRadius: 10, background: selected === i ? '#EFF7F6' : '#fff',
             cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
           }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: selected === i ? '#00C2A8' : '#5A6A7A' }}>Route {String.fromCharCode(65 + i)}</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: selected === i ? '#00C2A8' : '#5A6A7A' }}>{t('route_label', { index: i + 1 })}</div>
             <div style={{ fontSize: 13, fontWeight: 600, color: '#0B1E3D', marginTop: 2 }}>{r.distance_km} km · ~{r.duration_minutes} min</div>
           </button>
         ))}
@@ -98,6 +101,7 @@ interface MapBottomSheetProps {
   onSubmit: () => void;
   step: 'map' | 'form' | 'review';
   onStepChange: (s: 'map' | 'form' | 'review') => void;
+  hasStops?: boolean;
 }
 
 
@@ -113,7 +117,9 @@ export default function MapBottomSheet({
   onSubmit,
   step,
   onStepChange,
+  hasStops = false,
 }: MapBottomSheetProps) {
+  const t = useTranslations('map');
   // hidden | half | full
   const [sheetState, setSheetState] = useState<'hidden' | 'half' | 'full'>('hidden');
   const [showErrors, setShowErrors] = useState(false);
@@ -211,7 +217,7 @@ export default function MapBottomSheet({
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M18 15l-6-6-6 6" />
           </svg>
-          {route.distance_km} km · ~{route.duration_minutes} min · Plan commute
+          {route.distance_km} km · ~{route.duration_minutes} min · {t('plan_commute_tab')}
         </button>
       )}
 
@@ -277,7 +283,7 @@ export default function MapBottomSheet({
                     onClick={() => { onStepChange('form'); setSheetState('full'); }}
                     style={{ width: '100%', padding: 14, border: 'none', borderRadius: 12, background: '#00C2A8', color: '#0B1E3D', fontWeight: 700, fontSize: 15, cursor: 'pointer', fontFamily: 'inherit', minHeight: 48 }}
                   >
-                    Plan this commute →
+                    {t('plan_commute_btn')} →
                   </button>
                 )}
 
@@ -291,6 +297,7 @@ export default function MapBottomSheet({
                       showErrors={showErrors}
                       distanceKm={route.distance_km}
                       durationMinutes={route.duration_minutes}
+                      lockedToPrivate={hasStops}
                     />
                   </div>
                 )}
