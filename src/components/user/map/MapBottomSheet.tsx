@@ -2,70 +2,13 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import { differenceInDays, addDays } from 'date-fns';
-import type { OSRMRoute } from '@/lib/osrm';
 import type { LocationValue } from './FloatingSearchBar';
 import RequestForm, { type RequestFormData } from '@/components/user/request/RequestForm';
 import RequestSummaryCard from '@/components/user/request/RequestSummaryCard';
 import { mockUser } from '@/lib/mockUser';
-
-// ── Next cycle preview ────────────────────────────────────────────────────
-function getNextCycleDate(): Date {
-  const today = new Date();
-  // Cycles start on Saturdays
-  const day = today.getDay(); // 0=Sun
-  const daysUntilSat = day === 6 ? 7 : (6 - day);
-  return addDays(today, daysUntilSat);
-}
-
-function NextCycleCard() {
-  const t = useTranslations('map');
-  const next = getNextCycleDate();
-  const daysAway = differenceInDays(next, new Date());
-  const [seats, setSeats] = useState<number | null>(null);
-
-  useEffect(() => {
-    setSeats(Math.floor(Math.random() * 5) + 2);
-  }, []);
-
-  return (
-    <div style={{ background: '#EFF7F6', borderLeft: '3px solid #00C2A8', borderRadius: 8, padding: '12px 16px', flexShrink: 0 }}>
-      <div style={{ fontSize: 12, fontWeight: 700, color: '#00C2A8', marginBottom: 2 }}>{t('next_cycle_label')}</div>
-      <div style={{ fontSize: 14, fontWeight: 600, color: '#0B1E3D' }}>
-        {next.toLocaleDateString('en-EG', { weekday: 'short', month: 'short', day: 'numeric' })}
-        <span style={{ color: '#5A6A7A', fontWeight: 400 }}> · {t('next_cycle_days', { count: daysAway })}</span>
-      </div>
-      <div style={{ fontSize: 12, color: '#5A6A7A', marginTop: 2 }}>{seats !== null ? `${seats} ${t('next_cycle_seats')}` : t('availability_checking')}</div>
-    </div>
-  );
-}
-
-// ── Route selector ─────────────────────────────────────────────────────────
-function RouteSelector({ routes, selected, onSelect }: {
-  routes: OSRMRoute[];
-  selected: number;
-  onSelect: (i: number) => void;
-}) {
-  const t = useTranslations('map');
-  if (routes.length < 2) return null;
-  return (
-    <div>
-      <div style={{ fontSize: 13, fontWeight: 600, color: '#5A6A7A', marginBottom: 8 }}>{t('choose_route')}</div>
-      <div style={{ display: 'flex', gap: 8 }}>
-        {routes.map((r, i) => (
-          <button key={i} onClick={() => onSelect(i)} style={{
-            flex: 1, padding: '10px 12px', border: `1.5px solid ${selected === i ? '#00C2A8' : '#E2E8F0'}`,
-            borderRadius: 10, background: selected === i ? '#EFF7F6' : '#fff',
-            cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
-          }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: selected === i ? '#00C2A8' : '#5A6A7A' }}>{t('route_label', { index: i + 1 })}</div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: '#0B1E3D', marginTop: 2 }}>{r.distance_km} km · ~{r.duration_minutes} min</div>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
+import { useMap } from '@/lib/MapContext';
+import { useMounted } from '@/lib/useMounted';
+import { timeDiffMinutes } from '@/lib/timeUtils';
 
 // ── Quick destination chips ────────────────────────────────────────────────
 function QuickChips({ onSelect }: { onSelect: (loc: LocationValue) => void }) {
@@ -90,35 +33,24 @@ function QuickChips({ onSelect }: { onSelect: (loc: LocationValue) => void }) {
 
 // ── Main sheet ─────────────────────────────────────────────────────────────
 interface MapBottomSheetProps {
-  routes: OSRMRoute[];
-  selectedRouteIndex: number;
-  onSelectRoute: (i: number) => void;
-  from: LocationValue | null;
-  to: LocationValue | null;
-  onSetTo: (loc: LocationValue) => void;
   formData: RequestFormData;
   onFormChange: (d: RequestFormData) => void;
   onSubmit: () => void;
   step: 'map' | 'form' | 'review';
   onStepChange: (s: 'map' | 'form' | 'review') => void;
-  hasStops?: boolean;
 }
 
 
 export default function MapBottomSheet({
-  routes,
-  selectedRouteIndex,
-  onSelectRoute,
-  from,
-  to,
-  onSetTo,
   formData,
   onFormChange,
   onSubmit,
   step,
   onStepChange,
-  hasStops = false,
 }: MapBottomSheetProps) {
+  const { routes, origin: from, destination: to, setDestination, stopsForcedPrivate } = useMap();
+  const onSetTo = (loc: LocationValue) => setDestination(loc);
+  const hasStops = stopsForcedPrivate;
   const t = useTranslations('map');
   // hidden | half | full
   const [sheetState, setSheetState] = useState<'hidden' | 'half' | 'full'>('hidden');
@@ -128,7 +60,7 @@ export default function MapBottomSheet({
   const dragStartTranslate = useRef(0);
   const isDragging = useRef(false);
 
-  const route = routes[selectedRouteIndex] ?? null;
+  const route = routes[0] ?? null;
 
   // Open/close based on route availability
   useEffect(() => {
@@ -175,16 +107,39 @@ export default function MapBottomSheet({
   }, [sheetState]);
 
   function handleReview() {
-    const hasErrors = !formData.start_date || formData.days.length === 0 || !formData.arrival_from || !formData.arrival_to ||
-      (formData.trip_type === 'round_trip' && (!formData.return_arrival_from || !formData.return_arrival_to));
+    const hasSlots = formData.time_slots.length > 0;
+    const hasEmptySlotDays = formData.time_slots.some((slot) => slot.days.length === 0);
+    const hasInvalidPickupWindow = formData.time_slots.some((slot) => {
+      const gap = timeDiffMinutes(slot.pickup_from, slot.pickup_to);
+      return gap < 30 || gap > 120;
+    });
+    const hasInvalidArrivalWindow = formData.time_slots.some((slot) => {
+      const gap = timeDiffMinutes(slot.arrival_from, slot.arrival_to);
+      return gap < 30 || gap > 120;
+    });
+    const hasInvalidReturnWindow = formData.time_slots.some((slot) => {
+      if (slot.trip_type !== 'round_trip') return false;
+      if (!slot.return_pickup_from || !slot.return_pickup_to || !slot.return_arrival_from || !slot.return_arrival_to) return true;
+      const gap = timeDiffMinutes(slot.return_pickup_from, slot.return_pickup_to);
+      const arrivalGap = timeDiffMinutes(slot.return_arrival_from, slot.return_arrival_to);
+      if (arrivalGap < 30 || arrivalGap > 120) return true;
+      return gap < 30 || gap > 120;
+    });
+
+    const assignedDays = formData.time_slots.flatMap((slot) => slot.days);
+    const hasDuplicateDay = new Set(assignedDays).size !== assignedDays.length;
+    const hasErrors = !formData.start_date || !hasSlots || hasEmptySlotDays || hasInvalidPickupWindow || hasInvalidArrivalWindow || hasInvalidReturnWindow || hasDuplicateDay;
+
     if (hasErrors) { setShowErrors(true); return; }
     setShowErrors(false);
     onStepChange('review');
     setSheetState('full');
   }
 
-  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
-  const bottomOffset = isMobile ? 64 : 0;
+  const mounted = useMounted();
+  // Use 0 on server/first render so server and client HTML match (no hydration mismatch).
+  // After mount, switch to 64px on mobile to account for the bottom nav.
+  const bottomOffset = mounted ? (window.innerWidth < 768 ? 64 : 0) : 0;
 
   const translateMap: Record<typeof sheetState, string> = {
     hidden: 'translateY(100%)',
@@ -274,8 +229,7 @@ export default function MapBottomSheet({
                 {/* Quick chips */}
                 {!to && <div style={{ marginBottom: 12 }}><QuickChips onSelect={onSetTo} /></div>}
 
-                {/* Next cycle */}
-                <div style={{ marginBottom: 12 }}><NextCycleCard /></div>
+         
 
                 {/* CTA or form */}
                 {step === 'map' && (
@@ -289,14 +243,12 @@ export default function MapBottomSheet({
 
                 {step === 'form' && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                    <RouteSelector routes={routes} selected={selectedRouteIndex} onSelect={onSelectRoute} />
                     <RequestForm
                       data={formData}
                       onChange={onFormChange}
                       onReview={handleReview}
                       showErrors={showErrors}
                       distanceKm={route.distance_km}
-                      durationMinutes={route.duration_minutes}
                       lockedToPrivate={hasStops}
                     />
                   </div>

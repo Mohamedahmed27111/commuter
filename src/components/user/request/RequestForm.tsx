@@ -1,31 +1,23 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import { useLocale } from 'next-intl';
 import type { WeekDay, RideType } from '@/types/user';
-import { computeDeparture, addHours, timeDiffMinutes, formatTimeWindow } from '@/lib/timeUtils';
+import type { TimeSlot } from '@/types/shared';
+import {
+  ALL_DAYS,
+  timeDiffMinutes,
+} from '@/lib/timeUtils';
 import { calculatePriceRange } from '@/lib/pricing';
-import DaysPicker from './DaysPicker';
-import SeatSelector, { type SelectedSeat } from './SeatSelector';
+import { getNextAvailableCycleStart, formatCycleStartDate } from '@/lib/cycleUtils';
+import ScheduleBuilder from './ScheduleBuilder';
 
 export interface RequestFormData {
-  trip_type:            'one_way' | 'round_trip';
   ride_type:            RideType;
-  seat_preference:      SelectedSeat | 'any';
-  start_date:           string;
+  seat_preference:      'any';  // kept for API compat; value always 'any' (set in profile)
+  start_date:           string; // auto-computed from cycle utils, read-only
   days:                 WeekDay[];
-  // Per-day departure times
-  timeMode:             'same' | 'per_day';
-  unifiedTimeFrom:      string;              // departure window start (same-time mode)
-  unifiedTimeTo:        string;              // departure window end (same-time mode)
-  perDayTimes:          Partial<Record<WeekDay, { from: string; to: string }>>;
-  arrival_from:         string;
-  arrival_to:           string;
-  return_arrival_from:  string;
-  return_arrival_to:    string;
-  departure_from:       string;   // computed
-  departure_to:         string;   // computed
-  return_departure_from: string;  // computed
-  return_departure_to:  string;   // computed
+  time_slots:           TimeSlot[];
 }
 
 interface RequestFormProps {
@@ -34,7 +26,6 @@ interface RequestFormProps {
   onReview: () => void;
   showErrors?: boolean;
   distanceKm: number;
-  durationMinutes: number;
   /** When true (via stops added), shared ride button is locked to private */
   lockedToPrivate?: boolean;
   /** Profile-level preferences (read-only, not shown in form) */
@@ -47,69 +38,237 @@ export default function RequestForm({
   onReview,
   showErrors = false,
   distanceKm,
-  durationMinutes,
   lockedToPrivate = false,
   walkMinutes = 0,
 }: RequestFormProps) {
   const [shake, setShake] = useState(false);
+  const [scheduleError, setScheduleError] = useState<string | null>(null);
+  const locale     = useLocale();
+  const cycleStart = getNextAvailableCycleStart();
 
   function update(partial: Partial<RequestFormData>) {
     const next = { ...data, ...partial };
-    // Recompute departure window whenever arrival or type changes
-    next.departure_from        = computeDeparture(next.arrival_from, durationMinutes);
-    next.departure_to          = computeDeparture(next.arrival_to, durationMinutes);
-    next.return_departure_from = computeDeparture(next.return_arrival_from, durationMinutes);
-    next.return_departure_to   = computeDeparture(next.return_arrival_to, durationMinutes);
+    if (partial.time_slots) {
+      const mergedDays = partial.time_slots.flatMap((slot) => slot.days);
+      const uniqueDays = ALL_DAYS.filter((day) => mergedDays.includes(day));
+      next.days = uniqueDays;
+    }
     onChange(next);
   }
 
-  function handleArrivalWindowChange(from: string, to: string) {
-    update({ arrival_from: from, arrival_to: to });
+  const assignedDays = useMemo(
+    () => data.time_slots.flatMap((slot) => slot.days),
+    [data.time_slots]
+  );
+
+  const availableDays = useMemo(
+    () => ALL_DAYS.filter((day) => !assignedDays.includes(day)),
+    [assignedDays]
+  );
+
+  const hasRoundTripSlot = useMemo(
+    () => data.time_slots.some((slot) => slot.trip_type === 'round_trip'),
+    [data.time_slots]
+  );
+
+  const allDaysAssigned = availableDays.length === 0;
+
+  function addTimeSlot() {
+    if (allDaysAssigned || data.time_slots.length >= 4) return;
+    const nextSlots = [
+      ...data.time_slots,
+      {
+        id:                 crypto.randomUUID(),
+        trip_type:          'one_way' as const,
+        origin:             null,
+        stops:              [],
+        destination:        null,
+        route:              null,
+        route_set:          false,
+        return_origin:      null,
+        return_destination: null,
+        return_route:       null,
+        return_customized:  false,
+        days:               [],
+        pickup_from:        '07:00',
+        pickup_to:          '07:30',
+        arrival_from:       '08:00',
+        arrival_to:         '08:30',
+      },
+    ];
+    update({ time_slots: nextSlots });
   }
 
-  function handleReturnWindowChange(from: string, to: string) {
-    update({ return_arrival_from: from, return_arrival_to: to });
+  function removeTimeSlot(id: string) {
+    if (data.time_slots.length <= 1) return;
+    update({ time_slots: data.time_slots.filter((slot) => slot.id !== id) });
   }
 
-  const seatCostEGP =
-    data.seat_preference === 'any' ? 0 : data.seat_preference.extra_cost_egp;
+  function updateSlotPickup(slotId: string, from: string, to: string) {
+    const nextSlots = data.time_slots.map((slot) => {
+      if (slot.id !== slotId) return slot;
+      return {
+        ...slot,
+        pickup_from: from,
+        pickup_to: to,
+      };
+    });
+    update({ time_slots: nextSlots });
+  }
+
+  function updateSlotArrival(slotId: string, from: string, to: string) {
+    const nextSlots = data.time_slots.map((slot) => {
+      if (slot.id !== slotId) return slot;
+      return {
+        ...slot,
+        arrival_from: from,
+        arrival_to: to,
+      };
+    });
+    update({ time_slots: nextSlots });
+  }
+
+  function updateSlotReturn(slotId: string, from: string, to: string) {
+    const nextSlots = data.time_slots.map((slot) => {
+      if (slot.id !== slotId) return slot;
+      return {
+        ...slot,
+        return_pickup_from: from,
+        return_pickup_to: to,
+      };
+    });
+    update({ time_slots: nextSlots });
+  }
+
+  function updateSlotReturnArrival(slotId: string, from: string, to: string) {
+    const nextSlots = data.time_slots.map((slot) => {
+      if (slot.id !== slotId) return slot;
+      return {
+        ...slot,
+        return_arrival_from: from,
+        return_arrival_to: to,
+      };
+    });
+    update({ time_slots: nextSlots });
+  }
+
+  function updateSlotTripType(slotId: string, tripType: 'one_way' | 'round_trip') {
+    const nextSlots = data.time_slots.map((slot) => {
+      if (slot.id !== slotId) return slot;
+      if (tripType === 'round_trip') {
+        return {
+          ...slot,
+          trip_type: 'round_trip' as const,
+          return_pickup_from: slot.return_pickup_from ?? '17:00',
+          return_pickup_to: slot.return_pickup_to ?? '17:30',
+          return_arrival_from: slot.return_arrival_from ?? '18:00',
+          return_arrival_to: slot.return_arrival_to ?? '18:30',
+        };
+      }
+      return {
+        ...slot,
+        trip_type: 'one_way' as const,
+        return_pickup_from: undefined,
+        return_pickup_to: undefined,
+        return_arrival_from: undefined,
+        return_arrival_to: undefined,
+      };
+    });
+
+    update({ time_slots: nextSlots });
+  }
+
+  function toggleDayForSlot(slotId: string, day: WeekDay) {
+    const nextSlots = data.time_slots.map((slot) => {
+      if (slot.id !== slotId) return slot;
+      const hasDayAlready = slot.days.includes(day);
+      if (!hasDayAlready && assignedDays.includes(day)) {
+        return slot;
+      }
+      return {
+        ...slot,
+        days: hasDayAlready
+          ? slot.days.filter((d) => d !== day)
+          : [...slot.days, day],
+      };
+    });
+
+    update({ time_slots: nextSlots });
+  }
+
+  function validateSchedule(): string | null {
+    if (data.time_slots.length === 0) return 'Add at least one time slot';
+
+    for (const slot of data.time_slots) {
+      if (slot.days.length === 0) {
+        return `Time slot ${data.time_slots.indexOf(slot) + 1} has no days assigned`;
+      }
+
+      const gap = timeDiffMinutes(slot.pickup_from, slot.pickup_to);
+      if (gap < 30) return 'Pickup window must be at least 30 minutes';
+      if (gap > 120) return 'Pickup window cannot exceed 2 hours';
+
+      const arrivalGap = timeDiffMinutes(slot.arrival_from, slot.arrival_to);
+      if (arrivalGap < 30) return 'Arrival window must be at least 30 minutes';
+      if (arrivalGap > 120) return 'Arrival window cannot exceed 2 hours';
+
+      if (slot.trip_type === 'round_trip') {
+        if (!slot.return_pickup_from || !slot.return_pickup_to) {
+          return `Time slot ${data.time_slots.indexOf(slot) + 1} is missing return pickup times`;
+        }
+        const returnGap = timeDiffMinutes(slot.return_pickup_from, slot.return_pickup_to);
+        if (returnGap < 30) return 'Return pickup window must be at least 30 minutes';
+        if (returnGap > 120) return 'Return pickup window cannot exceed 2 hours';
+
+        if (!slot.return_arrival_from || !slot.return_arrival_to) {
+          return `Time slot ${data.time_slots.indexOf(slot) + 1} is missing return arrival times`;
+        }
+        const returnArrivalGap = timeDiffMinutes(slot.return_arrival_from, slot.return_arrival_to);
+        if (returnArrivalGap < 30) return 'Return arrival window must be at least 30 minutes';
+        if (returnArrivalGap > 120) return 'Return arrival window cannot exceed 2 hours';
+      }
+    }
+
+    const allSlotDays = data.time_slots.flatMap((slot) => slot.days);
+    const uniqueDays = new Set(allSlotDays);
+    if (allSlotDays.length !== uniqueDays.size) {
+      return 'A day cannot appear in more than one time slot';
+    }
+
+    return null;
+  }
 
   const priceRange = useMemo(
     () =>
       calculatePriceRange({
         distanceKm,
         ride_type:   data.ride_type,
-        seatCostEGP,
+        seatCostEGP: 0,
         walkMinutes,
-        tripType:   data.trip_type,
+        tripType:   hasRoundTripSlot ? 'round_trip' : 'one_way',
         days:       Math.max(data.days.length, 1),
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [distanceKm, data.ride_type, seatCostEGP, walkMinutes, data.trip_type, data.days]
+    [distanceKm, data.ride_type, walkMinutes, hasRoundTripSlot, data.days]
   );
 
   function handleReview() {
-    const hasErrors =
-      !data.start_date ||
-      data.days.length === 0 ||
-      !data.arrival_from ||
-      !data.arrival_to ||
-      (data.trip_type === 'round_trip' && (!data.return_arrival_from || !data.return_arrival_to));
+    const scheduleValidationError = validateSchedule();
+    const hasErrors = !data.start_date || !!scheduleValidationError;
 
     if (hasErrors) {
+      setScheduleError(scheduleValidationError);
       setShake(true);
       setTimeout(() => setShake(false), 500);
       onReview();
       return;
     }
+    setScheduleError(null);
     onReview();
   }
 
-  const dateError        = showErrors && !data.start_date;
-  const daysError        = showErrors && data.days.length === 0;
-  const arrivalError     = showErrors && (!data.arrival_from || !data.arrival_to);
-  const returnArrivalError =
-    showErrors && data.trip_type === 'round_trip' && (!data.return_arrival_from || !data.return_arrival_to);
+  const shouldShowScheduleError = showErrors && !!(scheduleError ?? validateSchedule());
+  const effectiveScheduleError = scheduleError ?? validateSchedule();
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -145,213 +304,35 @@ export default function RequestForm({
         )}
       </div>
 
-      {/* 2. Seat preference — only for shared rides */}
-      {data.ride_type === 'shared' && (
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: '#5A6A7A', marginBottom: 12 }}>
-            Seat preference
-          </div>
-          <SeatSelector
-            selectedSeat={data.seat_preference}
-            onSeatSelect={(s) => update({ seat_preference: s })}
-            takenSeats={[]}
-          />
-        </div>
-      )}
-
-      {/* 3. Trip type */}
+      {/* 2. Schedule builder */}
       <div>
-        <div style={{ fontSize: 13, fontWeight: 600, color: '#5A6A7A', marginBottom: 8 }}>
-          Trip type
-        </div>
-        <PillRadio<'one_way' | 'round_trip'>
-          options={[
-            { key: 'one_way', label: 'One way' },
-            { key: 'round_trip', label: 'Round trip' },
-          ]}
-          value={data.trip_type}
-          onChange={(v) => update({ trip_type: v })}
+        <ScheduleBuilder
+          timeSlots={data.time_slots}
+          assignedDays={assignedDays}
+          allDaysAssigned={allDaysAssigned}
+          onAddSlot={addTimeSlot}
+          onRemoveSlot={removeTimeSlot}
+          onSetRoute={() => { /* route set via map in legacy flow */ }}
+          onEditReturnRoute={() => { /* route set via map in legacy flow */ }}
+          onTripTypeChange={updateSlotTripType}
+          onPickupChange={updateSlotPickup}
+          onReturnChange={updateSlotReturn}
+          onDayToggle={toggleDayForSlot}
         />
-      </div>
-
-      {/* 4. Start date */}
-      <div>
-        <div style={{ fontSize: 13, fontWeight: 600, color: '#5A6A7A', marginBottom: 8 }}>
-          Start date
-        </div>
-        <input
-          type="date"
-          value={data.start_date}
-          min={new Date().toISOString().split('T')[0]}
-          onChange={(e) => update({ start_date: e.target.value })}
-          style={{
-            width: '100%',
-            height: 44,
-            boxSizing: 'border-box',
-            border: `1.5px solid ${dateError ? '#EF4444' : '#E2E8F0'}`,
-            borderRadius: 10,
-            padding: '0 12px',
-            fontSize: 14,
-            color: data.start_date ? '#0B1E3D' : '#A0AEC0',
-            background: '#fff',
-            outline: 'none',
-            fontFamily: 'inherit',
-            cursor: 'pointer',
-          }}
-        />
-        {dateError && (
-          <div style={{ fontSize: 12, color: '#EF4444', marginTop: 4 }}>
-            Please pick a start date
-          </div>
+        {shouldShowScheduleError && effectiveScheduleError && (
+          <p style={{ marginTop: 8, fontSize: 12, color: '#E74C3C' }}>{effectiveScheduleError}</p>
         )}
       </div>
 
-      {/* 5. Days of the week + departure time */}
-      <div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: '#5A6A7A' }}>Days of the week</div>
-          {/* Mode toggle */}
-          <div style={{ display: 'flex', border: '1.5px solid #E2E8F0', borderRadius: 8, overflow: 'hidden' }}>
-            {(['same', 'per_day'] as const).map((mode) => (
-              <button key={mode} type="button"
-                onClick={() => {
-                  if (mode === data.timeMode) return;
-                  if (mode === 'per_day') {
-                    const filled: Partial<Record<WeekDay, { from: string; to: string }>> = {};
-                    data.days.forEach((d) => {
-                      filled[d] = data.perDayTimes[d] || { from: data.unifiedTimeFrom || '07:30', to: data.unifiedTimeTo || '09:00' };
-                    });
-                    update({ timeMode: 'per_day', perDayTimes: filled });
-                  } else {
-                    const first = data.days[0];
-                    const firstVal = first && data.perDayTimes[first];
-                    update({
-                      timeMode: 'same',
-                      unifiedTimeFrom: firstVal?.from || data.unifiedTimeFrom || '07:30',
-                      unifiedTimeTo:   firstVal?.to   || data.unifiedTimeTo   || '09:00',
-                    });
-                  }
-                }}
-                style={{ padding: '5px 12px', fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer', fontFamily: 'inherit', background: data.timeMode === mode ? '#0B1E3D' : '#fff', color: data.timeMode === mode ? '#fff' : '#5A6A7A', transition: 'all 0.15s' }}
-              >
-                {mode === 'same' ? 'Same time' : 'Per day'}
-              </button>
-            ))}
-          </div>
+      {/* 7. Cycle start — auto-computed, read-only */}
+      <div style={{ background: '#EFF7F6', border: '1px solid #C8E8E4', borderRadius: 8, padding: '12px 16px' }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: '#5A6A7A', marginBottom: 4 }}>Cycle start</div>
+        <div style={{ fontSize: 14, fontWeight: 600, color: '#00C2A8' }}>
+          Starts Saturday {formatCycleStartDate(cycleStart, locale)}
         </div>
-        <DaysPicker
-          selected={data.days}
-          onChange={(days) => {
-            const filled: Partial<Record<WeekDay, { from: string; to: string }>> = {};
-            days.forEach((d) => {
-              filled[d] = data.perDayTimes[d] || { from: data.unifiedTimeFrom || '07:30', to: data.unifiedTimeTo || '09:00' };
-            });
-            update({ days, perDayTimes: filled });
-          }}
-          error={daysError}
-          startDate={data.start_date}
-        />
-        {/* Time input(s) */}
-        <div style={{ marginTop: 12 }}>
-          {data.timeMode === 'same' ? (
-            <div>
-              <div style={{ fontSize: 12, color: '#5A6A7A', marginBottom: 6 }}>Departure window for all selected days</div>
-              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 11, color: '#A0AEC0', marginBottom: 4 }}>From</div>
-                  <input type="time" value={data.unifiedTimeFrom || '07:30'}
-                    onChange={(e) => {
-                      const from = e.target.value;
-                      const filled: Partial<Record<WeekDay, { from: string; to: string }>> = {};
-                      data.days.forEach((d) => { filled[d] = { from, to: data.perDayTimes[d]?.to || data.unifiedTimeTo || '09:00' }; });
-                      update({ unifiedTimeFrom: from, perDayTimes: filled });
-                    }}
-                    style={{ width: '100%', height: 44, border: `1.5px solid ${daysError ? '#EF4444' : '#E2E8F0'}`, borderRadius: 10, padding: '0 12px', fontSize: 14, color: '#0B1E3D', background: '#fff', outline: 'none', fontFamily: 'inherit', cursor: 'pointer', boxSizing: 'border-box' }}
-                  />
-                </div>
-                <div style={{ color: '#CBD5E0', paddingBottom: 12, flexShrink: 0, fontSize: 16 }}>—</div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 11, color: '#A0AEC0', marginBottom: 4 }}>To</div>
-                  <input type="time" value={data.unifiedTimeTo || '09:00'}
-                    onChange={(e) => {
-                      const to = e.target.value;
-                      const filled: Partial<Record<WeekDay, { from: string; to: string }>> = {};
-                      data.days.forEach((d) => { filled[d] = { from: data.perDayTimes[d]?.from || data.unifiedTimeFrom || '07:30', to }; });
-                      update({ unifiedTimeTo: to, perDayTimes: filled });
-                    }}
-                    style={{ width: '100%', height: 44, border: `1.5px solid ${daysError ? '#EF4444' : '#E2E8F0'}`, borderRadius: 10, padding: '0 12px', fontSize: 14, color: '#0B1E3D', background: '#fff', outline: 'none', fontFamily: 'inherit', cursor: 'pointer', boxSizing: 'border-box' }}
-                  />
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {data.days.map((day) => {
-                const val = data.perDayTimes[day] || { from: '', to: '' };
-                const hasErr = showErrors && (!val.from || !val.to);
-                return (
-                  <div key={day} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <div style={{ width: 32, fontSize: 12, fontWeight: 600, color: '#5A6A7A', flexShrink: 0 }}>{day}</div>
-                    <input type="time" value={val.from}
-                      onChange={(e) => {
-                        const next = { ...data.perDayTimes, [day]: { from: e.target.value, to: val.to } };
-                        update({ perDayTimes: next });
-                      }}
-                      style={{ flex: 1, height: 40, border: `1.5px solid ${hasErr && !val.from ? '#EF4444' : '#E2E8F0'}`, borderRadius: 8, padding: '0 8px', fontSize: 12, color: '#0B1E3D', background: '#fff', outline: 'none', fontFamily: 'inherit', cursor: 'pointer', boxSizing: 'border-box' }}
-                    />
-                    <div style={{ color: '#CBD5E0', fontSize: 13, flexShrink: 0 }}>—</div>
-                    <input type="time" value={val.to}
-                      onChange={(e) => {
-                        const next = { ...data.perDayTimes, [day]: { from: val.from, to: e.target.value } };
-                        update({ perDayTimes: next });
-                      }}
-                      style={{ flex: 1, height: 40, border: `1.5px solid ${hasErr && !val.to ? '#EF4444' : '#E2E8F0'}`, borderRadius: 8, padding: '0 8px', fontSize: 12, color: '#0B1E3D', background: '#fff', outline: 'none', fontFamily: 'inherit', cursor: 'pointer', boxSizing: 'border-box' }}
-                    />
-                    <button type="button"
-                      onClick={() => {
-                        const next: Partial<Record<WeekDay, { from: string; to: string }>> = {};
-                        data.days.forEach((d) => { next[d] = { from: val.from, to: val.to }; });
-                        update({ perDayTimes: next });
-                      }}
-                      style={{ fontSize: 10, color: '#00C2A8', background: 'none', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', padding: '0 2px', fontFamily: 'inherit', fontWeight: 600, flexShrink: 0 }}
-                    >Copy all</button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+        <div style={{ fontSize: 11, color: '#5A6A7A', marginTop: 4 }}>
+          Requests are grouped every Wednesday · Cycles start the following Saturday
         </div>
-      </div>
-
-      {/* 6. Arrival window */}
-      <ArrivalWindowPicker
-        label="When do you want to arrive?"
-        arrival_from={data.arrival_from}
-        arrival_to={data.arrival_to}
-        departure_from={data.departure_from}
-        departure_to={data.departure_to}
-        onChange={handleArrivalWindowChange}
-        error={arrivalError}
-      />
-
-      {/* 7. Return arrival window — round trip only */}
-      <div
-        style={{
-          overflow: 'hidden',
-          maxHeight: data.trip_type === 'round_trip' ? 180 : 0,
-          opacity: data.trip_type === 'round_trip' ? 1 : 0,
-          transition: 'max-height 0.3s ease, opacity 0.25s ease',
-        }}
-      >
-        <ArrivalWindowPicker
-          label="When do you want to arrive back?"
-          arrival_from={data.return_arrival_from}
-          arrival_to={data.return_arrival_to}
-          departure_from={data.return_departure_from}
-          departure_to={data.return_departure_to}
-          onChange={handleReturnWindowChange}
-          error={returnArrivalError}
-        />
       </div>
 
       {/* Live price estimate */}
@@ -361,13 +342,9 @@ export default function RequestForm({
         breakdown={priceRange.breakdown}
         distanceKm={distanceKm}
         rideType={data.ride_type}
-        selectedSeatLabel={
-          data.seat_preference === 'any'
-            ? 'Any'
-            : data.seat_preference.label
-        }
+        selectedSeatLabel="Any"
         walkMinutes={walkMinutes}
-        tripType={data.trip_type}
+        tripType={hasRoundTripSlot ? 'round_trip' : 'one_way'}
         daysCount={Math.max(data.days.length, 1)}
       />
 
@@ -478,138 +455,6 @@ function RideTypeCards({
     </div>
   );
 }
-
-function PillRadio<T extends string>({
-  options,
-  value,
-  onChange,
-}: {
-  options: Array<{ key: T; label: string }>;
-  value: T;
-  onChange: (v: T) => void;
-}) {
-  return (
-    <div style={{ display: 'flex', gap: 8 }}>
-      {options.map((opt) => {
-        const active = value === opt.key;
-        return (
-          <button
-            key={opt.key}
-            type="button"
-            onClick={() => onChange(opt.key)}
-            style={{
-              flex: 1,
-              padding: '10px 16px',
-              border: `1.5px solid ${active ? '#00C2A8' : '#E2E8F0'}`,
-              borderRadius: 8,
-              background: active ? '#00C2A8' : '#fff',
-              color: active ? '#0B1E3D' : '#5A6A7A',
-              fontWeight: active ? 700 : 500,
-              fontSize: 14,
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              minHeight: 44,
-              transition: 'all 0.15s',
-            }}
-          >
-            {opt.label}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-function ArrivalWindowPicker({
-  label,
-  arrival_from,
-  arrival_to,
-  departure_from,
-  departure_to,
-  onChange,
-  error,
-}: {
-  label: string;
-  arrival_from: string;
-  arrival_to: string;
-  departure_from: string;
-  departure_to: string;
-  onChange: (from: string, to: string) => void;
-  error?: boolean;
-}) {
-  function handleFromChange(newFrom: string) {
-    const minTo = addHours(newFrom, 1);
-    const gap   = timeDiffMinutes(newFrom, arrival_to);
-    onChange(newFrom, gap >= 60 ? arrival_to : minTo);
-  }
-
-  function handleToChange(newTo: string) {
-    const minTo = addHours(arrival_from, 1);
-    const gap   = timeDiffMinutes(arrival_from, newTo);
-    onChange(arrival_from, gap < 60 ? minTo : newTo);
-  }
-
-  const inputStyle = (hasError?: boolean): React.CSSProperties => ({
-    width: '100%',
-    padding: '10px 12px',
-    borderRadius: 8,
-    border: `1.5px solid ${hasError ? '#E74C3C' : '#E2E8F0'}`,
-    fontSize: 16,
-    fontFamily: 'inherit',
-    color: '#0B1E3D',
-    background: hasError ? '#FFF5F5' : '#fff',
-    outline: 'none',
-    minHeight: 44,
-    boxSizing: 'border-box' as const,
-  });
-
-  const windowMinutes = arrival_from && arrival_to ? timeDiffMinutes(arrival_from, arrival_to) : 0;
-
-  return (
-    <div>
-      <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#5A6A7A', marginBottom: 8 }}>
-        {label}
-      </label>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-        <div>
-          <div style={{ fontSize: 11, color: '#5A6A7A', marginBottom: 4 }}>Earliest</div>
-          <input
-            type="time"
-            value={arrival_from}
-            onChange={(e) => handleFromChange(e.target.value)}
-            style={inputStyle(error)}
-          />
-        </div>
-        <div>
-          <div style={{ fontSize: 11, color: '#5A6A7A', marginBottom: 4 }}>Latest</div>
-          <input
-            type="time"
-            value={arrival_to}
-            onChange={(e) => handleToChange(e.target.value)}
-            style={inputStyle(error)}
-          />
-        </div>
-      </div>
-      {arrival_from && arrival_to && (
-        <div style={{ fontSize: 12, color: '#9AA0A6', marginTop: 6 }}>
-          Window: {formatTimeWindow(arrival_from, arrival_to)}
-          {' '}({(windowMinutes / 60).toFixed(1)}h) · Minimum 1 hour
-        </div>
-      )}
-      {departure_from && departure_to && (
-        <div style={{ fontSize: 12, color: '#5A6A7A', fontStyle: 'italic', marginTop: 4 }}>
-          Estimated departure: {formatTimeWindow(departure_from, departure_to)}
-        </div>
-      )}
-      {error && (
-        <div style={{ fontSize: 12, color: '#EF4444', marginTop: 4 }}>
-          Please set an arrival window
-        </div>
-      )}
-    </div>
-  );
-}
-
 
 function PriceStrip({
   min,

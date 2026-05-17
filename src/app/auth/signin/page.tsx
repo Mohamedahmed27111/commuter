@@ -65,14 +65,14 @@ function SignInPage() {
       setToken(`${header}.${body}.mock_signature`);
       toast.success(`Welcome back, ${mock.name}!`);
       await new Promise((r) => setTimeout(r, 400));
-      router.push(mock.role === 'driver' ? '/driver/dashboard' : '/user/map');
+      router.push(mock.role === 'driver' ? '/driver/requests' : '/user/my-requests');
       // --- End mock ---
 
       /* Real API (uncomment when backend ready):
       const data = await signIn({ email, password });
       setToken(data.token);
       toast.success(`Welcome back, ${data.name}!`);
-      router.push(data.role === 'driver' ? '/driver/dashboard' : '/user/dashboard');
+      router.push(data.role === 'driver' ? '/driver/requests' : '/user/my-requests');
       */
     } catch (err) {
       setLoading(false);

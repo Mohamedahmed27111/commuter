@@ -7,19 +7,16 @@ import { ChevronDown, LogOut, User, Wallet, Bell } from 'lucide-react';
 import { getName, clearSession } from '@/lib/auth';
 import { mockNotifications } from '@/lib/mockUser';
 import LanguageToggle from './LanguageToggle';
-import { useTranslations } from 'next-intl';
 
 export default function UserNavbar() {
-  const t = useTranslations('nav');
-  const tCommon = useTranslations('common');
   const pathname = usePathname();
   const router = useRouter();
-  const isMapPage = pathname === '/user/map';
+  const isMapPage = pathname.startsWith('/user/request/map') || pathname.startsWith('/user/request/return-map');
 
   const LINKS = [
-    { label: t('map'),         href: '/user/map' },
-    { label: t('my_requests'), href: '/user/my-requests' },
-    { label: t('profile'),     href: '/user/profile' },
+    { label: 'Create request', href: '/user/request/new', isCreate: true },
+    { label: 'My Requests',    href: '/user/my-requests', isCreate: false },
+    { label: 'Profile',        href: '/user/profile',     isCreate: false },
   ];
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [userName, setUserName] = useState('User');
@@ -81,7 +78,7 @@ export default function UserNavbar() {
       >
         {/* Logo — left */}
         <Link
-          href="/user/map"
+          href="/user/my-requests"
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -121,7 +118,7 @@ export default function UserNavbar() {
             gap: 36,
           }}
         >
-          {LINKS.map(({ label, href }) => {
+          {LINKS.map(({ label, href, isCreate }) => {
             const active = pathname === href || pathname.startsWith(href + '/');
             return (
               <Link
@@ -131,8 +128,12 @@ export default function UserNavbar() {
                 style={{
                   fontSize: 15,
                   fontWeight: active ? 600 : 500,
-                  color: active ? '#0B1E3D' : '#5A6A7A',
-                  borderBottom: active ? '2px solid #00C2A8' : '2px solid transparent',
+                  color: isCreate
+                    ? active ? '#00C2A8' : '#009E8A'
+                    : active ? '#0B1E3D' : '#5A6A7A',
+                  borderBottom: active
+                    ? `2px solid ${isCreate ? '#00C2A8' : '#00C2A8'}`
+                    : '2px solid transparent',
                   paddingBottom: 4,
                 }}
               >
@@ -222,15 +223,15 @@ export default function UserNavbar() {
             >
               <Link href="/user/profile" className="unav-drop-item" onClick={() => setDropdownOpen(false)}>
                 <User size={16} />
-                {t('profile')}
+                Profile
               </Link>
               <Link href="/user/wallet" className="unav-drop-item" onClick={() => setDropdownOpen(false)}>
                 <Wallet size={16} />
-                {t('wallet')}
+                Wallet
               </Link>
               <Link href="/user/notifications" className="unav-drop-item" onClick={() => setDropdownOpen(false)}>
                 <Bell size={16} />
-                {t('notifications')}
+                Notifications
                 {unreadCount > 0 && (
                   <span
                     style={{
@@ -250,7 +251,7 @@ export default function UserNavbar() {
               <div style={{ height: 1, background: '#E2E8F0', margin: '4px 0' }} />
               <button className="unav-drop-item unav-drop-danger" onClick={handleLogout}>
                 <LogOut size={16} />
-                {tCommon('sign_out')}
+                Sign out
               </button>
             </div>
           )}

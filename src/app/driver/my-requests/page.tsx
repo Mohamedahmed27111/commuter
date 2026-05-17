@@ -38,13 +38,6 @@ export default function MyRequestsPage() {
   const [detailRequest, setDetailRequest] = useState<DriverCycleRequest | null>(null);
   const [raiseRequest, setRaiseRequest] = useState<DriverCycleRequest | null>(null);
 
-  useEffect(() => {
-    const id = setInterval(() => {
-      // In production: fetchRequests().then(setRequests)
-    }, 30000);
-    return () => clearInterval(id);
-  }, []);
-
   const filtered = useMemo(() => {
     let list = requests.filter((r) => r.status === statusFilter);
 

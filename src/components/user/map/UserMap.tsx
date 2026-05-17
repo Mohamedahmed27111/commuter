@@ -1,9 +1,9 @@
 ﻿'use client';
 
-import { useCallback, useEffect, useRef } from 'react';
-import { GoogleMap, useJsApiLoader, Marker, Polyline, Circle, OverlayView } from '@react-google-maps/api';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { GoogleMap, useJsApiLoader, Marker, Circle, OverlayView } from '@react-google-maps/api';
 import { MAP_STYLE } from '@/lib/googleMapsStyle';
-import type { OSRMRoute } from '@/lib/osrm';
+import { useMap } from '@/lib/MapContext';
 
 const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? '';
 
@@ -33,11 +33,6 @@ const destinationIconUrl = `data:image/svg+xml;charset=UTF-8,${encodeURIComponen
 )}`;
 
 interface UserMapProps {
-  from: { lat: number; lng: number } | null;
-  to: { lat: number; lng: number } | null;
-  routes: OSRMRoute[];
-  selectedRouteIndex: number;
-  onRouteClick: (i: number) => void;
   userLoc: { lat: number; lng: number } | null;
   userHeading?: number | null;
   userAccuracy?: number | null;
@@ -46,15 +41,9 @@ interface UserMapProps {
   pickingField?: 'from' | 'to' | 'stop' | null;
   onMapPick?: (lat: number, lng: number) => void;
   walk_minutes?: 0 | 5 | 10;
-  viaStops?: { lat: number; lng: number; address: string }[];
 }
 
 export default function UserMap({
-  from,
-  to,
-  routes,
-  selectedRouteIndex,
-  onRouteClick,
   userLoc,
   userHeading = null,
   userAccuracy = null,
@@ -62,15 +51,20 @@ export default function UserMap({
   pickingField = null,
   onMapPick,
   walk_minutes = 0,
-  viaStops = [],
 }: UserMapProps) {
+  const { origin: from, destination: to, routes, stops } = useMap();
+  const viaStops = stops.filter((s): s is NonNullable<typeof s> => s !== null);
   const { isLoaded } = useJsApiLoader({ id: 'google-map-script', googleMapsApiKey: API_KEY });
-  const mapRef   = useRef<google.maps.Map | null>(null);
-  const prevFrom = useRef<typeof from>(null);
-  const prevTo   = useRef<typeof to>(null);
+  const mapRef      = useRef<google.maps.Map | null>(null);
+  const prevFrom    = useRef<typeof from>(null);
+  const prevTo      = useRef<typeof to>(null);
+  // Tracks all live Polyline instances so we can call .setMap(null) imperatively
+  const polyRefs    = useRef<google.maps.Polyline[]>([]);
+  const [mapReady, setMapReady] = useState(false);
 
   const onLoad = useCallback((map: google.maps.Map) => {
     mapRef.current = map;
+    setMapReady(true);
   }, []);
 
   // Smooth pan when origin changes
@@ -91,8 +85,53 @@ export default function UserMap({
     prevTo.current = to;
   }, [to]);
 
-  // Fit viewport to primary route
-  const primaryRoute = routes[selectedRouteIndex];
+  // ── Imperative Polyline management ─────────────────────────────────────────
+  // We intentionally avoid <Polyline> JSX because @react-google-maps/api does
+  // NOT reliably call setMap(null) on unmount, leaving stale overlays on canvas.
+  // Instead we create/destroy google.maps.Polyline instances directly so that
+  // the overlay is ALWAYS removed when routes becomes empty.
+  useEffect(() => {
+    // Destroy every existing overlay unconditionally
+    polyRefs.current.forEach(p => p.setMap(null));
+    polyRefs.current = [];
+
+    if (!mapReady || !mapRef.current || routes.length === 0) return;
+
+    const map = mapRef.current;
+    const newLines: google.maps.Polyline[] = [];
+    const route = routes[0];
+
+    if (route && route.coordinates.length > 1) {
+      const path = route.coordinates.map(([lat, lng]) => ({ lat, lng }));
+
+      // Outer glow halo
+      newLines.push(new google.maps.Polyline({
+        map, path, zIndex: 1,
+        strokeColor: '#4361EE', strokeWeight: 16, strokeOpacity: 0.12,
+      }));
+      // Inner glow
+      newLines.push(new google.maps.Polyline({
+        map, path, zIndex: 2,
+        strokeColor: '#4361EE', strokeWeight: 9, strokeOpacity: 0.2,
+      }));
+      // Solid line
+      newLines.push(new google.maps.Polyline({
+        map, path, zIndex: 3,
+        strokeColor: '#4361EE', strokeWeight: 5, strokeOpacity: 1,
+      }));
+    }
+
+    polyRefs.current = newLines;
+
+    return () => {
+      newLines.forEach(p => p.setMap(null));
+      polyRefs.current = [];
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routes, mapReady]);
+
+  // ── Fit viewport to primary route ──────────────────────────────────────────
+  const primaryRoute = routes[0] ?? null;
   const primaryLen   = primaryRoute?.coordinates.length ?? 0;
   useEffect(() => {
     if (!mapRef.current || primaryLen === 0) return;
@@ -112,8 +151,6 @@ export default function UserMap({
   const midCoord = primaryRoute && primaryRoute.coordinates.length > 0
     ? primaryRoute.coordinates[Math.floor(primaryRoute.coordinates.length / 2)]
     : null;
-
-  const altRoutes = routes.filter((_, i) => i !== selectedRouteIndex);
 
   if (!isLoaded) {
     return (
@@ -141,36 +178,8 @@ export default function UserMap({
           gestureHandling: 'greedy',
         }}
       >
-        {/* ── Alternative routes — muted grey ─────────────────── */}
-        {altRoutes.map((r, i) => (
-          <Polyline
-            key={`alt-${i}`}
-            path={r.coordinates.map(([lat, lng]) => ({ lat, lng }))}
-            options={{ strokeColor: '#A0AEBF', strokeWeight: 4, strokeOpacity: 0.45 }}
-            onClick={() => onRouteClick(routes.indexOf(r))}
-          />
-        ))}
-
-        {/* ── Primary route: wide glow → medium glow → animated line ── */}
-        {primaryRoute && (
-          <>
-            {/* Outer glow halo */}
-            <Polyline
-              path={primaryRoute.coordinates.map(([lat, lng]) => ({ lat, lng }))}
-              options={{ strokeColor: '#4361EE', strokeWeight: 16, strokeOpacity: 0.12 }}
-            />
-            {/* Inner glow */}
-            <Polyline
-              path={primaryRoute.coordinates.map(([lat, lng]) => ({ lat, lng }))}
-              options={{ strokeColor: '#4361EE', strokeWeight: 9, strokeOpacity: 0.2 }}
-            />
-            {/* Solid line */}
-            <Polyline
-              path={primaryRoute.coordinates.map(([lat, lng]) => ({ lat, lng }))}
-              options={{ strokeColor: '#4361EE', strokeWeight: 5, strokeOpacity: 1 }}
-            />
-          </>
-        )}
+        {/* ── Alternative routes & primary route are rendered imperatively ── */}
+        {/* (via useEffect + google.maps.Polyline above; no JSX Polylines here) */}
 
         {/* ── Walk-radius circle around origin ────────────────── */}
         {from && walk_minutes > 0 && (

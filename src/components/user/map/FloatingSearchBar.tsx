@@ -4,6 +4,8 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { searchAddress, formatDisplayName, getPlaceDetails, type NominatimResult } from '@/lib/nominatim';
 import type { SavedLocation } from '@/types/user';
+import { useMap } from '@/lib/MapContext';
+import { useIntent } from '@/lib/IntentContext';
 
 export interface LocationValue {
   address: string;
@@ -37,31 +39,21 @@ export function saveRecentRoute(from: LocationValue, to: LocationValue) {
 }
 
 interface Props {
-  from: LocationValue | null;
-  to: LocationValue | null;
-  onFromChange: (v: LocationValue | null) => void;
-  onToChange: (v: LocationValue | null) => void;
   savedLocations?: SavedLocation[];
   onPickOnMap?: (field: 'from' | 'to') => void;
   onCurrentLocation?: (field: 'from' | 'to') => void;
-  // Via stops
-  viaStops?: LocationValue[];
-  onViaStopsChange?: (stops: LocationValue[]) => void;
   onPickStopOnMap?: (index: number) => void;
 }
 
 export default function FloatingSearchBar({
-  from,
-  to,
-  onFromChange,
-  onToChange,
   savedLocations = [],
   onPickOnMap,
   onCurrentLocation,
-  viaStops = [],
-  onViaStopsChange,
   onPickStopOnMap,
 }: Props) {
+  const { origin: from, destination: to, setOrigin, setDestination, stops, setStop, addStop, removeStop, swapOriginDestination } = useMap();
+  const { intent } = useIntent();
+  const isPrivate = intent.ride_type === 'private';
   const t = useTranslations('map');
   const [expanded, setExpanded] = useState(false);
   const [fromText, setFromText] = useState(from?.address ?? '');
@@ -74,20 +66,19 @@ export default function FloatingSearchBar({
   const [activeField, setActiveField] = useState<'from' | 'to' | number | null>(null);
   const [recentRoutes, setRecentRoutes] = useState<RecentRoute[]>([]);
 
-  // Via stop per-row state
-  const [stopTexts, setStopTexts] = useState<string[]>(() => viaStops.map((s) => s.address));
-  const [stopResults, setStopResults] = useState<NominatimResult[][]>(() => viaStops.map(() => []));
-  const [stopLoadings, setStopLoadings] = useState<boolean[]>(() => viaStops.map(() => false));
+  const [stopTexts, setStopTexts] = useState<string[]>(() => stops.map(s => s?.address ?? ''));
+  const [stopResults, setStopResults] = useState<NominatimResult[][]>(() => stops.map(() => []));
+  const [stopLoadings, setStopLoadings] = useState<boolean[]>(() => stops.map(() => false));
   const stopTimers = useRef<(ReturnType<typeof setTimeout> | undefined)[]>([]);
   const stopInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  // Sync stop text arrays when viaStops length changes
+  // Sync stop text arrays when stops length changes
   useEffect(() => {
-    setStopTexts(viaStops.map((s) => s.address));
-    setStopResults(viaStops.map(() => []));
-    setStopLoadings(viaStops.map(() => false));
+    setStopTexts(stops.map(s => s?.address ?? ''));
+    setStopResults(stops.map(() => []));
+    setStopLoadings(stops.map(() => false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viaStops.length]);
+  }, [stops.length]);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const fromInputRef = useRef<HTMLInputElement>(null);
@@ -109,12 +100,12 @@ export default function FloatingSearchBar({
         setActiveField(null);
         setFromResults([]);
         setToResults([]);
-        setStopResults(viaStops.map(() => []));
+        setStopResults(stops.map(() => []));
       }
     }
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
-  }, [from, to, viaStops]);
+  }, [from, to, stops]);
 
   const debounce = useCallback((
     query: string,
@@ -134,10 +125,10 @@ export default function FloatingSearchBar({
 
   function selectFrom(loc: LocationValue) {
     setFromText(loc.address);
-    onFromChange(loc);
+    setOrigin(loc);
     setFromResults([]);
     // Move focus to first stop or TO
-    if (viaStops.length > 0) {
+    if (stops.length > 0) {
       setActiveField(0);
       setTimeout(() => stopInputRefs.current[0]?.focus(), 50);
     } else {
@@ -148,15 +139,13 @@ export default function FloatingSearchBar({
 
   function selectTo(loc: LocationValue) {
     setToText(loc.address);
-    onToChange(loc);
+    setDestination(loc);
     setToResults([]);
     setActiveField(null);
   }
 
   function selectStop(idx: number, loc: LocationValue) {
-    const next = [...viaStops];
-    next[idx] = loc;
-    onViaStopsChange?.(next);
+    setStop(idx, loc);
     const newTexts = [...stopTexts];
     newTexts[idx] = loc.address;
     setStopTexts(newTexts);
@@ -164,7 +153,7 @@ export default function FloatingSearchBar({
     newResults[idx] = [];
     setStopResults(newResults);
     // Advance focus to next stop or TO
-    if (idx < viaStops.length - 1) {
+    if (idx < stops.length - 1) {
       setActiveField(idx + 1);
       setTimeout(() => stopInputRefs.current[idx + 1]?.focus(), 50);
     } else {
@@ -193,12 +182,9 @@ export default function FloatingSearchBar({
   }
 
   function swap() {
-    const newFrom = to;
-    const newTo = from;
-    setFromText(newFrom?.address ?? '');
-    setToText(newTo?.address ?? '');
-    onFromChange(newFrom);
-    onToChange(newTo);
+    setFromText(to?.address ?? '');
+    setToText(from?.address ?? '');
+    swapOriginDestination();
   }
 
   function handleExpand() {
@@ -372,75 +358,85 @@ export default function FloatingSearchBar({
         .fsb-clear { opacity: 0; transition: opacity 0.15s; }
         .fsb-input-wrap:hover .fsb-clear,
         .fsb-input-wrap:focus-within .fsb-clear { opacity: 1; }
-        .fsb-drop-item:hover { background: #F7FFFE !important; }
-        .fsb-swap:hover { border-color: #00C2A8 !important; color: #00C2A8 !important; }
+        .fsb-drop-item { transition: background 0.12s; }
+        .fsb-drop-item:hover { background: #EFF7F6 !important; }
+        .fsb-swap { transition: background 0.15s, border-color 0.15s, color 0.15s; }
+        .fsb-swap:hover { background: #EFF7F6 !important; border-color: #00C2A8 !important; color: #00C2A8 !important; }
       `}</style>
 
-      <div ref={containerRef} dir="ltr" style={{ position: 'absolute', top: 16, left: 16, zIndex: 1000, width: 'min(400px, calc(100vw - 32px))' }}>
+      <div ref={containerRef} dir="ltr" style={{ position: 'absolute', top: 16, left: 16, zIndex: 1000, width: 'min(420px, calc(100vw - 32px))' }}>
 
         {/* ── Card ─────────────────────────────────────────────────── */}
-        <div style={{ background: '#fff', borderRadius: expanded ? '16px 16px 0 0' : 16, boxShadow: '0 4px 24px rgba(0,0,0,0.14)', transition: 'border-radius 0.15s' }}>
+        <div style={{
+          background: 'rgba(255,255,255,0.97)',
+          borderRadius: 20,
+          boxShadow: '0 4px 20px rgba(11,30,61,0.12), 0 1px 4px rgba(0,0,0,0.06)',
+          border: '1px solid #E8EDF3',
+          backdropFilter: 'blur(12px)',
+          overflow: 'hidden',
+        }}>
           {!expanded ? (
-            <button
-              onClick={handleExpand}
-              style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', height: 52, padding: '0 16px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}
+            /* ── Collapsed pill ── */
+            <button onClick={handleExpand}
+              style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', height: 58, padding: '0 18px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}
             >
-              <IconBox bg="#EFF7F6">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00C2A8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <div style={{ width: 36, height: 36, borderRadius: 12, background: 'linear-gradient(135deg,#00C2A8,#0B8C7A)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
                 </svg>
-              </IconBox>
-              <span style={{ fontSize: 14, color: '#A0AEC0' }}>{t('search_placeholder')}</span>
+              </div>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: '#0B1E3D' }}>{t('search_placeholder')}</div>
+                <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 1 }}>Tap to enter your route</div>
+              </div>
             </button>
           ) : (
-            <div style={{ padding: '12px 14px' }}>
-              {/* FROM */}
-              <div className="fsb-input-wrap" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0 10px', height: 46, borderRadius: 10, border: `1.5px solid ${activeField === 'from' ? '#00C2A8' : '#E2E8F0'}`, background: activeField === 'from' ? '#F9FFFE' : '#FAFAFA', transition: 'border-color 0.15s, background 0.15s' }}>
-                <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#00C2A8', outline: '2.5px solid rgba(0,194,168,0.25)', flexShrink: 0 }} />
-                <input ref={fromInputRef} className="fsb-input"
-                  value={fromText}
-                  onChange={(e) => { setFromText(e.target.value); onFromChange(null); debounce(e.target.value, setFromResults, setFromLoading, fromTimer); }}
-                  onFocus={() => setActiveField('from')}
-                  placeholder={t('from_placeholder')}
-                  autoComplete="off"
-                  style={{ flex: 1, height: '100%', border: 'none', background: 'transparent', fontSize: 14, color: '#0B1E3D', fontFamily: 'inherit' }}
-                />
-                {fromText && (
-                  <button className="fsb-clear" onClick={() => { setFromText(''); onFromChange(null); setFromResults([]); fromInputRef.current?.focus(); }}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: '#A0AEC0', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                  </button>
-                )}
-              </div>
+            /* ── Expanded form ── */
+            <div style={{ padding: '14px 14px 12px' }}>
 
-              {/* Connector + Via stops + Swap */}
-              <div style={{ display: 'flex', alignItems: 'stretch', paddingLeft: 14, minHeight: 22 }}>
-                {/* Left dashed line column */}
-                <div style={{ position: 'relative', width: 9, flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                  <div style={{ flex: 1, width: 1, background: 'repeating-linear-gradient(to bottom,#CBD5E0 0,#CBD5E0 4px,transparent 4px,transparent 8px)' }} />
+              {/* Route line left-col + inputs right-col */}
+              <div style={{ display: 'flex', gap: 10 }}>
+
+                {/* Route indicator column */}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 16, paddingBottom: 16, flexShrink: 0, width: 18 }}>
+                  <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#00C2A8', boxShadow: '0 0 0 3px rgba(0,194,168,0.18)' }} />
+                  <div style={{ flex: 1, minHeight: 28, width: 2, margin: '3px 0', background: 'repeating-linear-gradient(to bottom,#00C2A8 0,#00C2A8 5px,transparent 5px,transparent 10px)' }} />
+                  <div style={{ width: 11, height: 11, borderRadius: 3, background: '#0B1E3D' }} />
                 </div>
 
-                {/* Via stop rows + Add button */}
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6, paddingTop: 6, paddingBottom: 6, marginLeft: 6 }}>
-                  {viaStops.map((_, idx) => (
+                {/* Input fields */}
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+
+                  {/* FROM */}
+                  <div className="fsb-input-wrap" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 12px', height: 46, borderRadius: 14, border: `1.5px solid ${activeField === 'from' ? '#00C2A8' : '#E8EDF3'}`, background: activeField === 'from' ? '#F0FDFB' : '#F7F9FB', transition: 'border-color 0.15s, background 0.15s' }}>
+                    <input ref={fromInputRef} className="fsb-input"
+                      value={fromText}
+                      onChange={(e) => { setFromText(e.target.value); setOrigin(null); debounce(e.target.value, setFromResults, setFromLoading, fromTimer); }}
+                      onFocus={() => setActiveField('from')}
+                      placeholder={t('from_placeholder')}
+                      autoComplete="off"
+                      style={{ flex: 1, height: '100%', border: 'none', background: 'transparent', fontSize: 14, color: '#0B1E3D', fontFamily: 'inherit', fontWeight: 500 }}
+                    />
+                    {fromText && (
+                      <button className="fsb-clear" onClick={() => { setFromText(''); setOrigin(null); setFromResults([]); fromInputRef.current?.focus(); }}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 3, color: '#B0BEC5', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Via stops — private only */}
+                  {isPrivate && stops.map((_, idx) => (
                     <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      {/* teal dot */}
-                      <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#00C2A8', border: '2px solid #fff', boxShadow: '0 0 0 1.5px #00C2A8', flexShrink: 0 }} />
-                      {/* input */}
-                      <div className="fsb-input-wrap" style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, padding: '0 8px', height: 38, borderRadius: 8, border: `1.5px solid ${activeField === idx ? '#00C2A8' : '#E2E8F0'}`, background: activeField === idx ? '#F9FFFE' : '#FAFAFA', transition: 'border-color 0.15s, background 0.15s' }}>
+                      <div className="fsb-input-wrap" style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, padding: '0 10px', height: 40, borderRadius: 12, border: `1.5px solid ${activeField === idx ? '#00C2A8' : '#E8EDF3'}`, background: activeField === idx ? '#F0FDFB' : '#F7F9FB', transition: 'border-color 0.15s, background 0.15s' }}>
+                        <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#00C2A8', flexShrink: 0 }} />
                         <input
                           ref={(el) => { stopInputRefs.current[idx] = el; }}
                           className="fsb-input"
                           value={stopTexts[idx] ?? ''}
                           onChange={(e) => {
-                            const newTexts = [...stopTexts];
-                            newTexts[idx] = e.target.value;
-                            setStopTexts(newTexts);
-                            // clear selection
-                            const next = [...viaStops];
-                            next[idx] = { ...next[idx], address: e.target.value };
-                            onViaStopsChange?.(next);
-                            debounceStop(idx, e.target.value);
+                            const nt = [...stopTexts]; nt[idx] = e.target.value; setStopTexts(nt);
+                            setStop(idx, null); debounceStop(idx, e.target.value);
                           }}
                           onFocus={() => setActiveField(idx)}
                           placeholder={`Via stop ${idx + 1}…`}
@@ -449,80 +445,79 @@ export default function FloatingSearchBar({
                         />
                         {(stopTexts[idx] ?? '').length > 0 && (
                           <button className="fsb-clear" onClick={() => {
-                            const newTexts = [...stopTexts];
-                            newTexts[idx] = '';
-                            setStopTexts(newTexts);
-                            const newResults = [...stopResults];
-                            newResults[idx] = [];
-                            setStopResults(newResults);
-                            stopInputRefs.current[idx]?.focus();
-                          }}
-                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: '#A0AEC0', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                            const nt = [...stopTexts]; nt[idx] = ''; setStopTexts(nt);
+                            const nr = [...stopResults]; nr[idx] = []; setStopResults(nr);
+                            stopInputRefs.current[idx]?.focus(); setStop(idx, null);
+                            setTimeout(() => removeStop(idx), 50);
+                          }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: '#B0BEC5', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                           </button>
                         )}
                       </div>
-                      {/* remove stop */}
-                      <button onClick={() => {
-                        const next = viaStops.filter((_, i) => i !== idx);
-                        onViaStopsChange?.(next);
-                        if (typeof activeField === 'number' && activeField >= next.length) setActiveField(null);
-                      }}
-                        style={{ width: 26, height: 26, borderRadius: 6, border: '1px solid #E2E8F0', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#A0AEC0', flexShrink: 0 }}>
+                      <button onClick={() => { removeStop(idx); if (typeof activeField === 'number' && activeField >= stops.length - 1) setActiveField(null); }}
+                        style={{ width: 28, height: 28, borderRadius: 8, border: '1.5px solid #E8EDF3', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#B0BEC5', flexShrink: 0 }}>
                         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                       </button>
                     </div>
                   ))}
-                  {/* Add stop button */}
-                  <button
-                    onClick={() => {
-                      if (viaStops.length >= 2) return;
-                      const next = [...viaStops, { address: '', lat: 0, lng: 0 }];
-                      onViaStopsChange?.(next);
-                      setActiveField(next.length - 1);
-                      setTimeout(() => stopInputRefs.current[next.length - 1]?.focus(), 50);
-                    }}
-                    style={{ alignSelf: 'flex-start', fontSize: 12, fontWeight: 600, color: viaStops.length >= 2 ? '#A0AEC0' : '#00C2A8', background: 'none', border: 'none', cursor: viaStops.length >= 2 ? 'not-allowed' : 'pointer', padding: '2px 0', fontFamily: 'inherit', opacity: viaStops.length >= 2 ? 0.5 : 1 }}
-                  >
-                    + Add stop point
-                  </button>
+
+                  {/* TO */}
+                  <div className="fsb-input-wrap" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 12px', height: 46, borderRadius: 14, border: `1.5px solid ${activeField === 'to' ? '#0B1E3D' : '#E8EDF3'}`, background: activeField === 'to' ? '#F4F6FA' : '#F7F9FB', transition: 'border-color 0.15s, background 0.15s' }}>
+                    <input ref={toInputRef} className="fsb-input"
+                      value={toText}
+                      onChange={(e) => { setToText(e.target.value); setDestination(null); debounce(e.target.value, setToResults, setToLoading, toTimer); }}
+                      onFocus={() => setActiveField('to')}
+                      placeholder={t('to_placeholder')}
+                      autoComplete="off"
+                      style={{ flex: 1, height: '100%', border: 'none', background: 'transparent', fontSize: 14, color: '#0B1E3D', fontFamily: 'inherit', fontWeight: 500 }}
+                    />
+                    {toText && (
+                      <button className="fsb-clear" onClick={() => { setToText(''); setDestination(null); setToResults([]); toInputRef.current?.focus(); }}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 3, color: '#B0BEC5', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Swap button */}
-                <button className="fsb-swap" onClick={swap}
-                  style={{ alignSelf: 'flex-start', marginTop: 2, width: 28, height: 28, borderRadius: 6, border: '1.5px solid #E2E8F0', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#5A6A7A', flexShrink: 0, transition: 'border-color 0.15s, color 0.15s', marginLeft: 4 }}
-                  title={t('swap')}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>
-                  </svg>
-                </button>
+                <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                  <button className="fsb-swap" onClick={swap} title={t('swap')}
+                    style={{ width: 32, height: 32, borderRadius: 10, border: '1.5px solid #E8EDF3', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#5A6A7A', flexShrink: 0 }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/>
+                      <polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>
+                    </svg>
+                  </button>
+                </div>
               </div>
 
-              {/* TO */}
-              <div className="fsb-input-wrap" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0 10px', height: 46, borderRadius: 10, border: `1.5px solid ${activeField === 'to' ? '#00C2A8' : '#E2E8F0'}`, background: activeField === 'to' ? '#F9FFFE' : '#FAFAFA', transition: 'border-color 0.15s, background 0.15s' }}>
-                <div style={{ width: 10, height: 10, borderRadius: 2, background: '#0B1E3D', flexShrink: 0 }} />
-                <input ref={toInputRef} className="fsb-input"
-                  value={toText}
-                  onChange={(e) => { setToText(e.target.value); onToChange(null); debounce(e.target.value, setToResults, setToLoading, toTimer); }}
-                  onFocus={() => setActiveField('to')}
-                  placeholder={t('to_placeholder')}
-                  autoComplete="off"
-                  style={{ flex: 1, height: '100%', border: 'none', background: 'transparent', fontSize: 14, color: '#0B1E3D', fontFamily: 'inherit' }}
-                />
-                {toText && (
-                  <button className="fsb-clear" onClick={() => { setToText(''); onToChange(null); setToResults([]); toInputRef.current?.focus(); }}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: '#A0AEC0', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                  </button>
-                )}
-              </div>
+              {/* Add stop — private only */}
+              {isPrivate && stops.length < 2 && (
+                <button
+                  onClick={() => { const ni = stops.length; addStop(); setActiveField(ni); setTimeout(() => stopInputRefs.current[ni]?.focus(), 50); }}
+                  style={{ marginTop: 10, marginLeft: 28, display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 600, color: '#00C2A8', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0', fontFamily: 'inherit' }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  Add stop point
+                </button>
+              )}
             </div>
           )}
         </div>
 
         {/* ── Dropdown ─────────────────────────────────────────────── */}
         {hasDropdown && (
-          <div style={{ background: '#fff', borderRadius: '0 0 16px 16px', borderTop: '1px solid #F3F4F6', boxShadow: '0 8px 24px rgba(0,0,0,0.1)', maxHeight: 320, overflowY: 'auto' }}>
+          <div style={{
+            marginTop: 6,
+            background: 'rgba(255,255,255,0.98)',
+            borderRadius: 18,
+            boxShadow: '0 4px 24px rgba(11,30,61,0.12), 0 1px 6px rgba(0,0,0,0.05)',
+            border: '1px solid #E8EDF3',
+            backdropFilter: 'blur(12px)',
+            maxHeight: 340,
+            overflowY: 'auto',
+          }}>
             {showFromDropdown && <DropdownList field="from" />}
             {showToDropdown && <DropdownList field="to" />}
             {activeStopIdx >= 0 && <StopDropdownList idx={activeStopIdx} />}
@@ -537,7 +532,7 @@ export default function FloatingSearchBar({
 
 function IconBox({ bg, children }: { bg: string; children: React.ReactNode }) {
   return (
-    <div style={{ width: 32, height: 32, borderRadius: 8, background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+    <div style={{ width: 36, height: 36, borderRadius: 11, background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
       {children}
     </div>
   );
@@ -545,7 +540,7 @@ function IconBox({ bg, children }: { bg: string; children: React.ReactNode }) {
 
 function SectionHeader({ label }: { label: string }) {
   return (
-    <div style={{ padding: '4px 16px 2px', fontSize: 10, fontWeight: 700, color: '#A0AEC0', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+    <div style={{ padding: '8px 16px 4px', fontSize: 10, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
       {label}
     </div>
   );
@@ -554,10 +549,10 @@ function SectionHeader({ label }: { label: string }) {
 function DropItem({ icon, title, subtitle, onClick }: { icon: React.ReactNode; title: string; subtitle?: string; onClick: () => void }) {
   return (
     <button onClick={onClick} className="fsb-drop-item"
-      style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 14px', width: '100%', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', minHeight: 44, fontFamily: 'inherit' }}>
+      style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', width: '100%', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', minHeight: 50, fontFamily: 'inherit' }}>
       {icon}
       <div style={{ overflow: 'hidden' }}>
-        <div style={{ fontSize: 13, fontWeight: 500, color: '#0B1E3D', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{title}</div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: '#0B1E3D', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{title}</div>
         {subtitle && <div style={{ fontSize: 11, color: '#5A6A7A', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{subtitle}</div>}
       </div>
     </button>

@@ -1,9 +1,10 @@
 'use client';
 
-import type { OSRMRoute } from '@/lib/osrm';
+import type { ORSRoute } from '@/lib/openrouteservice';
 import type { RequestFormData } from './RequestForm';
-import { formatTimeWindow } from '@/lib/timeUtils';
+import { formatTime12h } from '@/lib/timeUtils';
 import { calculatePriceRange } from '@/lib/pricing';
+import { getNextAvailableCycleStart, formatCycleStartDate, getCycleEndDate } from '@/lib/cycleUtils';
 
 interface LocationValue {
   address: string;
@@ -14,7 +15,7 @@ interface LocationValue {
 interface RequestSummaryCardProps {
   from: LocationValue;
   to: LocationValue;
-  route: OSRMRoute;
+  route: ORSRoute;
   formData: RequestFormData;
   onEdit: () => void;
   onSubmit: () => void;
@@ -32,51 +33,31 @@ export default function RequestSummaryCard({
   onEdit,
   onSubmit,
 }: RequestSummaryCardProps) {
+  const hasRoundTripSlot = formData.time_slots.some((slot) => slot.trip_type === 'round_trip');
+
   const priceRange = calculatePriceRange({
     distanceKm: route.distance_km,
     ride_type:  formData.ride_type,
-    seatCostEGP: formData.seat_preference === 'any' ? 0 : formData.seat_preference.extra_cost_egp,
+    seatCostEGP: 0,
     walkMinutes: 0,
-    tripType:   formData.trip_type,
+    tripType:   hasRoundTripSlot ? 'round_trip' : 'one_way',
     days:       Math.max(formData.days.length, 1),
   });
 
-  const seatLabel =
-    formData.seat_preference === 'any'
-      ? 'Any seat · Free'
-      : `${formData.seat_preference.label} · +EGP ${formData.seat_preference.extra_cost_egp}/trip`;
+  const seatLabel = 'Any seat · Free';
 
 
-  const rows: Array<[string, string]> = [
-    ['Trip type', formData.ride_type === 'shared' ? '🧑‍🤝‍🧑 Shared ride' : '🚗 Private'],
+  const cycleStart = getNextAvailableCycleStart();
+  const cycleEnd   = getCycleEndDate(cycleStart);
+  const cycleStartStr = formatCycleStartDate(cycleStart, 'en');
+  const cycleEndStr   = formatCycleStartDate(cycleEnd, 'en');
+
+  const topRows: Array<[string, string]> = [
+    ['Ride type', formData.ride_type === 'shared' ? '🧑‍🤝‍🧑 Shared ride' : '🚗 Private'],
     ['Seat preference', seatLabel],
-    ['Trip type', formData.trip_type === 'one_way' ? 'One way' : 'Round trip'],
+    ['Direction', hasRoundTripSlot ? 'Mixed / includes round trips' : 'One way'],
     ['Days', formatDays(formData.days)],
-    ['Arrive between', (formData.arrival_from && formData.arrival_to) ? formatTimeWindow(formData.arrival_from, formData.arrival_to) : '—'],
-    ...(formData.departure_from && formData.departure_to
-      ? [['Depart between', formatTimeWindow(formData.departure_from, formData.departure_to)] as [string, string]]
-      : []),
-    ...(formData.trip_type === 'round_trip' && formData.return_arrival_from && formData.return_arrival_to
-      ? [
-          ['Arrive back between', formatTimeWindow(formData.return_arrival_from, formData.return_arrival_to)] as [string, string],
-          ...(formData.return_departure_from && formData.return_departure_to
-            ? [['Return depart between', formatTimeWindow(formData.return_departure_from, formData.return_departure_to)] as [string, string]]
-            : []),
-        ]
-      : []),
-    ...(formData.start_date
-      ? [
-          [
-            'Cycle start',
-            new Date(formData.start_date).toLocaleDateString('en-EG', {
-              weekday: 'short',
-              year: 'numeric',
-              month: 'short',
-              day: 'numeric',
-            }),
-          ] as [string, string],
-        ]
-      : []),
+    ['Cycle', `${cycleStartStr} – ${cycleEndStr}`],
   ];
   return (
     <div
@@ -119,14 +100,14 @@ export default function RequestSummaryCard({
           border: '1px solid #E2E8F0',
         }}
       >
-        {rows.map(([label, value], i) => (
+        {topRows.map(([label, value], i) => (
           <div
             key={label}
             style={{
               display: 'flex',
               justifyContent: 'space-between',
               padding: '10px 14px',
-              borderBottom: i < rows.length - 1 ? '1px solid #E2E8F0' : 'none',
+              borderBottom: i < topRows.length - 1 ? '1px solid #E2E8F0' : 'none',
               gap: 12,
             }}
           >
@@ -136,6 +117,79 @@ export default function RequestSummaryCard({
             </span>
           </div>
         ))}
+      </div>
+
+      {/* Schedule section */}
+      <div style={{ background: '#F8F9FA', borderRadius: 10, border: '1px solid #E2E8F0', overflow: 'hidden' }}>
+        <div style={{ padding: '10px 14px', background: '#EFF7F6', borderBottom: '1px solid #C8E8E4', fontSize: 13, fontWeight: 700, color: '#0B1E3D' }}>Schedule</div>
+        <div style={{ padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {formData.time_slots.map((slot, index) => (
+            <div
+              key={slot.id}
+              style={{
+                borderBottom: index < formData.time_slots.length - 1 ? '1px solid #E2E8F0' : 'none',
+                paddingBottom: index < formData.time_slots.length - 1 ? 12 : 0,
+              }}
+            >
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+                {slot.days.map((day) => (
+                  <span
+                    key={`${slot.id}-${day}`}
+                    style={{
+                      fontSize: 11,
+                      background: '#EFF7F6',
+                      border: '1px solid #C8E8E4',
+                      color: '#00A896',
+                      borderRadius: 999,
+                      padding: '2px 8px',
+                      fontWeight: 600,
+                    }}
+                  >
+                    {day}
+                  </span>
+                ))}
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#5A6A7A', marginBottom: 4 }}>
+                <span>Pickup</span>
+                <span style={{ color: '#0B1E3D', fontWeight: 600 }}>
+                  {formatTime12h(slot.pickup_from)} - {formatTime12h(slot.pickup_to)}
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#5A6A7A' }}>
+                <span>Arrival</span>
+                <span style={{ color: '#0B1E3D', fontWeight: 600 }}>
+                  {formatTime12h(slot.arrival_from)} - {formatTime12h(slot.arrival_to)}
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#5A6A7A', marginTop: 4 }}>
+                <span>Trip type</span>
+                <span style={{ color: '#0B1E3D', fontWeight: 600 }}>
+                  {slot.trip_type === 'round_trip' ? 'Round trip' : 'One way'}
+                </span>
+              </div>
+
+              {slot.trip_type === 'round_trip' && slot.return_pickup_from && slot.return_pickup_to && (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#5A6A7A', marginTop: 8 }}>
+                    <span>Return pickup</span>
+                    <span style={{ color: '#0B1E3D', fontWeight: 600 }}>
+                      {formatTime12h(slot.return_pickup_from)} - {formatTime12h(slot.return_pickup_to)}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#5A6A7A' }}>
+                    <span>Return arrival</span>
+                    <span style={{ color: '#0B1E3D', fontWeight: 600 }}>
+                      {formatTime12h(slot.return_arrival_from || '')} - {formatTime12h(slot.return_arrival_to || '')}
+                    </span>
+                  </div>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Price estimate */}

@@ -20,6 +20,7 @@ export const mockUser: UserProfile = {
   wallet_balance:  320,
   gender_pref:     'mixed',
   walk_minutes:    0,
+  seat_preference: 'any',
   saved_locations: [
     {
       id:      'sl-1',
@@ -43,7 +44,9 @@ export const mockUser: UserProfile = {
 export const mockRequests: UserRequest[] = [
   {
     id:                  'req-001',
-    status:              'price_raised',
+    status:              'active',
+    cycle_id:            'cycle-001',
+    today_trip_id:       'trip-today',
     origin:              { address: 'Nasr City, Cairo', lat: 30.0626, lng: 31.3417 },
     destination:         { address: 'Smart Village, 6 Oct', lat: 30.0710, lng: 30.9937 },
     distance_km:         24.5,
@@ -58,8 +61,8 @@ export const mockRequests: UserRequest[] = [
     arrival_to:          '09:30',
     departure_from:      '07:55',
     departure_to:        '08:55',
-    cycle_start_date:    '2026-05-05',
-    cycle_end_date:      '2026-05-11',
+    cycle_start_date:    '2026-05-11',
+    cycle_end_date:      '2026-05-17',
     base_price:          75,
     estimated_price_min: 360,
     estimated_price_max: 490,
@@ -74,6 +77,8 @@ export const mockRequests: UserRequest[] = [
       { id: 'p-002', first_name: 'Karim', gender: 'male' },
     ],
     created_at:          '2026-04-25T10:00:00Z',
+    group_type:          null,
+    group_action:        null,
   },
   {
     id:                   'req-002',
@@ -108,6 +113,15 @@ export const mockRequests: UserRequest[] = [
     driver_rating:        4.5,
     co_passengers:        [{ id: 'p-003', first_name: 'Sara', gender: 'female' }],
     created_at:           '2026-04-20T08:30:00Z',
+    group_type:          null,
+    group_action:        null,
+    cycle_days: [
+      { date: '2026-04-27', pickup_time: '07:35', dropoff_time: '08:03', driver_name: 'Ahmed Hassan',  status: 'completed' },
+      { date: '2026-04-28', pickup_time: '07:33', dropoff_time: '08:01', driver_name: 'Mohamed Samir', status: 'completed' },
+      { date: '2026-04-29', pickup_time: '07:40', dropoff_time: '08:09', driver_name: 'Omar Khaled',   status: 'cancelled' },
+      { date: '2026-04-30', pickup_time: '07:32', dropoff_time: '08:00', driver_name: 'Karim Youssef', status: 'completed' },
+      { date: '2026-05-01', driver_name: 'Hassan Ibrahim', status: null },
+    ],
   },
   {
     id:                  'req-003',
@@ -134,6 +148,8 @@ export const mockRequests: UserRequest[] = [
     passenger_count:     1,
     pickup_points:       [{ passenger_id: 'u-001', passenger_name: 'Sara Ahmed', passenger_gender: 'female', lat: 29.9730, lng: 30.9269, address: '6 October City', pickup_time_offset: 0 }],
     created_at:          '2026-04-27T14:00:00Z',
+    group_type:          null,
+    group_action:        null,
   },
   {
     id:                  'req-004',
@@ -164,6 +180,15 @@ export const mockRequests: UserRequest[] = [
     driver_rating:       4.8,
     co_passengers:       [{ id: 'p-004', first_name: 'Omar', gender: 'male' }],
     created_at:          '2026-04-10T09:00:00Z',
+    group_type:          null,
+    group_action:        null,
+    cycle_days: [
+      { date: '2026-04-14', pickup_time: '07:30', dropoff_time: '08:02', driver_name: 'Tarek Mostafa', status: 'completed' },
+      { date: '2026-04-15', pickup_time: '07:28', dropoff_time: '08:00', driver_name: 'Ahmed Hassan',  status: 'completed' },
+      { date: '2026-04-16', pickup_time: '07:35', dropoff_time: '08:07', driver_name: 'Mohamed Samir', status: 'completed' },
+      { date: '2026-04-19', driver_name: 'Omar Khaled', status: null },
+      { date: '2026-04-20', pickup_time: '07:29', dropoff_time: '08:01', driver_name: 'Karim Youssef', status: 'completed' },
+    ],
   },
   {
     id:                  'req-005',
@@ -198,6 +223,15 @@ export const mockRequests: UserRequest[] = [
     driver_rating:       4.7,
     co_passengers:       [{ id: 'p-005', first_name: 'Aisha', gender: 'female' }],
     created_at:          '2026-03-28T11:30:00Z',
+    group_type:          null,
+    group_action:        null,
+    cycle_days: [
+      { date: '2026-04-07', pickup_time: '08:34', dropoff_time: '09:02', driver_name: 'Hassan Ibrahim', status: 'completed' },
+      { date: '2026-04-08', pickup_time: '08:32', dropoff_time: '09:00', driver_name: 'Tarek Mostafa',  status: 'completed' },
+      { date: '2026-04-11', pickup_time: '08:38', dropoff_time: '09:06', driver_name: 'Ahmed Hassan',   status: 'cancelled' },
+      { date: '2026-04-12', pickup_time: '08:33', dropoff_time: '09:01', driver_name: 'Mohamed Samir',  status: 'completed' },
+      { date: '2026-04-13', pickup_time: '08:31', dropoff_time: '08:59', driver_name: 'Omar Khaled',    status: 'completed' },
+    ],
   },
   {
     id:                  'req-006',
@@ -228,10 +262,19 @@ export const mockRequests: UserRequest[] = [
     driver_rating:       4.6,
     co_passengers:       [{ id: 'p-006', first_name: 'Youssef', gender: 'male' }, { id: 'p-007', first_name: 'Layla', gender: 'female' }],
     created_at:          '2026-03-20T15:00:00Z',
+    group_type:          null,
+    group_action:        null,
+    cycle_days: [
+      { date: '2026-03-31', pickup_time: '06:10', dropoff_time: '07:02', driver_name: 'Karim Youssef', status: 'completed' },
+      { date: '2026-04-01', pickup_time: '06:08', dropoff_time: '07:00', driver_name: 'Hassan Ibrahim', status: 'completed' },
+      { date: '2026-04-02', pickup_time: '06:15', dropoff_time: '07:07', driver_name: 'Tarek Mostafa',  status: 'completed' },
+      { date: '2026-04-03', driver_name: 'Ahmed Hassan', status: 'cancelled' },
+      { date: '2026-04-06', pickup_time: '06:07', dropoff_time: '06:59', driver_name: 'Mohamed Samir',  status: 'completed' },
+    ],
   },
   {
     id:                  'req-007',
-    status:              'confirmed',
+    status:              'active',
     origin:              { address: 'Zamalek, Cairo', lat: 30.0719, lng: 31.2475 },
     destination:         { address: 'Nasr City, Cairo', lat: 30.0626, lng: 31.3417 },
     distance_km:         16.8,
@@ -258,6 +301,16 @@ export const mockRequests: UserRequest[] = [
     driver_rating:       4.9,
     co_passengers:       [{ id: 'p-008', first_name: 'Mona', gender: 'female' }],
     created_at:          '2026-04-30T10:15:00Z',
+    group_type:          null,
+    group_action:        null,
+    cycle_days: [
+      { date: '2026-05-10', pickup_time: '09:07', dropoff_time: '09:32', driver_name: 'Omar Khaled',    status: 'completed' },
+      { date: '2026-05-11', pickup_time: '09:05', dropoff_time: '09:30', driver_name: 'Karim Youssef',  status: 'completed' },
+      { date: '2026-05-12', driver_name: 'Hassan Ibrahim', status: null },
+      { date: '2026-05-13', driver_name: 'Tarek Mostafa',  status: null },
+      { date: '2026-05-14', driver_name: 'Ahmed Hassan',   status: null },
+      { date: '2026-05-15', driver_name: 'Mohamed Samir',  status: null },
+    ],
   },
   {
     id:                  'req-008',
@@ -288,6 +341,8 @@ export const mockRequests: UserRequest[] = [
     driver_rating:       4.4,
     co_passengers:       [{ id: 'p-009', first_name: 'Hana', gender: 'female' }],
     created_at:          '2026-05-01T13:45:00Z',
+    group_type:          null,
+    group_action:        null,
   },
   {
     id:                  'req-009',
@@ -314,6 +369,8 @@ export const mockRequests: UserRequest[] = [
     passenger_count:     1,
     pickup_points:       [{ passenger_id: 'u-001', passenger_name: 'Sara Ahmed', passenger_gender: 'female', lat: 30.0897, lng: 31.3222, address: 'Heliopolis, Cairo', pickup_time_offset: 0 }],
     created_at:          '2026-05-02T09:20:00Z',
+    group_type:          null,
+    group_action:        null,
   },
 ];
 

@@ -76,7 +76,7 @@ export default function UserSignupPage() {
       setToken(`${header}.${body}.mock_signature`);
       toast.success(`Welcome to Commuter, ${name}! 🎉`);
       await new Promise((r) => setTimeout(r, 500));
-      router.push('/user/map');
+      router.push('/user/request/new');
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Signup failed';
       toast.error(msg);

@@ -12,6 +12,7 @@ export type {
   SelectedSeat,
   SeatPreference,
   GeoLocation,
+  CycleDayRecord,
 } from './shared';
 
 // ── User-side request (extends shared core) ───────────────────────────────────
@@ -47,6 +48,7 @@ export interface UserProfile {
   saved_locations: SavedLocation[];
   gender_pref:     GenderPref;
   walk_minutes:    WalkMinutes;
+  seat_preference: 'front' | 'back' | 'any';
 }
 
 export interface SavedLocation {

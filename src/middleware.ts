@@ -43,19 +43,28 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/', request.url));
   }
 
+  // Read role from the dedicated cookie first (reliable); fall back to JWT claim
+  let role: 'driver' | 'user' | undefined =
+    (request.cookies.get('commuter_role')?.value as 'driver' | 'user' | undefined);
+
   try {
-    const decoded = jwtDecode<{ role: 'driver' | 'user'; exp: number }>(token);
-    if (decoded.exp * 1000 < Date.now()) {
+    const decoded = jwtDecode<{ role?: 'driver' | 'user'; exp?: number }>(token);
+    // Only use exp from JWT if present
+    if (decoded.exp && decoded.exp * 1000 < Date.now()) {
       return NextResponse.redirect(new URL('/', request.url));
     }
-    if (pathname.startsWith('/driver') && decoded.role !== 'driver') {
-      return NextResponse.redirect(new URL('/user/map', request.url));
-    }
-    if (pathname.startsWith('/user') && decoded.role !== 'user') {
-      return NextResponse.redirect(new URL('/driver/requests', request.url));
-    }
+    // Use JWT role if the cookie role isn't set
+    if (!role && decoded.role) role = decoded.role;
   } catch {
-    return NextResponse.redirect(new URL('/', request.url));
+    // Token is not a decodable JWT — rely solely on the role cookie
+    if (!role) return NextResponse.redirect(new URL('/', request.url));
+  }
+
+  if (pathname.startsWith('/driver') && role !== 'driver') {
+    return NextResponse.redirect(new URL('/user/request', request.url));
+  }
+  if (pathname.startsWith('/user') && role !== 'user') {
+    return NextResponse.redirect(new URL('/driver/requests', request.url));
   }
 
   return base;

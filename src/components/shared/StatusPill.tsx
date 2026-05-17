@@ -7,12 +7,17 @@ const STATUS_CONFIG: Record<
   available: { label: 'Available', bg: '#EFF7F6', color: '#00C2A8' },
   submitted: { label: 'Submitted', bg: '#E2E8F0', color: '#5A6A7A' },
   matching: {
+    label: 'Matching…',
+    bg: '#FFF3E0',
+    color: '#E65100',
+  },
+  finding_driver: {
     label: 'Finding driver…',
     bg: '#FFF3E0',
     color: '#E65100',
   },
   driver_offered: {
-    label: 'Driver found',
+    label: 'Matched',
     bg: '#EFF7F6',
     color: '#00C2A8',
   },

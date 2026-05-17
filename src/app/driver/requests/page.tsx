@@ -16,25 +16,7 @@ type GenderFlt   = 'any' | 'mixed' | 'same';
 type WalkFlt     = 'any' | '0' | '5' | '10';
 
 const DRIVER_GENDER = mockDriver.gender;
-
 const PAGE_SIZE = 10;
-
-const SEL: React.CSSProperties = {
-  fontSize: 13, border: '1px solid #E2E8F0', borderRadius: 8,
-  padding: '7px 10px', color: '#0B1E3D', background: '#fff',
-  outline: 'none', cursor: 'pointer',
-};
-
-function pageBtn(active: boolean, disabled: boolean): React.CSSProperties {
-  return {
-    width: 32, height: 32, borderRadius: 8, fontSize: 13, fontWeight: 500,
-    cursor: disabled ? 'default' : 'pointer',
-    background: active ? '#00C2A8' : '#fff',
-    color:      active ? '#fff'     : '#5A6A7A',
-    border:     active ? 'none'     : '1px solid #E2E8F0',
-    opacity: disabled ? 0.4 : 1,
-  };
-}
 
 export default function RequestsPage() {
   const t = useTranslations('driver_requests');
@@ -47,35 +29,23 @@ export default function RequestsPage() {
     { key: 'most-passengers',   label: t('sort_most_passengers') },
     { key: 'highest-price',     label: t('sort_highest_price') },
   ];
-  const [requests,      setRequests]      = useState<DriverCycleRequest[]>(
+
+  const [requests,       setRequests]       = useState<DriverCycleRequest[]>(
     () => mockRequests.filter((r) => r.status === 'available')
   );
-  const [sortKey,       setSortKey]       = useState<SortKey>('nearest-start');
+  const [sortKey,        setSortKey]        = useState<SortKey>('nearest-start');
   const [rideTypeFilter, setRideTypeFilter] = useState<RideTypeFlt>('any');
-  const [genderFilter,   setGenderFilter]  = useState<GenderFlt>('any');
-  const [walkFilter,     setWalkFilter]    = useState<WalkFlt>('any');
-  const [page,          setPage]          = useState(1);
-  const [detailRequest, setDetailRequest] = useState<DriverCycleRequest | null>(null);
-  const [raiseRequest,  setRaiseRequest]  = useState<DriverCycleRequest | null>(null);
-
-  useEffect(() => {
-    const id = setInterval(() => { /* production: fetchAvailableRequests().then(setRequests) */ }, 30_000);
-    return () => clearInterval(id);
-  }, []);
+  const [genderFilter,   setGenderFilter]   = useState<GenderFlt>('any');
+  const [walkFilter,     setWalkFilter]     = useState<WalkFlt>('any');
+  const [page,           setPage]           = useState(1);
+  const [detailRequest,  setDetailRequest]  = useState<DriverCycleRequest | null>(null);
+  const [raiseRequest,   setRaiseRequest]   = useState<DriverCycleRequest | null>(null);
 
   const filtered = useMemo(() => {
     let list = [...requests];
-
-    if (rideTypeFilter !== 'any') {
-      list = list.filter((r) => r.ride_type === rideTypeFilter);
-    }
-    if (genderFilter !== 'any') {
-      list = list.filter((r) => r.gender_pref === genderFilter);
-    }
-    if (walkFilter !== 'any') {
-      list = list.filter((r) => String(r.walk_minutes) === walkFilter);
-    }
-
+    if (rideTypeFilter !== 'any') list = list.filter((r) => r.ride_type === rideTypeFilter);
+    if (genderFilter   !== 'any') list = list.filter((r) => r.gender_pref === genderFilter);
+    if (walkFilter     !== 'any') list = list.filter((r) => String(r.walk_minutes) === walkFilter);
     switch (sortKey) {
       case 'nearest-start':     list.sort((a, b) => new Date(a.cycle_start_date).getTime() - new Date(b.cycle_start_date).getTime()); break;
       case 'farthest-start':    list.sort((a, b) => new Date(b.cycle_start_date).getTime() - new Date(a.cycle_start_date).getTime()); break;
@@ -119,44 +89,46 @@ export default function RequestsPage() {
     setDetailRequest(requests.find((r) => r.id === id) ?? null);
   }, [requests]);
 
+  const SELECT_CLS = 'text-[13px] border border-[#E2E8F0] rounded-lg px-3 py-2 text-[#0B1E3D] bg-white outline-none cursor-pointer';
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, fontFamily: 'Inter, system-ui, sans-serif' }}>
+    <div className="max-w-2xl mx-auto px-4 py-6 flex flex-col gap-6">
 
       {/* Page header */}
-      <div>
-        <h1 style={{ fontSize: 26, fontWeight: 700, color: '#0B1E3D', margin: 0 }}>{t('page_title')}</h1>
-        <p style={{ color: '#5A6A7A', fontSize: 14, margin: '4px 0 0' }}>
-          {t('page_subtitle')}
-        </p>
+      <div className="flex items-start justify-between flex-wrap gap-2">
+        <div>
+          <h1 className="text-2xl font-bold text-[#0B1E3D] m-0">{t('page_title')}</h1>
+          <p className="text-sm text-[#5A6A7A] mt-1">{t('page_subtitle')}</p>
+        </div>
+        <span className="bg-[#F0FDF9] border border-[#C8E8E4] rounded-full px-3 py-1.5 text-xs font-medium text-[#0B1E3D] self-start">
+          {filtered.length} request{filtered.length !== 1 ? 's' : ''}
+        </span>
       </div>
 
       {/* Filters row */}
-      <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <label htmlFor="sort-select" style={{ fontSize: 13, color: '#5A6A7A', fontWeight: 500, whiteSpace: 'nowrap' }}>
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2">
+          <label htmlFor="sort-select" className="text-[13px] text-[#5A6A7A] font-medium whitespace-nowrap">
             Sort:
           </label>
-          <select id="sort-select" value={sortKey} onChange={(e) => setSortKey(e.target.value as SortKey)} style={SEL}>
+          <select id="sort-select" value={sortKey} onChange={(e) => setSortKey(e.target.value as SortKey)} className={SELECT_CLS}>
             {SORT_OPTIONS.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
           </select>
         </div>
 
-        <select value={rideTypeFilter} onChange={(e) => setRideTypeFilter(e.target.value as RideTypeFlt)} style={SEL}
-          aria-label="Filter by ride type">
+        <select value={rideTypeFilter} onChange={(e) => setRideTypeFilter(e.target.value as RideTypeFlt)} className={SELECT_CLS} aria-label="Filter by ride type">
           <option value="any">Trip type: Any</option>
-          <option value="shared">🧑‍🤝‍🧑 Shared ride</option>
-          <option value="private">🚗 Private</option>
+          <option value="shared">Shared ride</option>
+          <option value="private">Private</option>
         </select>
 
-        <select value={genderFilter} onChange={(e) => setGenderFilter(e.target.value as GenderFlt)} style={SEL}
-          aria-label="Filter by gender preference">
+        <select value={genderFilter} onChange={(e) => setGenderFilter(e.target.value as GenderFlt)} className={SELECT_CLS} aria-label="Filter by gender preference">
           <option value="any">Gender pref: Any</option>
           <option value="mixed">Mixed</option>
           <option value="same">Same gender</option>
         </select>
 
-        <select value={walkFilter} onChange={(e) => setWalkFilter(e.target.value as WalkFlt)} style={SEL}
-          aria-label="Filter by walk minutes">
+        <select value={walkFilter} onChange={(e) => setWalkFilter(e.target.value as WalkFlt)} className={SELECT_CLS} aria-label="Filter by walk minutes">
           <option value="any">Walk: Any</option>
           <option value="0">Door pickup</option>
           <option value="5">5 min walk</option>
@@ -166,20 +138,13 @@ export default function RequestsPage() {
 
       {/* Request list */}
       {paginated.length === 0 ? (
-        <div style={{
-          textAlign: 'center', padding: '64px 24px',
-          background: '#fff', borderRadius: 12, border: '1px solid #E2E8F0',
-        }}>
-          <Calendar size={40} style={{ color: '#00C2A8', margin: '0 auto 16px' }} />
-          <p style={{ fontSize: 18, fontWeight: 600, color: '#0B1E3D', margin: '0 0 8px' }}>
-            {t('empty_title')}
-          </p>
-          <p style={{ fontSize: 14, color: '#5A6A7A', margin: 0 }}>
-            {t('empty_subtitle')}
-          </p>
+        <div className="flex flex-col items-center justify-center py-16 bg-white rounded-2xl border border-[#E2E8F0] text-center gap-3">
+          <Calendar size={40} className="text-[#00C2A8]" />
+          <p className="text-lg font-semibold text-[#0B1E3D] m-0">{t('empty_title')}</p>
+          <p className="text-sm text-[#5A6A7A] m-0">{t('empty_subtitle')}</p>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }} role="list" aria-label="Available requests">
+        <div className="flex flex-col gap-3" role="list" aria-label="Available requests">
           {paginated.map((req) => (
             <div key={req.id} role="listitem">
               <RequestCard
@@ -197,19 +162,35 @@ export default function RequestsPage() {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <nav style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }} aria-label="Pagination">
-          <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}
-            style={pageBtn(false, page === 1)} aria-label="Previous page">
+        <nav className="flex items-center justify-center gap-1.5" aria-label="Pagination">
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page === 1}
+            className="w-8 h-8 flex items-center justify-center rounded-lg border border-[#E2E8F0] bg-white text-[#5A6A7A] disabled:opacity-40 cursor-pointer disabled:cursor-default"
+            aria-label="Previous page"
+          >
             <ChevronLeft size={16} />
           </button>
           {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-            <button key={p} onClick={() => setPage(p)} aria-current={p === page ? 'page' : undefined}
-              style={pageBtn(p === page, false)}>
+            <button
+              key={p}
+              onClick={() => setPage(p)}
+              aria-current={p === page ? 'page' : undefined}
+              className={`w-8 h-8 rounded-lg text-[13px] font-medium cursor-pointer ${
+                p === page
+                  ? 'bg-[#00C2A8] text-white border-none'
+                  : 'bg-white text-[#5A6A7A] border border-[#E2E8F0]'
+              }`}
+            >
               {p}
             </button>
           ))}
-          <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-            style={pageBtn(false, page === totalPages)} aria-label="Next page">
+          <button
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+            className="w-8 h-8 flex items-center justify-center rounded-lg border border-[#E2E8F0] bg-white text-[#5A6A7A] disabled:opacity-40 cursor-pointer disabled:cursor-default"
+            aria-label="Next page"
+          >
             <ChevronRight size={16} />
           </button>
         </nav>

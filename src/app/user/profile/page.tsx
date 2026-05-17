@@ -20,6 +20,7 @@ export default function ProfilePage() {
     setProfile((p) => ({ ...p, ...updates }));
     toast.success('Profile updated!');
   }
+  const [userName, setUserName] = useState('User');
 
   const initials = profile.name
     .split(' ')
@@ -66,7 +67,7 @@ export default function ProfilePage() {
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
             <div>
               <h2 style={{ margin: '0 0 2px', fontSize: 22, fontWeight: 700, color: '#0B1E3D' }}>
-                {profile.name}
+                {userName}
               </h2>
               <div style={{ fontSize: 13, color: '#5A6A7A' }}>
                 Member since {formatDate(profile.joined_at)}
@@ -262,6 +263,28 @@ export default function ProfilePage() {
                 <div style={{ fontWeight: 600, color: '#0B1E3D' }}>{title}</div>
                 <div style={{ fontSize: 11, color: '#5A6A7A', marginTop: 2 }}>{sub}</div>
               </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Preferred seat */}
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 13, color: '#5A6A7A', marginBottom: 4, fontWeight: 500 }}>Preferred seat</div>
+          <div style={{ fontSize: 12, color: '#94A3B8', marginBottom: 10 }}>{"We'll try to match this, but it's not guaranteed."}</div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {(['front', 'back', 'any'] as const).map((val) => (
+              <button key={val} type="button"
+                onClick={() => setProfile((p) => ({ ...p, seat_preference: val }))}
+                style={{
+                  padding: '8px 18px', borderRadius: 20, fontSize: 13, cursor: 'pointer',
+                  fontFamily: 'inherit', border: '1.5px solid',
+                  borderColor: profile.seat_preference === val ? '#00C2A8' : '#D1D5DB',
+                  background: profile.seat_preference === val ? '#EFF7F6' : '#fff',
+                  color: profile.seat_preference === val ? '#0B1E3D' : '#5A6A7A',
+                  fontWeight: profile.seat_preference === val ? 600 : 400,
+                  textTransform: 'capitalize',
+                }}
+              >{val}</button>
             ))}
           </div>
         </div>

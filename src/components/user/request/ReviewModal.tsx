@@ -1,0 +1,279 @@
+'use client';
+
+import React from 'react';
+import type { WizardTimeSlot } from '@/lib/RequestWizardContext';
+import type { ReturnRoute } from '@/lib/RequestWizardContext';
+import type { GeoLocation, SelectedSeat, WeekDay } from '@/types/shared';
+import { formatTime12h } from '@/lib/timeUtils';
+
+interface ReviewModalProps {
+  onClose:   () => void;
+  onSubmit:  () => void;
+  submitting: boolean;
+
+  rideType:        'private' | 'shared' | null;
+  groupType:       'friends' | 'open' | null;
+  passengerCount:  number;
+  seatPreference:  'any' | SelectedSeat;
+
+  origin:          GeoLocation | null;
+  destination:     GeoLocation | null;
+  route:           { distance_km: number; duration_minutes: number } | null;
+
+  timeSlots:       WizardTimeSlot[];
+  returnRoutes:    Record<string, ReturnRoute>;
+
+  cycleStartDate:  string;
+  priceMin:        number;
+  priceMax:        number;
+}
+
+function ReviewRow({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex items-start justify-between py-2 border-b border-[#F1F3F4]">
+      <span className="text-xs text-[#5A6A7A] flex-shrink-0 w-28">{label}</span>
+      <span className="text-xs font-medium text-[#0B1E3D] text-right">{value}</span>
+    </div>
+  );
+}
+
+function ReviewSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="mb-5">
+      <h4 className="text-xs font-semibold text-[#9AA0A6] uppercase tracking-wide mb-2">{title}</h4>
+      {children}
+    </div>
+  );
+}
+
+const DAY_ABBR = ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+
+export default function ReviewModal({
+  onClose,
+  onSubmit,
+  submitting,
+  rideType,
+  groupType,
+  passengerCount,
+  seatPreference,
+  origin,
+  destination,
+  route,
+  timeSlots,
+  returnRoutes,
+  cycleStartDate,
+  priceMin,
+  priceMax,
+}: ReviewModalProps) {
+  const rideLabel = rideType === 'private'
+    ? `Private ride · ${passengerCount + 1} passengers`
+    : groupType === 'friends'
+      ? 'Shared ride · Friends group'
+      : 'Shared ride · Open match';
+
+  const seatLabel = seatPreference === 'any'
+    ? 'Any available seat'
+    : (seatPreference as SelectedSeat).label + ` (+EGP ${(seatPreference as SelectedSeat).extra_cost_egp}/trip)`;
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        onClick={onClose}
+        style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 900 }}
+      />
+
+      {/* Panel */}
+      <div
+        style={{
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: 'calc(100% - 32px)',
+          maxWidth: 520,
+          background: '#fff',
+          borderRadius: 20,
+          zIndex: 901,
+          maxHeight: '90vh',
+          overflowY: 'auto',
+          padding: '0 0 env(safe-area-inset-bottom)',
+          boxShadow: '0 24px 64px rgba(0,0,0,0.18)',
+        }}
+      >
+        {/* Header */}
+        <div className="sticky top-0 bg-white flex items-center justify-between px-5 py-4 border-b border-[#E2E8F0] z-10">
+          <h3 className="text-base font-bold text-[#0B1E3D]">Review your request</h3>
+          <button
+            onClick={onClose}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#5A6A7A', fontSize: 20 }}
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="px-5 py-4">
+
+          {/* Ride details */}
+          <ReviewSection title="Ride details">
+            <ReviewRow label="Type" value={rideLabel} />
+            <ReviewRow label="Seat" value={seatLabel} />
+          </ReviewSection>
+
+          {/* Schedule — each slot shows its own route */}
+          <ReviewSection title="Schedule">
+            {timeSlots.map((slot, i) => {
+              const rr = returnRoutes[slot.id];
+              const slotOrigin        = slot.origin      ?? origin;
+              const slotDestination   = slot.destination ?? destination;
+              const slotRoute         = slot.route       ?? route;
+              const returnOrigin      = slot.return_origin      ?? rr?.origin      ?? null;
+              const returnDestination = slot.return_destination ?? rr?.destination ?? null;
+              const returnRoute       = slot.return_route ?? null;
+
+              // Stops label
+              const stopsCount = (slot.stops ?? []).length;
+
+              return (
+                <div key={slot.id} className="mb-3 p-3 bg-[#F8F9FA] rounded-xl border border-[#E2E8F0]">
+                  {/* Slot header */}
+                  <div className="flex items-center justify-between mb-2.5">
+                    <span className="text-xs font-semibold text-[#0B1E3D]">Time slot {i + 1}</span>
+                    <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${slot.trip_type === 'round_trip' ? 'bg-[#EFF7F6] text-[#00C2A8]' : 'bg-[#F1F3F4] text-[#5A6A7A]'}`}>
+                      {slot.trip_type === 'round_trip' ? 'Round trip' : 'One way'}
+                    </span>
+                  </div>
+
+                  {/* Outbound route */}
+                  <div className="mb-2">
+                    <p className="text-[10px] font-semibold text-[#00C2A8] uppercase tracking-wide mb-1">
+                      {slot.trip_type === 'round_trip' ? '↗ Outbound' : 'Route'}
+                    </p>
+                    <div className="flex items-start gap-2 mb-1">
+                      <div className="mt-0.5 flex flex-col items-center flex-shrink-0" style={{ gap: 2 }}>
+                        <div className="w-2 h-2 rounded-full bg-white border-2 border-[#0B1E3D]" />
+                        {stopsCount > 0 && (
+                          <div className="w-0.5 bg-[#CBD4E1]" style={{ height: stopsCount * 14 }} />
+                        )}
+                        <div className="w-2 h-2 rounded-full bg-[#00C2A8]" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-[#0B1E3D] font-medium truncate">{slotOrigin?.address ?? '—'}</p>
+                        {(slot.stops ?? []).map((stop, si) => (
+                          <p key={si} className="text-xs text-[#5A6A7A] truncate mt-0.5">↳ {stop.address}</p>
+                        ))}
+                        <p className="text-xs text-[#0B1E3D] font-medium truncate mt-0.5">{slotDestination?.address ?? '—'}</p>
+                      </div>
+                    </div>
+                    {slotRoute && (
+                      <p className="text-[10px] text-[#9AA0A6] ml-4">
+                        {slotRoute.distance_km.toFixed(1)} km · ~{Math.round(slotRoute.duration_minutes)} min
+                      </p>
+                    )}
+                    <div className="mt-1.5 text-xs text-[#5A6A7A] space-y-0.5">
+                      <p>Pickup: {formatTime12h(slot.pickup_from)} – {formatTime12h(slot.pickup_to)}</p>
+                      <p>Arrival: {formatTime12h(slot.arrival_from)} – {formatTime12h(slot.arrival_to)}</p>
+                    </div>
+                  </div>
+
+                  {/* Return route */}
+                  {slot.trip_type === 'round_trip' && (
+                    <div className="mt-2 pt-2 border-t border-[#E2E8F0]">
+                      <p className="text-[10px] font-semibold text-[#00C2A8] uppercase tracking-wide mb-1">↩ Return</p>
+                      {returnOrigin && returnDestination ? (
+                        <>
+                          <div className="flex items-start gap-2 mb-1">
+                            <div className="mt-0.5 flex flex-col items-center flex-shrink-0" style={{ gap: 2 }}>
+                              <div className="w-2 h-2 rounded-full bg-white border-2 border-[#0B1E3D]" />
+                              <div className="w-2 h-2 rounded-full bg-[#00C2A8]" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs text-[#0B1E3D] font-medium truncate">{returnOrigin.address}</p>
+                              <p className="text-xs text-[#0B1E3D] font-medium truncate mt-0.5">{returnDestination.address}</p>
+                            </div>
+                          </div>
+                          {returnRoute && (
+                            <p className="text-[10px] text-[#9AA0A6] ml-4">
+                              {returnRoute.distance_km.toFixed(1)} km · ~{Math.round(returnRoute.duration_minutes)} min
+                            </p>
+                          )}
+                        </>
+                      ) : (
+                        <p className="text-xs text-[#9AA0A6] italic">Same as outbound (reversed)</p>
+                      )}
+                      {slot.return_pickup_from && (
+                        <div className="mt-1.5 text-xs text-[#5A6A7A] space-y-0.5">
+                          <p>Pickup: {formatTime12h(slot.return_pickup_from)} – {formatTime12h(slot.return_pickup_to ?? '')}</p>
+                          {slot.return_arrival_from && (
+                            <p>Arrival: {formatTime12h(slot.return_arrival_from)} – {formatTime12h(slot.return_arrival_to ?? '')}</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Day chips */}
+                  <div className="flex flex-wrap gap-1 mt-2.5 pt-2 border-t border-[#E2E8F0]">
+                    {DAY_ABBR.map(d => (
+                      <span
+                        key={d}
+                        className={`text-[10px] px-1.5 py-0.5 rounded ${slot.days.includes(d as WeekDay) ? 'bg-[#0B1E3D] text-white font-semibold' : 'bg-[#E2E8F0] text-[#9AA0A6]'}`}
+                      >
+                        {d}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </ReviewSection>
+
+          {/* Cycle */}
+          <ReviewSection title="Cycle">
+            <ReviewRow label="Starts" value={cycleStartDate} />
+          </ReviewSection>
+
+          {/* Cost */}
+          <ReviewSection title="Estimated cost">
+            <div className="bg-[#EFF7F6] border border-[#C8E8E4] rounded-xl p-3">
+              <p className="text-sm font-bold text-[#0B1E3D]">
+                EGP {priceMin} – {priceMax} / week
+              </p>
+              <p className="text-xs text-[#5A6A7A] mt-0.5">
+                Final price confirmed after driver is matched
+              </p>
+            </div>
+          </ReviewSection>
+        </div>
+
+        {/* Footer actions */}
+        <div className="sticky bottom-0 bg-white border-t border-[#E2E8F0] px-5 py-4 flex gap-3">
+          <button
+            onClick={onClose}
+            style={{ flex: 1, height: 46, background: '#F1F3F4', border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 600, color: '#5A6A7A', cursor: 'pointer', fontFamily: 'inherit' }}
+          >
+            ← Edit
+          </button>
+          <button
+            onClick={onSubmit}
+            disabled={submitting}
+            style={{
+              flex: 2,
+              height: 46,
+              background: submitting ? '#9AA0A6' : '#00C2A8',
+              border: 'none',
+              borderRadius: 12,
+              fontSize: 14,
+              fontWeight: 700,
+              color: '#0B1E3D',
+              cursor: submitting ? 'not-allowed' : 'pointer',
+              fontFamily: 'inherit',
+            }}
+          >
+            {submitting ? 'Submitting…' : 'Submit request ✓'}
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}

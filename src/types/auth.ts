@@ -1,7 +1,5 @@
 export type UserRole = 'driver' | 'user';
 
-import type { GenderPref, WalkMinutes } from './shared';
-
 export interface AuthResponse {
   token: string;
   role: UserRole;
@@ -17,14 +15,19 @@ export interface UserSignInPayload {
 }
 
 export interface UserSignUpPayload {
-  name:             string;
-  email:            string;
-  password:         string;
-  confirmPassword:  string;
-  gender:           'male' | 'female';
-  dateOfBirth:      string; // "YYYY-MM-DD"
-  gender_pref:      GenderPref;
-  walk_minutes:     WalkMinutes;
+  role:                 'user';
+  name:                 string;
+  email:                string;
+  phone_number:         string;
+  whatsapp_number:      string;
+  province:             string;
+  district:             string;
+  sub_district:         string;
+  building:             string;
+  street:               string;
+  landmark:             string;
+  password:             string;
+  password_confirmation: string;
 }
 
 export interface DriverSignInPayload {
@@ -61,8 +64,8 @@ export interface DriverSignUpPayload {
 }
 
 // Keep legacy aliases for existing driver portal code
-export type SignInPayload = UserSignInPayload;
-export type UserSignupPayload = UserSignUpPayload;
+export type SignInPayload      = UserSignInPayload;
+export type UserSignupPayload  = UserSignUpPayload;
 export type DriverSignupPayload = DriverSignUpPayload;
 export interface DriverSignupStep {
   step: 1 | 2 | 3;

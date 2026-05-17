@@ -164,8 +164,6 @@
     "loading_map": "Loading map…",
     "pick_banner_cancel": "✕",
     "plan_commute_tab": "Plan commute",
-    "next_cycle_label": "Next cycle available",
-    "next_cycle_seats": "seats remaining in this zone",
     "availability_checking": "Checking availability…",
     "next_cycle_days": "{count, plural, one {in # day} other {in # days}}",
     "choose_route": "Choose route",
@@ -175,8 +173,11 @@
     "saved_work": "Work",
     "add_stop": "+ Add stop point",
     "stop_placeholder": "Via stop {n}…",
+    "remove_stop": "Remove stop",
     "pick_stop": "Tap the map to add a stop",
-    "stops_locked_shared": "Shared ride unavailable — stop points require a private car."
+    "stops_locked_shared": "Shared ride unavailable — stop points require a private car.",
+    "stops_force_private": "Multi-stop routes are only available for Private rides. Remove all stop points to enable Shared ride.",
+    "max_stops_reached": "Maximum 3 stop points"
   },
 
   "request_form": {
@@ -188,11 +189,11 @@
     "oneway": "One way",
     "roundtrip": "Round trip",
     "days_label": "Days of the week",
-    "arrival_label": "When do you want to arrive?",
-    "arrival_from": "Earliest",
-    "arrival_to": "Latest",
-    "arrival_window_note": "Minimum 1 hour window",
-    "return_label": "When do you want to arrive back?",
+    "arrival_label": "Arrival window",
+    "arrival_from": "From",
+    "arrival_to": "To",
+    "arrival_window_note": "Window: {gap} minutes",
+    "return_label": "Return arrival window",
     "seat_label": "Seat preference",
     "seat_any": "Any available seat",
     "seat_front": "Front seat (Passenger side)",
@@ -218,7 +219,16 @@
     "breakdown_range_note": "Driver may adjust ± 15%",
     "review_btn": "Review & submit request",
     "walk_note": "Walking to a shared pickup point reduces your price.",
-    "estimated_departure": "Your estimated departure"
+    "estimated_departure": "Your estimated departure",
+    "time_mode_label": "Trip schedule",
+    "time_mode_same": "Same time every day",
+    "time_mode_per_day": "Different time per day",
+    "arrival_min_error": "Minimum window is 30 minutes",
+    "arrival_max_error": "Maximum window is 2 hours",
+    "cycle_start_label": "Cycle start",
+    "cycle_next_available": "Next available cycle",
+    "cycle_starts_on": "Starts Saturday {date}",
+    "cycle_planning_note": "Requests are grouped every Wednesday · Cycles start the following Saturday"
   },
 
   "request_summary": {
@@ -238,7 +248,11 @@
     "price_estimate": "Your estimated cost",
     "price_note": "Final price confirmed after driver matches",
     "edit_btn": "Edit details",
-    "submit_btn": "Submit request"
+    "submit_btn": "Submit request",
+    "schedule_title": "Schedule",
+    "day_arrive": "Arrive",
+    "day_return": "Return",
+    "same_time_all_days": "Same time every day"
   },
 
   "my_requests": {
@@ -249,8 +263,9 @@
     "tab_completed": "Completed",
     "tab_cancelled": "Cancelled",
     "status_submitted": "Submitted",
-    "status_matching": "Finding driver...",
-    "status_driver_offered": "Driver found",
+    "status_matching": "Matching…",
+    "status_finding_driver": "Finding driver…",
+    "status_driver_offered": "Matched",
     "status_price_raised": "Price updated",
     "status_confirmed": "Confirmed",
     "status_active": "Active",

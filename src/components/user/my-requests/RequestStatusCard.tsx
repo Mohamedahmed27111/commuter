@@ -1,12 +1,13 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import type { UserRequest } from '@/types/user';
 import StatusPill from '@/components/shared/StatusPill';
 import StatusTimeline from './StatusTimeline';
-import CoPassengerCard from './CoPassengerCard';
 import CancelRequestModal from './CancelRequestModal';
+import CycleDaysAccordion from './CycleDaysAccordion';
 import { formatTimeWindow } from '@/lib/timeUtils';
 
 interface RequestStatusCardProps {
@@ -54,8 +55,7 @@ export default function RequestStatusCard({
   const [cancelOpen, setCancelOpen] = useState(false);
 
   const canCancel = !['completed', 'cancelled'].includes(request.status);
-  const showCoPassengers =
-    ['confirmed', 'active'].includes(request.status) && request.co_passengers?.length;
+  const canViewDetails = ['confirmed', 'active', 'completed'].includes(request.status);
 
   return (
     <>
@@ -114,133 +114,65 @@ export default function RequestStatusCard({
           )}
           <span>{request.days.join(' ')}</span>
           <span>·</span>
-          <span>{formatTimeWindow(request.arrival_from, request.arrival_to)}</span>
+          <span>{formatTimeWindow(request.arrival_from ?? '', request.arrival_to ?? '')}</span>
         </div>
 
         {/* Status timeline */}
         <StatusTimeline status={request.status} />
 
-        {/* Driver info */}
-        {request.driver_name && (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '8px 12px',
-              background: '#F8F9FA',
-              borderRadius: 8,
-              fontSize: 13,
-            }}
-          >
+        {/* Cycle days — shown in "View details" for confirmed / active / completed */}
+        {expanded && canViewDetails && (
+          <div>
             <div
               style={{
-                width: 28,
-                height: 28,
-                borderRadius: '50%',
-                background: '#0B1E3D',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#00C2A8',
+                fontSize: 12,
                 fontWeight: 700,
-                fontSize: 11,
-                flexShrink: 0,
+                color: '#5A6A7A',
+                marginBottom: 8,
+                textTransform: 'uppercase',
+                letterSpacing: '0.04em',
               }}
             >
-              {request.driver_name[0]}
+              Trip Schedule
             </div>
-            <span style={{ fontWeight: 600, color: '#0B1E3D' }}>{request.driver_name}</span>
-            {request.driver_rating && (
-              <span style={{ color: '#5A6A7A' }}>{'★'} {request.driver_rating}</span>
-            )}
-          </div>
-        )}
-
-        {/* Co-passengers */}
-        {expanded && showCoPassengers && (
-          <CoPassengerCard passengers={request.co_passengers!} />
-        )}
-
-        {/* Preferences detail — shown when "View details" is expanded */}
-        {expanded && (
-          <div
-            style={{
-              background: '#F8F9FA',
-              borderRadius: 10,
-              overflow: 'hidden',
-              border: '1px solid #E2E8F0',
-            }}
-          >
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#5A6A7A', padding: '8px 14px 4px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              {t('prefs_title')}
-            </div>
-            {[
-              [t('pref_ride_type'), request.ride_type === 'shared' ? `🧑‍🤝‍🧑 ${t('ride_shared')}` : `🚗 ${t('ride_private')}`],
-              [t('pref_gender'), request.gender_pref === 'same' ? `♂♀ ${t('gender_same')}` : `♂♀ ${t('gender_mixed')}`],
-              [t('pref_walk'),
-                request.walk_minutes === 10 ? `🚶 ${t('walk_10')}` :
-                request.walk_minutes === 5  ? `🚶 ${t('walk_5')}` :
-                `🚶 ${t('walk_door')}`],
-            ].map(([label, value], i) => (
-              <div
-                key={label}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '9px 14px',
-                  borderTop: i === 0 ? '1px solid #E2E8F0' : 'none',
-                  borderBottom: '1px solid #F1F3F4',
-                  fontSize: 13,
-                }}
-              >
-                <span style={{ color: '#5A6A7A' }}>{label}</span>
-                <span style={{ color: '#0B1E3D', fontWeight: 600 }}>{value}</span>
-              </div>
-            ))}
-            {/* Seat preference row */}
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                padding: '9px 14px',
-                borderBottom: '1px solid #F1F3F4',
-                fontSize: 13,
-              }}
-            >
-              <span style={{ color: '#5A6A7A' }}>{t('pref_seat')}</span>
-              {request.seat_preference === 'any' ? (
-                <span style={{ color: '#0B1E3D', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  🚺 {t('seat_any')}
-                  <span style={{ fontSize: 11, color: '#166534', background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 20, padding: '1px 8px' }}>
-                    {t('seat_free')}
-                  </span>
-                </span>
-              ) : (
-                <span style={{ color: '#0B1E3D', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  💺 {request.seat_preference.label}
-                  <span style={{ fontSize: 11, background: '#FFF8E1', border: '1px solid #F9C74F', color: '#7a4d00', borderRadius: 20, padding: '1px 8px' }}>
-                    +EGP {request.seat_preference.extra_cost_egp}/trip
-                  </span>
-                </span>
-              )}
-            </div>
+            <CycleDaysAccordion
+              days={request.cycle_days ?? []}
+              driverName={request.driver_name}
+            />
           </div>
         )}
 
         {/* Actions */}
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-          {showCoPassengers && (
+          {request.today_trip_id && request.status === 'active' && (
+            <Link
+              href={`/user/trip/${request.today_trip_id}`}
+              style={{
+                padding: '8px 14px',
+                border: 'none',
+                borderRadius: 8,
+                background: '#0B1E3D',
+                color: '#fff',
+                fontWeight: 700,
+                fontSize: 13,
+                textDecoration: 'none',
+                minHeight: 36,
+                display: 'inline-flex',
+                alignItems: 'center',
+              }}
+            >
+              Live trip
+            </Link>
+          )}
+          {canViewDetails && (
             <button
-              onClick={() => setExpanded((e) => !e)}
+              onClick={() => { setExpanded((e) => !e); onViewDetails?.(request.id); }}
               style={{
                 padding: '8px 14px',
                 border: '1px solid #E2E8F0',
                 borderRadius: 8,
                 background: '#fff',
-                color: '#00C2A8',
+                color: '#0B1E3D',
                 fontWeight: 600,
                 fontSize: 13,
                 cursor: 'pointer',
@@ -248,26 +180,9 @@ export default function RequestStatusCard({
                 minHeight: 36,
               }}
             >
-              {expanded ? t('hide_riders') : t('show_riders')}
+              {expanded ? t('hide_details') : t('view_details')}
             </button>
           )}
-          <button
-            onClick={() => { setExpanded((e) => !e); onViewDetails?.(request.id); }}
-            style={{
-              padding: '8px 14px',
-              border: '1px solid #E2E8F0',
-              borderRadius: 8,
-              background: '#fff',
-              color: '#0B1E3D',
-              fontWeight: 600,
-              fontSize: 13,
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              minHeight: 36,
-            }}
-          >
-            {expanded ? t('hide_details') : t('view_details')}
-          </button>
           {canCancel && (
             <button
               onClick={() => setCancelOpen(true)}

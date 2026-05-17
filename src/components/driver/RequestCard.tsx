@@ -2,33 +2,31 @@
 
 import type { DriverCycleRequest } from '@/types/driver';
 import { formatDate, formatTimeWindow } from '@/lib/timeUtils';
+import { MapPin, Users, Clock, Footprints, RotateCcw, Armchair } from 'lucide-react';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function Dot() {
-  return <span style={{ color: '#C8E8E4', margin: '0 4px' }}>·</span>;
+  return <span className="text-[#C8E8E4] mx-1">·</span>;
 }
 
 function RideTypeBadge({ ride_type }: { ride_type: 'shared' | 'private' }) {
+  const isShared = ride_type === 'shared';
   return (
-    <span style={{
-      fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 99,
-      background: ride_type === 'shared' ? '#EFF7F6' : '#FFF3E0',
-      color:      ride_type === 'shared' ? '#00A896' : '#E65100',
-    }}>
-      {ride_type === 'shared' ? '🧑‍🤝‍🧑 Shared ride' : '🚗 Private'}
-    </span>
-  );
-}
-
-function GenderBadge({ pref }: { pref: 'same' | 'mixed' }) {
-  if (pref === 'mixed') return null;
-  return (
-    <span style={{
-      fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 99,
-      background: '#FEF9C3', color: '#854D0E',
-    }}>
-      Same gender
+    <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full ${
+      isShared ? 'bg-[#EFF7F6] text-[#00A896]' : 'bg-[#FFF3E0] text-[#E65100]'
+    }`}>
+      {isShared ? (
+        <>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Shared ride
+        </>
+      ) : (
+        <>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+          Private
+        </>
+      )}
     </span>
   );
 }
@@ -64,16 +62,13 @@ export default function RequestCard({
     passenger_count,
   } = request;
 
-  // Gender eligibility
   const genderOk =
     gender_pref === 'mixed' ||
     (gender_pref === 'same' &&
       request.pickup_points[0]?.passenger_gender === driverGender);
 
   const seatLabel =
-    seat_preference === 'any'
-      ? 'Any seat'
-      : seat_preference.label;
+    seat_preference === 'any' ? 'Any seat' : seat_preference.label;
 
   const seatExtra =
     seat_preference !== 'any' && seat_preference.extra_cost_egp > 0
@@ -82,111 +77,127 @@ export default function RequestCard({
 
   return (
     <article
-      className="bg-secondary-lt border border-[#C8E8E4] rounded-lg p-4 md:p-5 space-y-3"
+      className="bg-white border border-[#E2E8F0] rounded-xl p-5 flex flex-col gap-3"
       aria-label={`Cycle request from ${origin.address} to ${destination.address}`}
     >
-      {/* Top row: dates + trip mode badge */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-        <span style={{ fontSize: 12, color: '#5A6A7A', fontWeight: 500 }}>
+      {/* Top row: dates + badges */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="text-xs font-medium text-[#5A6A7A]">
           {formatDate(cycle_start_date)} – {formatDate(cycle_end_date)}
         </span>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div className="flex flex-wrap items-center gap-1.5">
           <RideTypeBadge ride_type={ride_type} />
           {!genderOk && (
-            <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: '#FEF2F2', color: '#B91C1C' }}>
+            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[#FEF2F2] text-[#B91C1C]">
               Gender mismatch
             </span>
           )}
-          {gender_pref === 'same' && genderOk && <GenderBadge pref={gender_pref} />}
+          {gender_pref === 'same' && genderOk && (
+            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[#FEF9C3] text-[#854D0E]">
+              Same gender
+            </span>
+          )}
         </div>
       </div>
 
       {/* Route */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: 15, color: '#0B1E3D' }}>
-        <span style={{ color: '#00C2A8' }}>📍</span>
+      <div className="flex flex-wrap items-center gap-2 font-bold text-[15px] text-[#0B1E3D]">
+        <MapPin size={15} className="text-[#00C2A8] flex-shrink-0" />
         <span>{origin.address}</span>
-        <span style={{ color: '#5A6A7A', fontWeight: 400 }}>→</span>
+        <span className="text-[#00C2A8]">→</span>
         <span>{destination.address}</span>
       </div>
 
-      {/* Meta chips */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', fontSize: 13, color: '#5A6A7A', gap: 2 }}>
+      {/* Meta row */}
+      <div className="flex flex-wrap items-center text-[13px] text-[#5A6A7A] gap-0.5">
         <span>{distance_km} km</span>
         <Dot />
-        <span>{trip_type === 'round_trip' ? '↩ Round trip' : '→ One way'}</span>
+        <span className="inline-flex items-center gap-1">
+          <RotateCcw size={13} className="text-[#00C2A8]" />
+          {trip_type === 'round_trip' ? 'Round trip' : 'One way'}
+        </span>
         <Dot />
-        <span>👥 {passenger_count} {passenger_count === 1 ? 'person' : 'people'}</span>
+        <span className="inline-flex items-center gap-1">
+          <Users size={13} className="text-[#00C2A8]" />
+          {passenger_count} {passenger_count === 1 ? 'person' : 'people'}
+        </span>
         <Dot />
-        <span>🕐 Arrive{' '}
-          <strong>{formatTimeWindow(arrival_from, arrival_to)}</strong>
+        <span className="inline-flex items-center gap-1">
+          <Clock size={13} className="text-[#00C2A8]" />
+          Arrive <strong className="ml-0.5">{formatTimeWindow(arrival_from ?? '', arrival_to ?? '')}</strong>
         </span>
         {departure_from && departure_to && (
           <>
             <Dot />
-            <span className="text-[#9AA0A6] text-xs">(depart {formatTimeWindow(departure_from, departure_to)})</span>
+            <span className="text-[12px] text-[#9AA0A6]">
+              (depart {formatTimeWindow(departure_from, departure_to)})
+            </span>
           </>
         )}
         {walk_minutes > 0 && (
           <>
             <Dot />
-            <span>🚶 {walk_minutes} min walk</span>
+            <span className="inline-flex items-center gap-1">
+              <Footprints size={13} className="text-[#00C2A8]" />
+              {walk_minutes} min walk
+            </span>
           </>
         )}
       </div>
 
       {/* Seat preference */}
       {seat_preference !== 'any' && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 12, color: '#5A6A7A' }}>Seat:</span>
-          <span style={{
-            fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 99,
-            background: '#FFF8E1', border: '1px solid #F9C74F', color: '#7a4d00',
-          }}>
-            💺 {seatLabel} {seatExtra && `· ${seatExtra}`}
+        <div className="flex items-center gap-1.5">
+          <span className="text-[12px] text-[#5A6A7A]">Seat:</span>
+          <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[#FFF8E1] border border-[#F9C74F] text-[#7a4d00]">
+            <Armchair size={11} />
+            {seatLabel}{seatExtra && ` · ${seatExtra}`}
           </span>
         </div>
       )}
 
-      {/* Price */}
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-        <span style={{ fontSize: 13, color: '#5A6A7A' }}>Est. price:</span>
-        <span style={{ fontWeight: 700, fontSize: 16, color: '#0B1E3D' }}>
+      {/* Price row */}
+      <div className="flex items-baseline gap-2 flex-wrap">
+        <span className="text-[13px] text-[#5A6A7A]">Est. price:</span>
+        <span className="font-bold text-base text-[#0B1E3D]">
           EGP {estimated_price_min} – {estimated_price_max}
         </span>
-        <span style={{ fontSize: 12, color: '#5A6A7A' }}>/week</span>
-        <span style={{ fontSize: 12, color: '#94A3B8' }}>
-          (base EGP {base_price})
-        </span>
+        <span className="text-xs text-[#5A6A7A]">/week</span>
+        <span className="text-xs text-[#94A3B8]">(base EGP {base_price})</span>
       </div>
 
       {/* Actions */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap', paddingTop: 4 }}>
+      <div className="flex items-center justify-between flex-wrap gap-2 pt-3 border-t border-[#F1F3F4]">
         <button
           onClick={() => onSeeDetails(id)}
-          style={{ background: 'none', border: 'none', color: '#00C2A8', fontSize: 13, fontWeight: 600, cursor: 'pointer', padding: 0 }}
+          className="text-[13px] font-semibold text-[#00C2A8] bg-transparent border-none cursor-pointer py-1"
           aria-label={`See details for request from ${origin.address}`}
         >
-          See details ›
+          View details →
         </button>
 
         {status === 'available' && (
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <div className="flex flex-wrap gap-2">
             <button
               onClick={() => onReject(id)}
-              style={{ padding: '8px 14px', borderRadius: 8, border: '1.5px solid #E74C3C', color: '#E74C3C', background: '#fff', fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}
+              className="px-4 py-2 rounded-xl border border-[#E74C3C] text-[#E74C3C] bg-white text-[13px] font-medium cursor-pointer"
             >
               Reject
             </button>
             <button
               onClick={() => onRaise(id)}
-              style={{ padding: '8px 14px', borderRadius: 8, border: '1.5px solid #F5A623', color: '#F5A623', background: '#fff', fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}
+              className="px-4 py-2 rounded-xl border border-[#F5A623] text-[#F5A623] bg-white text-[13px] font-medium cursor-pointer"
             >
-              Raise price
+              Counter price
             </button>
             <button
               onClick={() => onAccept(id)}
               disabled={!genderOk}
-              style={{ padding: '8px 14px', borderRadius: 8, background: genderOk ? '#00C2A8' : '#CBD5E1', color: genderOk ? '#0B1E3D' : '#94A3B8', fontSize: 13, fontWeight: 700, border: 'none', cursor: genderOk ? 'pointer' : 'not-allowed', fontFamily: 'inherit' }}
+              className={`px-4 py-2 rounded-xl text-[13px] font-bold border-none cursor-pointer ${
+                genderOk
+                  ? 'bg-[#00C2A8] text-[#0B1E3D]'
+                  : 'bg-[#CBD5E1] text-[#94A3B8] cursor-not-allowed'
+              }`}
               title={!genderOk ? 'Gender preference mismatch' : undefined}
             >
               Accept

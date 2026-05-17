@@ -164,8 +164,6 @@
     "loading_map": "جاري تحميل الخريطة…",
     "pick_banner_cancel": "✕",
     "plan_commute_tab": "خطّط الرحلة",
-    "next_cycle_label": "أقرب دورة متاحة",
-    "next_cycle_seats": "مقاعد متبقية في هذه المنطقة",
     "availability_checking": "جاري التحقق من التوفر…",
     "next_cycle_days": "{count, plural, one {غداً} other {خلال # أيام}}",
     "choose_route": "اختر المسار",
@@ -174,8 +172,9 @@
     "saved_home": "البيت",
     "saved_work": "الشغل",
     "add_stop": "+ أضف محطة توقف",
-    "stop_placeholder": "محطة توقف {n}…",
-    "pick_stop": "اضغط على الخريطة لإضافة محطة",
+    "stop_placeholder": "محطة توقف {n}…",    "remove_stop": "حذف المحطة",
+    "stops_force_private": "الرحلات متعددة المحطات متاحة فقط للرحلات الخاصة. احذف المحطات لتفعيل الرحلة المشتركة.",
+    "max_stops_reached": "الحد الأقصى 3 محطات",    "pick_stop": "اضغط على الخريطة لإضافة محطة",
     "stops_locked_shared": "الرحلة المشتركة غير متاحة — نقاط التوقف تتطلب سيارة خاصة."
   },
 
@@ -188,11 +187,11 @@
     "oneway": "ذهاب فقط",
     "roundtrip": "ذهاب وعودة",
     "days_label": "أيام الأسبوع",
-    "arrival_label": "امتى تحب توصل؟",
-    "arrival_from": "أبكر وقت",
-    "arrival_to": "أأخر وقت",
-    "arrival_window_note": "الحد الأدنى ساعة واحدة",
-    "return_label": "امتى تحب ترجع؟",
+    "arrival_label": "نافذة الوصول",
+    "arrival_from": "من",
+    "arrival_to": "إلى",
+    "arrival_window_note": "النافذة: {gap} دقيقة",
+    "return_label": "نافذة عودة الوصول",
     "seat_label": "تفضيل المقعد",
     "seat_any": "أي مقعد متاح",
     "seat_front": "المقعد الأمامي (جانب الراكب)",
@@ -218,7 +217,16 @@
     "breakdown_range_note": "السائق ممكن يعدّل ±15%",
     "review_btn": "راجع وأرسل الطلب",
     "walk_note": "المشي لنقطة ركوب مشتركة بيقلل سعرك.",
-    "estimated_departure": "وقت المغادرة التقريبي"
+    "estimated_departure": "وقت المغادرة التقريبي",
+    "time_mode_label": "جدول الرحلة",
+    "time_mode_same": "نفس الوقت كل يوم",
+    "time_mode_per_day": "وقت مختلف لكل يوم",
+    "arrival_min_error": "الحد الأدنى للفارق الزمني 30 دقيقة",
+    "arrival_max_error": "الحد الأقصى للفارق الزمني ساعتان",
+    "cycle_start_label": "بداية الدورة",
+    "cycle_next_available": "أقرب دورة متاحة",
+    "cycle_starts_on": "تبدأ يوم السبت {date}",
+    "cycle_planning_note": "يتم تجميع الطلبات كل أربعاء · الدورات تبدأ السبت التالي"
   },
 
   "request_summary": {
@@ -238,7 +246,11 @@
     "price_estimate": "التكلفة التقريبية",
     "price_note": "السعر النهائي بيتأكد بعد اختيار السائق",
     "edit_btn": "تعديل التفاصيل",
-    "submit_btn": "إرسال الطلب"
+    "submit_btn": "إرسال الطلب",
+    "schedule_title": "جدول المواعيد",
+    "day_arrive": "الوصول",
+    "day_return": "العودة",
+    "same_time_all_days": "نفس الوقت لجميع الأيام"
   },
 
   "my_requests": {

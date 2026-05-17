@@ -10,17 +10,30 @@ export type GenderPref  = 'same' | 'mixed';
 export type WalkMinutes = 0 | 5 | 10;
 export type TripType    = 'one_way' | 'round_trip';
 export type WeekDay     = 'Sat' | 'Sun' | 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri';
+export type GroupType   = 'friends' | 'open';
+export type GroupAction = 'create' | 'join';
 
 export type RequestStatus =
-  | 'available'       // driver portal: visible to drivers
-  | 'submitted'       // user submitted, awaiting match
-  | 'matching'        // system is searching
-  | 'driver_offered'  // a driver was proposed
-  | 'price_raised'    // driver proposed a higher price
-  | 'confirmed'       // passenger accepted the match
-  | 'active'          // cycle is running
+  | 'available'         // driver portal: visible to drivers
+  | 'submitted'         // user submitted, awaiting match
+  | 'matching'          // system is searching for a match
+  | 'finding_driver'    // matched — now finding/confirming a driver
+  | 'driver_offered'    // a driver was proposed
+  | 'price_raised'      // driver proposed a higher price
+  | 'confirmed'         // passenger accepted the match
+  | 'active'            // cycle is running
   | 'completed'
   | 'cancelled';
+
+// ── Cycle day record ─────────────────────────────────────────────────────────
+
+export interface CycleDayRecord {
+  date:          string;                           // 'YYYY-MM-DD'
+  pickup_time?:  string;                           // 'HH:MM' actual pickup time
+  dropoff_time?: string;                           // 'HH:MM' actual drop-off time
+  driver_name?:  string;
+  status:        'completed' | 'cancelled' | null; // null = passenger no-show
+}
 
 // ── Seat types ────────────────────────────────────────────────────────────────
 
@@ -65,6 +78,54 @@ export interface PickupPoint {
   pickup_time_offset: number; // minutes after cycle departure_time
 }
 
+// ── Schedule types ────────────────────────────────────────────────────────────
+
+export interface TimeSlot {
+  id:                   string;
+  trip_type:            TripType;
+
+  // Route for this slot
+  origin:               GeoLocation | null;
+  stops:                GeoLocation[];         // private only, max 2
+  destination:          GeoLocation | null;
+  route:                import('@/lib/openrouteservice').ORSRoute | null;
+  route_set:            boolean;               // true once user confirmed the route
+
+  // Return route (round trip only)
+  return_origin:        GeoLocation | null;    // default: destination
+  return_destination:   GeoLocation | null;    // default: origin
+  return_route:         import('@/lib/openrouteservice').ORSRoute | null;
+  return_customized:    boolean;
+
+  // Pickup time window
+  pickup_from:          string;               // "HH:MM" snapped to :00 or :30
+  pickup_to:            string;
+
+  // Arrival window (computed from pickup_to + route duration)
+  arrival_from:         string;               // computed, read-only
+  arrival_to:           string;               // computed, read-only
+
+  // Return pickup (round trip only)
+  return_pickup_from?:  string;
+  return_pickup_to?:    string;
+  return_arrival_from?: string;               // computed
+  return_arrival_to?:   string;               // computed
+
+  // Days assigned to this slot
+  days:                 WeekDay[];
+}
+
+// ── Group ─────────────────────────────────────────────────────────────────────
+
+export interface RideGroup {
+  code:         string;           // "XK9-4BT"
+  creator_id:   string;
+  member_ids:   string[];         // max 3 for shared, max 4 for private
+  max_members:  number;           // 3 for shared, 4 for private
+  created_at:   string;
+  expires_at:   string;           // group code expires after 48h if no request
+}
+
 // ── Core request (shared between user and driver) ─────────────────────────────
 
 export interface CycleRequestCore {
@@ -77,16 +138,18 @@ export interface CycleRequestCore {
   route_coordinates?:      [number, number][];
   trip_type:               TripType;
   days:                    WeekDay[];
-  arrival_from:            string;           // "HH:MM" — earliest acceptable arrival
-  arrival_to:              string;           // "HH:MM" — latest acceptable arrival (min +1h from arrival_from)
-  departure_from:          string;           // computed: arrival_from - duration_minutes
-  departure_to:            string;           // computed: arrival_to - duration_minutes
+  time_slots?:             TimeSlot[];
+  // Legacy fallback fields retained for existing mocked data until full migration.
+  arrival_from?:           string;
+  arrival_to?:             string;
   return_arrival_from?:    string;
   return_arrival_to?:      string;
+  departure_from:          string;           // computed: arrival_from - duration_minutes
+  departure_to:            string;           // computed: arrival_to - duration_minutes
   return_departure_from?:  string;
   return_departure_to?:    string;
-  cycle_start_date:        string;           // ISO date string
-  cycle_end_date:          string;
+  cycle_start_date:        string;           // ISO date string — auto-computed, never user-set
+  cycle_end_date:          string;           // always cycle_start_date + 6 days
   ride_type:               RideType;
   gender_pref:             GenderPref;
   seat_preference:         SeatPreference;
@@ -96,6 +159,14 @@ export interface CycleRequestCore {
   estimated_price_min:     number;           // EGP / week
   estimated_price_max:     number;
   passenger_count:         number;
+  group_type:              GroupType | null;
+  group_action:            GroupAction | null;
+  group_code?:             string;
+  group_id?:               string;
   pickup_points:           PickupPoint[];
   created_at:              string;           // ISO datetime
+  cycle_days?:             CycleDayRecord[];
+  /** Daily live trip for today (when cycle is active). */
+  today_trip_id?:          string;
+  cycle_id?:               string;
 }

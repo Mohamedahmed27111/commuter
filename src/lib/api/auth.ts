@@ -8,8 +8,8 @@ function authHeaders(): HeadersInit {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-export async function signIn(payload: SignInPayload): Promise<AuthResponse> {
-  const res = await fetch(`${API_BASE}/api/auth/signin`, {
+export async function signIn(payload: SignInPayload, role: 'user' | 'driver' = 'user'): Promise<AuthResponse> {
+  const res = await fetch(`${API_BASE}/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -18,11 +18,20 @@ export async function signIn(payload: SignInPayload): Promise<AuthResponse> {
     const err = await res.json().catch(() => ({ message: 'Sign in failed' }));
     throw new Error(err.message ?? 'Sign in failed');
   }
-  return res.json();
+  const data = await res.json();
+  // Map backend response { token, user: { id, name, ... } } → AuthResponse
+  return {
+    token:      data.token       ?? data.access_token ?? '',
+    role,
+    userId:     String(data.user?.id ?? ''),
+    name:       data.user?.name  ?? data.name ?? '',
+    isVerified: true,
+    isApproved: true,
+  };
 }
 
 export async function signUpUser(payload: UserSignupPayload): Promise<AuthResponse> {
-  const res = await fetch(`${API_BASE}/api/auth/signup/user`, {
+  const res = await fetch(`${API_BASE}/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -35,7 +44,7 @@ export async function signUpUser(payload: UserSignupPayload): Promise<AuthRespon
 }
 
 export async function signUpDriver(formData: FormData): Promise<{ message: string; userId: string }> {
-  const res = await fetch(`${API_BASE}/api/auth/signup/driver`, {
+  const res = await fetch(`${API_BASE}/signup/driver`, {
     method: 'POST',
     body: formData, // multipart — do NOT set Content-Type manually
   });
@@ -47,7 +56,7 @@ export async function signUpDriver(formData: FormData): Promise<{ message: strin
 }
 
 export async function forgotPassword(email: string): Promise<void> {
-  const res = await fetch(`${API_BASE}/api/auth/forgot-password`, {
+  const res = await fetch(`${API_BASE}/forgot-password`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email }),
@@ -59,7 +68,7 @@ export async function forgotPassword(email: string): Promise<void> {
 }
 
 export async function resetPassword(token: string, newPassword: string): Promise<void> {
-  const res = await fetch(`${API_BASE}/api/auth/reset-password`, {
+  const res = await fetch(`${API_BASE}/reset-password`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ token, newPassword }),
@@ -71,7 +80,7 @@ export async function resetPassword(token: string, newPassword: string): Promise
 }
 
 export async function refreshToken(): Promise<AuthResponse> {
-  const res = await fetch(`${API_BASE}/api/auth/refresh`, {
+  const res = await fetch(`${API_BASE}/refresh`, {
     method: 'POST',
     headers: authHeaders(),
   });

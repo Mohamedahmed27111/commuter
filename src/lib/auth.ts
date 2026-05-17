@@ -5,8 +5,10 @@ export function saveSession(response: AuthResponse): void {
   localStorage.setItem('commuter_token', response.token);
   localStorage.setItem('commuter_role', response.role);
   localStorage.setItem('commuter_name', response.name);
-  // Also persist token as a cookie so the middleware (server-side) can read it
-  document.cookie = `commuter_token=${response.token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
+  const maxAge = 7 * 24 * 60 * 60;
+  // Persist token + role as cookies so the middleware (server-side) can read them
+  document.cookie = `commuter_token=${response.token}; path=/; max-age=${maxAge}; SameSite=Lax`;
+  document.cookie = `commuter_role=${response.role}; path=/; max-age=${maxAge}; SameSite=Lax`;
 }
 
 export function getToken(): string | null {
@@ -29,8 +31,8 @@ export function clearSession(): void {
   localStorage.removeItem('commuter_token');
   localStorage.removeItem('commuter_role');
   localStorage.removeItem('commuter_name');
-  // Clear the middleware cookie too
   document.cookie = 'commuter_token=; path=/; max-age=0; SameSite=Lax';
+  document.cookie = 'commuter_role=; path=/; max-age=0; SameSite=Lax';
 }
 
 // Legacy aliases used by older driver portal code

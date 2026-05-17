@@ -232,7 +232,7 @@ export default function RequestDetailDrawer({
           <SectionHeading>Schedule</SectionHeading>
           <div style={{ background: '#F8F9FA', borderRadius: 10, overflow: 'hidden', border: '1px solid #E2E8F0', marginBottom: 24 }}>
             <DetailRow label="Days"              value={days.join(', ')} />
-            <DetailRow label="Passenger arrives between" value={formatTimeWindow(arrival_from, arrival_to)} />
+            <DetailRow label="Passenger arrives between" value={formatTimeWindow(arrival_from ?? '', arrival_to ?? '')} />
             {departure_from && departure_to && (
               <DetailRow label="⚡ Driver departs between" value={formatTimeWindow(departure_from, departure_to)} emphasis />
             )}

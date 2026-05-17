@@ -3,28 +3,29 @@
 import type { RequestStatus } from '@/types/user';
 
 type Step = {
-  key: RequestStatus;
+  key: string;
   label: string;
 };
 
 const STEPS: Step[] = [
-  { key: 'submitted', label: 'Submitted' },
-  { key: 'matching', label: 'Matching' },
-  { key: 'confirmed', label: 'Confirmed' },
-  { key: 'active', label: 'Active' },
-  { key: 'completed', label: 'Completed' },
+  { key: 'submitted',  label: 'Submitted' },
+  { key: 'matching',   label: 'Matching' },
+  { key: 'confirmed',  label: 'Confirmed' },
+  { key: 'active',     label: 'Active' },
+  { key: 'completed',  label: 'Completed' },
 ];
 
 const STATUS_STEP_INDEX: Record<RequestStatus, number> = {
-  available: 0,
-  submitted: 0,
-  matching: 1,
+  available:      0,
+  submitted:      0,
+  matching:       1,
+  finding_driver: 1,
   driver_offered: 1,
-  price_raised: 1,
-  confirmed: 2,
-  active: 3,
-  completed: 4,
-  cancelled: -1,
+  price_raised:   1,
+  confirmed:      2,
+  active:         3,
+  completed:      4,
+  cancelled:      -1,
 };
 
 interface StatusTimelineProps {
@@ -74,6 +75,7 @@ export default function StatusTimeline({ status }: StatusTimelineProps) {
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
               <div
                 style={{
+                  marginTop: 5,
                   width: 20,
                   height: 20,
                   borderRadius: '50%',
@@ -83,6 +85,7 @@ export default function StatusTimeline({ status }: StatusTimelineProps) {
                   alignItems: 'center',
                   justifyContent: 'center',
                   position: 'relative',
+                  
                 }}
               >
                 {done && (
@@ -108,6 +111,7 @@ export default function StatusTimeline({ status }: StatusTimelineProps) {
                         border: '2px solid #00C2A8',
                         opacity: 0.5,
                         animation: 'pulse 1.5s ease-in-out infinite',
+                        
                       }}
                     />
                   </>

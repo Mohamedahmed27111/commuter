@@ -6,30 +6,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import PasswordInput from '@/components/shared/PasswordInput';
+import { signIn } from '@/lib/api/auth';
 import { saveSession } from '@/lib/auth';
-import type { AuthResponse } from '@/types/auth';
-
-const DEMO = { email: 'ahmed@commuter.eg', password: 'driver123' };
-
-function makeMockJwt(payload: object): string {
-  const enc = (obj: object) =>
-    btoa(JSON.stringify(obj)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
-  return `${enc({ alg: 'HS256', typ: 'JWT' })}.${enc(payload)}.mock_signature`;
-}
-
-function mockDriverSignIn(email: string, password: string): AuthResponse | null {
-  if (email === DEMO.email && password === DEMO.password) {
-    return {
-      token: makeMockJwt({ role: 'driver', name: 'Ahmed Hassan', exp: Math.floor(Date.now() / 1000) + 86400 * 7 }),
-      role: 'driver',
-      userId: 'drv-001',
-      name: 'Ahmed Hassan',
-      isVerified: true,
-      isApproved: true,
-    };
-  }
-  return null;
-}
 
 export default function DriverSignInForm() {
   const router = useRouter();
@@ -53,15 +31,16 @@ export default function DriverSignInForm() {
     e.preventDefault();
     if (!validate()) return;
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 700));
-    const result = mockDriverSignIn(email, password);
-    setLoading(false);
-    if (!result) {
-      toast.error('Incorrect email or password. Please try again.');
-      return;
+    try {
+      const result = await signIn({ email, password }, 'driver');
+      saveSession(result);
+      toast.success(`Welcome back, ${result.name}! 👋`);
+      router.push('/driver/requests');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Sign in failed. Please try again.');
+    } finally {
+      setLoading(false);
     }
-    saveSession(result);
-    router.push('/driver/requests');
   }
 
   const emailBorder = emailErr ? '#E74C3C' : emailFocused ? '#00C2A8' : '#D1D5DB';
