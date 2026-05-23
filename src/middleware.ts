@@ -7,8 +7,6 @@ const DEFAULT_LOCALE = 'en';
 function detectLocale(request: NextRequest): string {
   const cookie = request.cookies.get('NEXT_LOCALE')?.value;
   if (cookie && (LOCALES as readonly string[]).includes(cookie)) return cookie;
-  const accept = request.headers.get('accept-language') ?? '';
-  if (accept.startsWith('ar') || accept.includes(',ar')) return 'ar';
   return DEFAULT_LOCALE;
 }
 
