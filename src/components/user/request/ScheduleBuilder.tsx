@@ -13,7 +13,9 @@ interface ScheduleBuilderProps {
   onEditReturnRoute: (slotId: string) => void;
   onTripTypeChange: (slotId: string, tripType: 'one_way' | 'round_trip') => void;
   onPickupChange:   (slotId: string, from: string, to: string) => void;
+  onArrivalChange:  (slotId: string, from: string, to: string) => void;
   onReturnChange:   (slotId: string, from: string, to: string) => void;
+  onReturnArrivalChange: (slotId: string, from: string, to: string) => void;
   onDayToggle:      (slotId: string, day: WeekDay) => void;
 }
 
@@ -27,7 +29,9 @@ export default function ScheduleBuilder({
   onEditReturnRoute,
   onTripTypeChange,
   onPickupChange,
+  onArrivalChange,
   onReturnChange,
+  onReturnArrivalChange,
   onDayToggle,
 }: ScheduleBuilderProps) {
   const slot1 = timeSlots[0];
@@ -52,7 +56,9 @@ export default function ScheduleBuilder({
           onEditReturnRoute={() => onEditReturnRoute(slot.id)}
           onTripTypeChange={(tripType) => onTripTypeChange(slot.id, tripType)}
           onPickupChange={(from, to) => onPickupChange(slot.id, from, to)}
+          onArrivalChange={(from, to) => onArrivalChange(slot.id, from, to)}
           onReturnChange={(from, to) => onReturnChange(slot.id, from, to)}
+          onReturnArrivalChange={(from, to) => onReturnArrivalChange(slot.id, from, to)}
           onDayToggle={(day) => onDayToggle(slot.id, day)}
           onRemove={() => onRemoveSlot(slot.id)}
         />

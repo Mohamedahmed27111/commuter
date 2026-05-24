@@ -12,6 +12,7 @@ export function saveSession(response: AuthResponse): void {
   localStorage.setItem('commuter_token', response.token);
   localStorage.setItem('commuter_role', response.role);
   localStorage.setItem('commuter_name', response.name ?? '');
+  localStorage.setItem('commuter_user_id', String(response.userId ?? ''));
   const maxAge = 7 * 24 * 60 * 60;
   // Persist token + role as cookies so the middleware (server-side) can read them
   document.cookie = `commuter_token=${response.token}; path=/; max-age=${maxAge}; SameSite=Lax`;
@@ -33,11 +34,21 @@ export function getName(): string | null {
   return localStorage.getItem('commuter_name');
 }
 
+/** Returns the current user's numeric ID, or null if not in session. */
+export function getUserId(): number | null {
+  if (typeof window === 'undefined') return null;
+  const raw = localStorage.getItem('commuter_user_id');
+  if (!raw) return null;
+  const n = parseInt(raw, 10);
+  return Number.isFinite(n) ? n : null;
+}
+
 export function clearSession(): void {
   if (typeof window === 'undefined') return;
   localStorage.removeItem('commuter_token');
   localStorage.removeItem('commuter_role');
   localStorage.removeItem('commuter_name');
+  localStorage.removeItem('commuter_user_id');
   document.cookie = 'commuter_token=; path=/; max-age=0; SameSite=Lax';
   document.cookie = 'commuter_role=; path=/; max-age=0; SameSite=Lax';
 }

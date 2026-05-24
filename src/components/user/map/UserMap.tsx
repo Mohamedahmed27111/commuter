@@ -61,9 +61,11 @@ export default function UserMap({
   // Tracks all live Polyline instances so we can call .setMap(null) imperatively
   const polyRefs    = useRef<google.maps.Polyline[]>([]);
   const [mapReady, setMapReady] = useState(false);
+  const [zoom, setZoom] = useState(13);
 
   const onLoad = useCallback((map: google.maps.Map) => {
     mapRef.current = map;
+    map.addListener('zoom_changed', () => setZoom(map.getZoom() ?? 13));
     setMapReady(true);
   }, []);
 
@@ -160,6 +162,13 @@ export default function UserMap({
     );
   }
 
+  // Scale markers with zoom level (doubles every 3 zoom steps, clamped)
+  const zf = Math.max(0.5, Math.min(2.4, Math.pow(2, (zoom - 13) / 3)));
+  const origS  = Math.round(48 * zf);
+  const stopS  = Math.round(36 * zf);
+  const destW  = Math.round(40 * zf);
+  const destH  = Math.round(52 * zf);
+
   return (
     <div className="map-container" style={{ cursor: pickingField ? 'crosshair' : undefined }}>
       <GoogleMap
@@ -197,7 +206,7 @@ export default function UserMap({
         {from && (
           <Marker
             position={{ lat: from.lat, lng: from.lng }}
-            icon={{ url: originIconUrl, scaledSize: new google.maps.Size(48, 48), anchor: new google.maps.Point(24, 24) }}
+            icon={{ url: originIconUrl, scaledSize: new google.maps.Size(origS, origS), anchor: new google.maps.Point(origS / 2, origS / 2) }}
             zIndex={20}
           />
         )}
@@ -209,8 +218,8 @@ export default function UserMap({
             position={{ lat: s.lat, lng: s.lng }}
             icon={{
               url: `data:image/svg+xml;utf-8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36"><circle cx="18" cy="18" r="16" fill="%23F59E0B" stroke="%23fff" stroke-width="2.5"/><text x="18" y="23" text-anchor="middle" font-family="Arial,sans-serif" font-size="14" font-weight="700" fill="%23fff">${i + 1}</text></svg>`)}`,
-              scaledSize: new google.maps.Size(36, 36),
-              anchor: new google.maps.Point(18, 18),
+              scaledSize: new google.maps.Size(stopS, stopS),
+              anchor: new google.maps.Point(stopS / 2, stopS / 2),
             }}
             zIndex={15}
           />
@@ -220,7 +229,7 @@ export default function UserMap({
         {to && (
           <Marker
             position={{ lat: to.lat, lng: to.lng }}
-            icon={{ url: destinationIconUrl, scaledSize: new google.maps.Size(40, 52), anchor: new google.maps.Point(20, 52) }}
+            icon={{ url: destinationIconUrl, scaledSize: new google.maps.Size(destW, destH), anchor: new google.maps.Point(destW / 2, destH) }}
             zIndex={20}
           />
         )}

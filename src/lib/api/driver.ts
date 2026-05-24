@@ -92,6 +92,9 @@ const driverApi = {
   getProfile:           ()                                   => call('driver/profile'),
   updateProfile:        (data: Record<string, unknown>)      => call('driver/profile', { method: 'PATCH', body: data }),
 
+  // Driver onboarding (multipart) — POST /driver/profile with text + file fields
+  submitProfile:        (fd: FormData)                       => call('driver/profile', { method: 'POST', body: fd }),
+
   // Documents (multipart)
   uploadDocument:       (field: string, file: File) => {
     const fd = new FormData();

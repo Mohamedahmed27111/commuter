@@ -1,6 +1,6 @@
 'use client';
 
-import { getHalfHourOptions, timeDiffMinutes, addMinutes, formatTime12h } from '@/lib/timeUtils';
+import { getQuarterHourOptions, timeDiffMinutes, addMinutes, formatTime12h } from '@/lib/timeUtils';
 import { useTranslations } from 'next-intl';
 
 interface ArrivalWindowPickerProps {
@@ -12,7 +12,7 @@ interface ArrivalWindowPickerProps {
 }
 
 // Produced once at module level — 48 options, stable reference
-const ALL_OPTIONS = getHalfHourOptions();
+const ALL_OPTIONS = getQuarterHourOptions();
 
 export default function ArrivalWindowPicker({
   label,

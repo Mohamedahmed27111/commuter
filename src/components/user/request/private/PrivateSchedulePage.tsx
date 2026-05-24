@@ -41,8 +41,8 @@ function makeSlot(): TimeSlot {
     return_destination: null,
     return_route:       null,
     return_customized:  false,
-    pickup_from:        '07:00',
-    pickup_to:          '07:30',
+    pickup_from:        '',
+    pickup_to:          '',
     arrival_from:       '',
     arrival_to:         '',
     days:               [],
@@ -98,6 +98,9 @@ export default function PrivateSchedulePage() {
   >(null);
 
   const [showRoutePicker, setShowRoutePicker] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [showReview, setShowReview] = useState(false);
 
   // ── Derived passenger list for seat layout ──────────────────────────────
   const seatPassengers = useMemo(() => {
@@ -134,9 +137,10 @@ export default function PrivateSchedulePage() {
   function handlePickupChange(slotId: string, from: string, to: string) {
     persistSlots(slots.map(s => {
       if (s.id !== slotId) return s;
-      // Maintain arrival rule: arrival_from ≥ pickup_to + 30 min
+      // Only adjust arrival if the user has already explicitly set it
+      if (!s.arrival_from) return { ...s, pickup_from: from, pickup_to: to };
       const minArrivalFrom = addMinutes(to, 30);
-      const arrival_from = s.arrival_from && s.arrival_from >= minArrivalFrom ? s.arrival_from : minArrivalFrom;
+      const arrival_from = s.arrival_from >= minArrivalFrom ? s.arrival_from : minArrivalFrom;
       const arrival_to = s.arrival_to && s.arrival_to >= addMinutes(arrival_from, 30) ? s.arrival_to : addMinutes(arrival_from, 30);
       return { ...s, pickup_from: from, pickup_to: to, arrival_from, arrival_to };
     }));
@@ -149,8 +153,10 @@ export default function PrivateSchedulePage() {
   function handleReturnPickupChange(slotId: string, from: string, to: string) {
     persistSlots(slots.map(s => {
       if (s.id !== slotId) return s;
+      // Only adjust return arrival if the user has already explicitly set it
+      if (!s.return_arrival_from) return { ...s, return_pickup_from: from, return_pickup_to: to };
       const minArr = addMinutes(to, 30);
-      const ra_from = s.return_arrival_from && s.return_arrival_from >= minArr ? s.return_arrival_from : minArr;
+      const ra_from = s.return_arrival_from >= minArr ? s.return_arrival_from : minArr;
       const ra_to   = s.return_arrival_to && s.return_arrival_to >= addMinutes(ra_from, 30) ? s.return_arrival_to : addMinutes(ra_from, 30);
       return { ...s, return_pickup_from: from, return_pickup_to: to, return_arrival_from: ra_from, return_arrival_to: ra_to };
     }));
@@ -211,23 +217,22 @@ export default function PrivateSchedulePage() {
   const lastSlotNoDay = !!slots[slots.length - 1] && slots[slots.length - 1].days.length === 0;
   const routeReady = !!wizard.private_outbound_origin && !!wizard.private_outbound_destination;
 
-  function validate(): string | null {
-    if (!routeReady) return 'Set the outbound route first';
-    if (allDays.length < 3) return `Select at least 3 days in total (currently ${allDays.length}/3)`;
+  function validate(): string[] {
+    const errors: string[] = [];
+    if (!routeReady) errors.push('Set the outbound route first');
     for (let i = 0; i < slots.length; i++) {
       const s = slots[i];
-      if (s.days.length === 0) return `Select days for Time slot ${i + 1}`;
-      if (!s.arrival_from || !s.arrival_to) return `Set arrival time for Time slot ${i + 1}`;
+      if (s.days.length === 0) errors.push(`Select days for Time slot ${i + 1}`);
+      if (!s.pickup_from || !s.pickup_to) errors.push(`Set pickup time for Time slot ${i + 1}`);
+      if (!s.arrival_from || !s.arrival_to) errors.push(`Set arrival time for Time slot ${i + 1}`);
       if (tripType === 'round_trip' && (!s.return_pickup_from || !s.return_arrival_from)) {
-        return `Set return times for Time slot ${i + 1}`;
+        errors.push(`Set return times for Time slot ${i + 1}`);
       }
     }
-    return null;
+    return errors;
   }
 
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [showReview, setShowReview] = useState(false);
+  const showReviewModal = showReview && !submitting;
 
   // ── Price estimate ──────────────────────────────────────────────────────
   const distanceKm = wizard.private_outbound_route?.distance_km ?? 20;
@@ -242,8 +247,8 @@ export default function PrivateSchedulePage() {
 
   // ── Submit ──────────────────────────────────────────────────────────────
   async function buildAndSubmit() {
-    const err = validate();
-    if (err) { setError(err); return; }
+    const errs = validate();
+    if (errs.length > 0) { setError(errs.join('\n')); return; }
     setError(null);
     setSubmitting(true);
 
@@ -524,14 +529,6 @@ export default function PrivateSchedulePage() {
             </div>
           </Section>
 
-          {/* Cycle start */}
-          <Section title="Cycle start">
-            <div className="bg-[#F8F9FA] border border-[#E2E8F0] rounded-xl p-3">
-              <p className="text-sm font-semibold text-[#0B1E3D]">{cycleStartLabel}</p>
-              <p className="text-xs text-[#5A6A7A] mt-0.5">Requests are grouped every Wednesday</p>
-            </div>
-          </Section>
-
           {/* Estimated cost */}
           <div className="bg-[#EFF7F6] border border-[#C8E8E4] rounded-xl p-4 flex items-center gap-3">
             <span className="text-2xl">💰</span>
@@ -564,31 +561,30 @@ export default function PrivateSchedulePage() {
           </Section>
 
           {error && (
-            <p className="text-sm text-[#E74C3C] font-medium px-1">{error}</p>
+            <div className="rounded-xl border border-[#FFCDD2] bg-[#FFEBEE] px-4 py-3">
+              {error.split('\n').map((line, i) => (
+                <p key={i} className="text-sm text-[#E74C3C] font-medium flex items-start gap-2">
+                  <span className="mt-0.5 flex-shrink-0">⚠️</span> {line}
+                </p>
+              ))}
+            </div>
           )}
 
           {/* Submit */}
-          {(() => {
-            const disabled = !!validate() || submitting;
-            return (
-              <button
-                type="button"
-                onClick={() => {
-                  const err = validate();
-                  if (err) { setError(err); return; }
-                  setError(null);
-                  setShowReview(true);
-                }}
-                disabled={disabled}
-                className={`w-full py-4 rounded-xl text-white font-bold text-sm transition-colors ${
-                  disabled ? 'bg-[#7C8794] cursor-not-allowed' : 'bg-[#0B1E3D] hover:bg-[#132D52]'
-                }`}
-                style={{ border: 'none', fontFamily: 'inherit' }}
-              >
-                Review & submit request
-              </button>
-            );
-          })()}
+          <button
+            type="button"
+            onClick={() => {
+              const errs = validate();
+              if (errs.length > 0) { setError(errs.join('\n')); return; }
+              setError(null);
+              setShowReview(true);
+            }}
+            disabled={submitting}
+            className="w-full py-4 rounded-xl text-white font-bold text-sm transition-colors bg-[#0B1E3D] hover:bg-[#132D52] disabled:opacity-60"
+            style={{ border: 'none', fontFamily: 'inherit' }}
+          >
+            Review &amp; submit request
+          </button>
 
           <div className="h-8" />
         </div>

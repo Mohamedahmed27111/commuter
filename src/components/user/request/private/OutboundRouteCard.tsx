@@ -32,7 +32,9 @@ function Row({
         <p className="text-xs text-[#8A9AB0] mb-1">{hint}</p>
         {value
           ? <p className="text-xs text-[#0B1E3D] flex items-start gap-1.5">
-              <span className="text-[#00C2A8] mt-0.5">📍</span>
+              <span className="text-[#00C2A8] mt-0.5 flex-shrink-0">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#00C2A8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+              </span>
               <span className="leading-snug">{value}</span>
             </p>
           : <p className="text-xs italic text-[#9AA0A6]">Not set</p>}
@@ -56,7 +58,7 @@ export default function OutboundRouteCard({
   return (
     <div className="border border-[#E2E8F0] rounded-2xl bg-white p-3 space-y-3">
       <div className="flex items-center gap-2">
-        <span className="text-[#00C2A8] text-base">📍</span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00C2A8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
         <span className="text-sm font-semibold text-[#0B1E3D]">Route</span>
       </div>
 
@@ -126,32 +128,19 @@ export default function OutboundRouteCard({
               + Add stop (optional)
             </button>
           )}
-          {!hasPickupPoint ? (
-            <button
-              type="button"
-              onClick={onAddPickupPoint}
-              className="text-xs font-medium text-[#00C2A8] hover:underline"
-              style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
-            >
-              + Add pickup point (optional)
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={onSetPickupPoint}
-              className="text-xs font-medium text-[#00C2A8] hover:underline"
-              style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
-            >
-              {pickupPoint ? '✏ Edit pickup point' : 'Set pickup point'}
-            </button>
-          )}
+
         </div>
 
         <button
           type="button"
           onClick={onSetRoute}
-          className="ml-auto px-4 py-2 rounded-xl bg-[#0B1E3D] text-white text-sm font-semibold"
-          style={{ border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
+          className="ml-auto px-4 py-2 rounded-xl text-white text-sm font-semibold"
+          style={{
+            background: '#0B1E3D',
+            border: 'none',
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+          }}
         >
           {routeReady ? '✏ Edit route' : 'Set route'}
         </button>

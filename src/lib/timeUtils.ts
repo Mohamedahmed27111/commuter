@@ -135,6 +135,21 @@ export function getHalfHourOptions(): string[] {
 }
 
 /**
+ * Returns time slots in 15-minute steps from 06:00 AM to 11:45 PM (23:45).
+ * Produces 72 options covering the full daily commuter cycle.
+ */
+export function getQuarterHourOptions(): string[] {
+  const opts: string[] = [];
+  for (let h = 6; h < 24; h++) {
+    opts.push(`${String(h).padStart(2, '0')}:00`);
+    opts.push(`${String(h).padStart(2, '0')}:15`);
+    opts.push(`${String(h).padStart(2, '0')}:30`);
+    opts.push(`${String(h).padStart(2, '0')}:45`);
+  }
+  return opts;
+}
+
+/**
  * Validate that an arrival window (from → to) meets the 30-min min / 2-hour max rule.
  */
 export function validateArrivalWindow(

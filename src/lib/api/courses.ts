@@ -2,7 +2,8 @@ import { call } from './client';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-export type CourseTripType    = 'individual' | 'shared';
+export type CourseTripType    = 'individual' | 'group';
+export type CourseGroupType   = 'friends' | 'public';
 export type CourseDirection   = 'one_way' | 'round_trip';
 export type ScheduleDirection = 'go' | 'return';
 export type SeatPosition      = 'front' | 'back_left' | 'back_center' | 'back_right';
@@ -17,11 +18,17 @@ export interface CourseStop {
   longitude:    number;
 }
 
-export interface CourseParticipant {
-  type:         'passenger';
-  passenger_id: number;
-  seat_position: SeatPosition;
-}
+export type CourseParticipant =
+  | {
+      type:          'passenger';
+      passenger_id:  number;
+      seat_position: SeatPosition;
+    }
+  | {
+      type:          'user';
+      user_id:       number;
+      seat_position: SeatPosition;
+    };
 
 export interface WeeklyTripSchedule {
   day_of_week:        number;            // 0 = Sun … 6 = Sat
@@ -54,6 +61,10 @@ export interface WeeklyTripSchedule {
 
 export interface CoursePayload {
   trip_type:      CourseTripType;
+  /** Required when trip_type === 'group'. */
+  group_type?:    CourseGroupType;
+  /** Required when group_type === 'friends'. */
+  code_group?:    string;
   direction_type: CourseDirection;
   start_date:     string; // YYYY-MM-DD
   end_date:       string;
@@ -77,7 +88,7 @@ export function createCourse(payload: CoursePayload): Promise<CourseResponse> {
 // ── Response types for GET /courses ──────────────────────────────────────────
 
 export type CourseStatus  = 'draft' | 'active' | 'completed' | 'cancelled';
-export type WalletStatus  = 'waiting' | 'paid' | 'refunded';
+export type WalletStatus  = 'waiting' | 'paid' | 'refunded' | 'success';
 
 export interface ApiStop {
   stop_order: number;
@@ -88,7 +99,7 @@ export interface ApiStop {
 
 export interface ApiParticipant {
   id:            number;
-  type:          'passenger';
+  type:          'passenger' | 'user';
   user_id:       number | null;
   passenger_id:  number | null;
   seat_position: SeatPosition;
@@ -150,6 +161,15 @@ export function getCourses(): Promise<GetCoursesResponse> {
   return call<GetCoursesResponse>('courses');
 }
 
+export interface GetCourseResponse {
+  success: boolean;
+  data:    ApiCourse;
+}
+
+export function getCourse(id: number): Promise<GetCourseResponse> {
+  return call<GetCourseResponse>(`courses/${id}`);
+}
+
 export interface ConfirmPaymentResponse {
   status:      string;
   payment_url: string;
@@ -168,4 +188,18 @@ export interface ConfirmPaymentResponse {
 
 export function confirmCoursePayment(id: number): Promise<ConfirmPaymentResponse> {
   return call<ConfirmPaymentResponse>(`courses/${id}/pay`, { method: 'POST' });
+}
+
+export interface UpdateStatusPayload {
+  status:          CourseStatus;
+  wallet_status?:  string;
+}
+
+export interface UpdateStatusResponse {
+  success: boolean;
+  data:    ApiCourse;
+}
+
+export function updateCourseStatus(id: number, payload: UpdateStatusPayload): Promise<UpdateStatusResponse> {
+  return call<UpdateStatusResponse>(`courses/${id}/status`, { method: 'PUT', body: payload as unknown as Record<string, unknown> });
 }

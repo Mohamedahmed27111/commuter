@@ -1,8 +1,8 @@
 'use client';
 
-import type { ApiCourse, ApiWeeklyTripSchedule, CourseStatus } from '@/lib/api/courses';
+import type { ApiCourse, CourseStatus } from '@/lib/api/courses';
 import { confirmCoursePayment } from '@/lib/api/courses';
-import { INDEX_WEEKDAY } from '@/lib/timeUtils';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 // ── Status config ─────────────────────────────────────────────────────────────
@@ -12,13 +12,6 @@ const STATUS_CONFIG: Record<CourseStatus, { label: string; bg: string; color: st
   active:    { label: 'active',    bg: '#E8F5E9', color: '#27AE60', border: '#A8D5B5' },
   completed: { label: 'completed', bg: '#F1F3F4', color: '#5A6A7A', border: '#E2E8F0' },
   cancelled: { label: 'cancelled', bg: '#FFEBEE', color: '#E74C3C', border: '#FFCDD2' },
-};
-
-const SEAT_LABELS: Record<string, string> = {
-  front:       'Front',
-  back_left:   'Back L',
-  back_center: 'Back C',
-  back_right:  'Back R',
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -44,7 +37,7 @@ interface Props {
 }
 
 export default function CourseCard({ course, onPaid }: Props) {
-  const [expanded, setExpanded] = useState(false);
+  const router = useRouter();
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
   const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
@@ -82,9 +75,8 @@ export default function CourseCard({ course, onPaid }: Props) {
   const goSchedules = course.weekly_trip_schedules.filter(s => s.trip_direction === 'go');
   const first = goSchedules[0];
 
-  // Unique days sorted Sun-Sat
-  const uniqueDows = Array.from(new Set(goSchedules.map(s => s.day_of_week))).sort((a, b) => a - b);
-  const dayLabels  = uniqueDows.map(d => INDEX_WEEKDAY[d] ?? '?').join(', ');
+  // Unique days (count for subtitle display)
+  const uniqueDays = Array.from(new Set(goSchedules.map(s => s.day_of_week))).length;
 
   const priceMin = Math.round(parseFloat(course.initial_price));
   const priceMax = Math.round(parseFloat(course.final_price));
@@ -107,7 +99,13 @@ export default function CourseCard({ course, onPaid }: Props) {
 
         {/* Route header: pickup → destination + status badge + arrow */}
         {first && (
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 4 }}>
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => router.push(`/user/my-requests/${course.id}`)}
+            onKeyDown={e => e.key === 'Enter' && router.push(`/user/my-requests/${course.id}`)}
+            style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 4, cursor: 'pointer' }}
+          >
             <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: '#0B1E3D', lineHeight: 1.35, flex: 1 }}>
               {first.pickup_point}
               <span style={{ margin: '0 6px', color: '#00C2A8' }}>→</span>
@@ -166,7 +164,7 @@ export default function CourseCard({ course, onPaid }: Props) {
           {/* Days */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#0B1E3D', fontWeight: 600 }}>
             <span style={{ fontSize: 15 }}>📅</span>
-            {dayLabels}
+            {uniqueDays} day{uniqueDays !== 1 ? 's' : ''} / week
           </div>
         </div>
 
@@ -255,10 +253,10 @@ export default function CourseCard({ course, onPaid }: Props) {
         </div>
       )}
 
-      {/* ── Expand toggle ── */}
+      {/* ── View details link ── */}
       <button
         type="button"
-        onClick={() => setExpanded(p => !p)}
+        onClick={() => router.push(`/user/my-requests/${course.id}`)}
         style={{
           width: '100%',
           padding: '10px 16px',
@@ -273,65 +271,8 @@ export default function CourseCard({ course, onPaid }: Props) {
           textAlign: 'center',
         }}
       >
-        {expanded ? '▲ Less details' : '▼ More details'}
+        View details →
       </button>
-
-      {/* ── Expanded schedules ── */}
-      {expanded && (
-        <div style={{ borderTop: '1px solid #E2E8F0', padding: '14px 16px', background: '#F8F9FA', display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {(['go', 'return'] as const).map(dir => {
-            const list = course.weekly_trip_schedules.filter(s => s.trip_direction === dir);
-            if (!list.length) return null;
-            return (
-              <div key={dir}>
-                <p style={{ margin: '0 0 8px', fontSize: 11, fontWeight: 700, color: '#5A6A7A', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  {dir === 'go' ? '→ Outbound' : '← Return'}
-                </p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {list.map(s => <ScheduleRow key={s.id} schedule={s} />)}
-                </div>
-              </div>
-            );
-          })}
-
-          {course.notes && (
-            <div style={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: 8, padding: '10px 12px' }}>
-              <p style={{ margin: '0 0 4px', fontSize: 10, fontWeight: 700, color: '#9AA0A6', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Notes</p>
-              <p style={{ margin: 0, fontSize: 13, color: '#0B1E3D' }}>{course.notes}</p>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── Per-schedule row ──────────────────────────────────────────────────────────
-
-function ScheduleRow({ schedule: s }: { schedule: ApiWeeklyTripSchedule }) {
-  const day = INDEX_WEEKDAY[s.day_of_week] ?? '?';
-  return (
-    <div style={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ fontSize: 12, fontWeight: 700, color: '#0B1E3D' }}>{day}</span>
-        <span style={{ fontSize: 12, color: '#5A6A7A' }}>
-          {fmtTime(s.start_time_from)} – {fmtTime(s.end_time_to)}
-        </span>
-      </div>
-      {s.participants.length > 0 && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-          {s.participants.map(p => (
-            <span key={p.id} style={{ fontSize: 11, background: '#EFF7F6', color: '#0B1E3D', border: '1px solid #C8E8E4', borderRadius: 6, padding: '1px 6px' }}>
-              P{p.passenger_id} · {SEAT_LABELS[p.seat_position] ?? p.seat_position}
-            </span>
-          ))}
-        </div>
-      )}
-      {s.stops.length > 0 && (
-        <div style={{ fontSize: 11, color: '#5A6A7A' }}>
-          {s.stops.map(st => <p key={st.stop_order} style={{ margin: 0 }}>📍 {st.name}</p>)}
-        </div>
-      )}
     </div>
   );
 }

@@ -21,11 +21,12 @@ export default function DriverLayout({ children }: { children: React.ReactNode }
     pathname.startsWith('/driver/sign-up/');
 
   const isTripRoute = pathname.startsWith('/driver/trip/');
+  const isOnboarding = pathname === '/driver/onboarding' || pathname.startsWith('/driver/onboarding/');
 
   // Auth routes never require a session
   if (isAuthRoute) return <>{children}</>;
 
-  if (isTripRoute) {
+  if (isTripRoute || isOnboarding) {
     return (
       <AuthGuard role="driver">
         <div style={shellStyle}>

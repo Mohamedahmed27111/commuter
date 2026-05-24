@@ -7,6 +7,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import PasswordInput from '@/components/shared/PasswordInput';
 import authApi, { extractToken, extractRole, extractName, extractId } from '@/lib/api/auth';
+import driverApi from '@/lib/api/driver';
+import { ApiError } from '@/lib/api/client';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useRedirectIfAuth } from '@/lib/auth/useRedirectIfAuth';
 
@@ -54,10 +56,27 @@ export default function DriverSignInForm() {
       });
 
       toast.success(`Welcome back, ${name}! 👋`);
-      const safeNext = nextPath && !nextPath.startsWith('/driver/sign') && !nextPath.startsWith('/sign')
-        ? nextPath
-        : '/driver/requests';
-      router.replace(safeNext);
+
+      // Check whether this driver has completed their vehicle/document profile.
+      // If GET /driver/profile returns 404, they haven't — send to onboarding.
+      let destination: string;
+      try {
+        await driverApi.getProfile();
+        // Profile exists → go to the originally requested page or dashboard.
+        destination = nextPath && !nextPath.startsWith('/driver/sign') && !nextPath.startsWith('/sign')
+          ? nextPath
+          : '/driver/requests';
+      } catch (profileErr: unknown) {
+        if (profileErr instanceof ApiError && profileErr.status === 404) {
+          destination = '/driver/onboarding';
+        } else {
+          // Network error or unexpected issue — default to dashboard.
+          destination = nextPath && !nextPath.startsWith('/driver/sign') && !nextPath.startsWith('/sign')
+            ? nextPath
+            : '/driver/requests';
+        }
+      }
+      router.replace(destination);
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Sign in failed. Please try again.');
     } finally {

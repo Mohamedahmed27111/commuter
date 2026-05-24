@@ -141,6 +141,10 @@ export default function UserSignInForm() {
         Don&apos;t have an account?{' '}
         <Link href="/sign-up" style={{ color: '#00C2A8', fontWeight: 500, textDecoration: 'none' }}>Sign up →</Link>
       </p>
+      <p style={{ marginTop: 10, textAlign: 'center', fontSize: 14, color: '#5A6A7A' }}>
+        Need to verify your email?{' '}
+        <Link href="/verify-email" style={{ color: '#00C2A8', fontWeight: 500, textDecoration: 'none' }}>Verify email →</Link>
+      </p>
     </form>
   );
 }

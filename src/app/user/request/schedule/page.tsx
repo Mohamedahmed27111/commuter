@@ -13,8 +13,12 @@ import Section from '@/components/shared/Section';
 import { getNextAvailableCycleStart, formatCycleStartDate } from '@/lib/cycleUtils';
 import { calculatePriceRange } from '@/lib/pricing';
 import { computeArrivalFrom, computeArrivalTo } from '@/lib/timeUtils';
+import { WEEKDAY_INDEX } from '@/lib/timeUtils';
+import { cycleDateForDayOfWeek, toApiDate } from '@/lib/cycleUtils';
+import { createCourse, type WeeklyTripSchedule } from '@/lib/api/courses';
+import { ApiError } from '@/lib/api/client';
 import { getPassengers, type ApiPassenger } from '@/lib/api/passengers';
-import { getName } from '@/lib/auth';
+import { getName, getUserId } from '@/lib/auth';
 import PrivateSchedulePage from '@/components/user/request/private/PrivateSchedulePage';
 // Mock data removed
 
@@ -73,25 +77,26 @@ function makeDefaultSlot(usedDays: WeekDay[], inheritFrom?: WizardTimeSlot): Wiz
   };
 }
 
-function validateSchedule(slots: WizardTimeSlot[]): string | null {
-  if (slots.length === 0) return 'Add at least one time slot';
+function validateSchedule(slots: WizardTimeSlot[]): string[] {
+  const errors: string[] = [];
+  if (slots.length === 0) {
+    errors.push('Add at least one time slot');
+    return errors;
+  }
   for (let i = 0; i < slots.length; i++) {
     const slot = slots[i];
     const n = i + 1;
     if (!slot.route_set || !slot.origin || !slot.destination)
-      return `Set a route for Time slot ${n}`;
+      errors.push(`Set a route for Time slot ${n}`);
     if (slot.days.length === 0)
-      return `Select days for Time slot ${n}`;
+      errors.push(`Select days for Time slot ${n}`);
     const gap = parseInt(slot.pickup_to.split(':')[0]) * 60 +
       parseInt(slot.pickup_to.split(':')[1]) -
       (parseInt(slot.pickup_from.split(':')[0]) * 60 + parseInt(slot.pickup_from.split(':')[1]));
-    if (gap < 30 || gap > 120)
-      return `Invalid pickup window for Time slot ${n}`;
+    if (gap < 15 || gap > 120)
+      errors.push(`Invalid pickup window for Time slot ${n} (must be 15 min–2 h)`);
   }
-  const totalDays = new Set(slots.flatMap(s => s.days)).size;
-  if (totalDays < 3)
-    return `Select at least 3 days in total (currently ${totalDays}/3)`;
-  return null;
+  return errors;
 }
 
 // ── Page ───────────────────────────────────────────────────────────────────────
@@ -165,14 +170,33 @@ export default function SchedulePage() {
       return_destination: result.origin,
       return_customized:  false,
     };
-    // Recompute arrival times if we have a route
     const slot = slots.find(s => s.id === routePickerSlotId);
     if (slot) {
       patch.arrival_from = computeArrivalFrom(slot.pickup_to, result.route.duration_minutes);
       patch.arrival_to   = computeArrivalTo(slot.pickup_from, slot.pickup_to, result.route.duration_minutes);
     }
-    updateSlotRoute(routePickerSlotId, patch);
-    persist(slots.map(s => s.id === routePickerSlotId ? { ...s, ...patch } : s));
+    // When slot 1's outbound route changes, propagate it to all other slots.
+    const isFirstSlot = slots[0]?.id === routePickerSlotId;
+    if (isFirstSlot) {
+      const updated = slots.map(s => {
+        if (s.id === routePickerSlotId) return { ...s, ...patch };
+        // Other slots inherit origin/destination/route from slot 1.
+        return {
+          ...s,
+          origin:             result.origin,
+          destination:        result.destination,
+          route:              result.route,
+          route_set:          true,
+          return_origin:      result.destination,
+          return_destination: result.origin,
+          return_customized:  false,
+        };
+      });
+      persist(updated);
+    } else {
+      updateSlotRoute(routePickerSlotId, patch);
+      persist(slots.map(s => s.id === routePickerSlotId ? { ...s, ...patch } : s));
+    }
     setShowRoutePicker(false);
   }
 
@@ -243,6 +267,10 @@ export default function SchedulePage() {
     }));
   }
 
+  function handleArrivalChange(slotId: string, from: string, to: string) {
+    persist(slots.map(s => s.id === slotId ? { ...s, arrival_from: from, arrival_to: to } : s));
+  }
+
   function handleReturnChange(slotId: string, from: string, to: string) {
     persist(slots.map(s => {
       if (s.id !== slotId) return s;
@@ -255,6 +283,10 @@ export default function SchedulePage() {
         return_arrival_to:   computeArrivalTo(from, to, dur),
       };
     }));
+  }
+
+  function handleReturnArrivalChange(slotId: string, from: string, to: string) {
+    persist(slots.map(s => s.id === slotId ? { ...s, return_arrival_from: from, return_arrival_to: to } : s));
   }
 
   function handleDayToggle(slotId: string, day: WeekDay) {
@@ -292,25 +324,126 @@ export default function SchedulePage() {
   }
 
   function handleReviewClick() {
-    const err = validateSchedule(slots);
-    if (err) { setValidationError(err); return; }
+    const errs = validateSchedule(slots);
+    if (errs.length > 0) {
+      setValidationError(errs.join('\n'));
+      return;
+    }
     setValidationError(null);
     setShowReview(true);
   }
 
   async function handleSubmit() {
     setSubmitting(true);
-    await new Promise(r => setTimeout(r, 800));
+    setValidationError(null);
 
-    const firstSlot = slots[0];
+    try {
+      // Build per-day schedules for the API. For shared rides each slot's
+      // own route is used (no per-day stops, no related passengers).
+      const schedules: WeeklyTripSchedule[] = [];
 
-    if (firstSlot?.origin && firstSlot?.destination && firstSlot?.route) {
-      // TODO: save request to API endpoint when available
+      for (const slot of slots) {
+        if (!slot.origin || !slot.destination || !slot.route) continue;
+
+        const distance = slot.route.distance_km;
+        const duration = Math.round(slot.route.duration_minutes);
+
+        for (const day of slot.days) {
+          const dow = WEEKDAY_INDEX[day];
+
+          // The API requires exactly one participant per schedule for group rides.
+          // We send the current user identified by their numeric ID from session.
+          const userId = getUserId();
+          const participant = userId !== null
+            ? [{ type: 'user' as const, user_id: userId, seat_position: 'front' as const }]
+            : [];
+
+          // Outbound ("go")
+          schedules.push({
+            day_of_week:    dow,
+            trip_direction: 'go',
+            start_time_from: `${slot.pickup_from}:00`,
+            start_time_to:   `${slot.pickup_to}:00`,
+            end_time_from:   `${slot.arrival_from || slot.pickup_to}:00`,
+            end_time_to:     `${slot.arrival_to   || slot.pickup_to}:00`,
+            from_province:   '', from_district: '', from_sub_district: '',
+            pickup_point:    slot.origin.address,
+            from_latitude:   slot.origin.lat,
+            from_longitude:  slot.origin.lng,
+            to_province:     '', to_district: '', to_sub_district: '',
+            destination:     slot.destination.address,
+            to_latitude:     slot.destination.lat,
+            to_longitude:    slot.destination.lng,
+            expected_distance:          distance,
+            estimated_duration_minutes: duration,
+            participants:    participant,
+          });
+
+          // Return ("return") — only when this slot opted into round_trip
+          if (slot.trip_type === 'round_trip') {
+            const ro = slot.return_origin      ?? slot.destination;
+            const rd = slot.return_destination ?? slot.origin;
+            const rDist = slot.return_route?.distance_km          ?? distance;
+            const rDur  = Math.round(slot.return_route?.duration_minutes ?? duration);
+
+            schedules.push({
+              day_of_week:    dow,
+              trip_direction: 'return',
+              start_time_from: `${slot.return_pickup_from ?? '17:00'}:00`,
+              start_time_to:   `${slot.return_pickup_to   ?? '17:30'}:00`,
+              end_time_from:   `${slot.return_arrival_from ?? '18:00'}:00`,
+              end_time_to:     `${slot.return_arrival_to   ?? '18:30'}:00`,
+              from_province:   '', from_district: '', from_sub_district: '',
+              pickup_point:    ro.address,
+              from_latitude:   ro.lat,
+              from_longitude:  ro.lng,
+              to_province:     '', to_district: '', to_sub_district: '',
+              destination:     rd.address,
+              to_latitude:     rd.lat,
+              to_longitude:    rd.lng,
+              expected_distance:          rDist,
+              estimated_duration_minutes: rDur,
+              participants:    participant,
+            });
+          }
+        }
+      }
+
+      // Derive start/end dates from the chosen days within the cycle.
+      // Sort the actual calendar dates (not day indexes) so start_date is always ≤ end_date.
+      // Sorting day indexes numerically is wrong: Saturday=6 is the cycle start (earliest date)
+      // but sorts last, causing end_date < start_date when Saturday is selected.
+      const dayIndexes = Array.from(new Set(schedules.map(s => s.day_of_week)));
+      const dates      = dayIndexes
+        .map(d => cycleDateForDayOfWeek(cycleStartDate, d))
+        .sort((a, b) => a.getTime() - b.getTime());
+      const start_date = toApiDate(dates[0] ?? cycleStartDate);
+      const end_date   = toApiDate(dates[dates.length - 1] ?? cycleStartDate);
+
+      const directionType: 'one_way' | 'round_trip' = hasRoundTrip ? 'round_trip' : 'one_way';
+      const isFriends = ride_type === 'shared' && group_type === 'friends';
+
+      await createCourse({
+        trip_type:      'group',
+        group_type:     isFriends ? 'friends' : 'public',
+        ...(isFriends && group_code ? { code_group: group_code } : {}),
+        direction_type: directionType,
+        start_date,
+        end_date,
+        initial_price:  priceMin,
+        final_price:    priceMax,
+        notes:          wizard.notes ?? '',
+        weekly_trip_schedules: schedules,
+      });
+
+      wizard.reset();
+      router.push('/user/my-requests');
+    } catch (e) {
+      const msg = e instanceof ApiError ? e.message : 'Failed to submit request. Try again.';
+      setValidationError(msg);
+      setSubmitting(false);
+      setShowReview(false);
     }
-
-    setSubmitting(false);
-    wizard.reset();
-    router.push('/user/my-requests');
   }
 
   // ── Derive ride type label ──────────────────────────────────────────────────
@@ -461,7 +594,9 @@ export default function SchedulePage() {
               onEditReturnRoute={(slotId) => openRoutePicker(slotId, 'return')}
               onTripTypeChange={handleTripTypeChange}
               onPickupChange={handlePickupChange}
+              onArrivalChange={handleArrivalChange}
               onReturnChange={handleReturnChange}
+              onReturnArrivalChange={handleReturnArrivalChange}
               onDayToggle={handleDayToggle}
             />
           </Section>
@@ -482,9 +617,35 @@ export default function SchedulePage() {
             </div>
           </div>
 
-          {/* Validation error */}
+          {/* Notes */}
+          <Section title="Notes">
+            <p className="text-xs text-[#5A6A7A] mb-2">
+              Optional details for the driver (e.g. luggage, pickup instructions).
+            </p>
+            <div className="relative">
+              <textarea
+                rows={4}
+                maxLength={500}
+                value={wizard.notes ?? ''}
+                onChange={(e) => wizard.setNotes(e.target.value)}
+                placeholder="Add notes…"
+                className="w-full p-3 rounded-xl border border-[#E2E8F0] text-sm text-[#0B1E3D] resize-none focus:outline-none focus:border-[#00C2A8]"
+              />
+              <span className="absolute bottom-2 right-3 text-[10px] text-[#9AA0A6]">
+                {(wizard.notes ?? '').length}/500
+              </span>
+            </div>
+          </Section>
+
+          {/* Validation errors */}
           {validationError && (
-            <p className="text-sm text-[#E74C3C] font-medium px-1">{validationError}</p>
+            <div className="rounded-xl border border-[#FFCDD2] bg-[#FFEBEE] px-4 py-3">
+              {validationError.split('\n').map((line, i) => (
+                <p key={i} className="text-sm text-[#E74C3C] font-medium flex items-start gap-2">
+                  <span className="mt-0.5 flex-shrink-0">⚠️</span> {line}
+                </p>
+              ))}
+            </div>
           )}
 
           {/* Submit */}

@@ -19,6 +19,7 @@ const PUBLIC = [
   '/driver/sign-up',
   '/forgot-password',
   '/reset-password',
+  '/verify-email',
 ];
 
 function isPublic(pathname: string): boolean {

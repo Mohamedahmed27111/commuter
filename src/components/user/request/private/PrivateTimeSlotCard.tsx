@@ -5,13 +5,13 @@ import type { TimeSlot, WeekDay, GeoLocation, PrivateSeatPosition } from '@/type
 import {
   addMinutes,
   formatTime12h,
-  getHalfHourOptions,
+  getQuarterHourOptions,
   timeDiffMinutes,
   ALL_DAYS_SUN_FIRST,
 } from '@/lib/timeUtils';
 import SeatLayoutPicker, { type SeatPassenger } from './SeatLayoutPicker';
 
-const ALL_OPTIONS = getHalfHourOptions();
+const ALL_OPTIONS = getQuarterHourOptions();
 
 interface Props {
   slot:           TimeSlot;
@@ -117,9 +117,11 @@ export default function PrivateTimeSlotCard({
             onChange={(v) => onPickupTimeChange(slot.pickup_from, v)}
           />
         </div>
-        <p className="text-xs text-[#9AA0A6] mt-1">
-          {pickupGap} min window · Min 30 min, Max 2 hours
-        </p>
+        {pickupGap !== null && (
+          <p className="text-xs text-[#9AA0A6] mt-1">
+            {pickupGap} min window · Min 30 min, Max 2 hours
+          </p>
+        )}
       </div>
 
       {/* ── Arrival time ────────────────────────────────────────────────────── */}
@@ -128,15 +130,15 @@ export default function PrivateTimeSlotCard({
         <div className="grid grid-cols-2 gap-3">
           <SelectBox
             label="From"
-            value={slot.arrival_from || arrivalFromMin}
+            value={slot.arrival_from}
             options={validArrivalFromOptions}
-            onChange={(v) => onArrivalChange(v, addMinutes(v, 30))}
+            onChange={(v) => onArrivalChange(v, slot.arrival_to || addMinutes(v, 30))}
           />
           <SelectBox
             label="To"
-            value={slot.arrival_to || addMinutes(slot.arrival_from || arrivalFromMin, 30)}
+            value={slot.arrival_to}
             options={validArrivalToOptions}
-            onChange={(v) => onArrivalChange(slot.arrival_from || arrivalFromMin, v)}
+            onChange={(v) => onArrivalChange(slot.arrival_from, v)}
           />
         </div>
         <p className="text-xs text-[#9AA0A6] mt-1">
@@ -316,14 +318,14 @@ export default function PrivateTimeSlotCard({
           {/* Return pickup time */}
           <ReturnTimeBlock
             title="Pickup time"
-            from={slot.return_pickup_from ?? '17:00'}
-            to={slot.return_pickup_to ?? '17:30'}
+            from={slot.return_pickup_from ?? ''}
+            to={slot.return_pickup_to ?? ''}
             onChange={onReturnPickupTimeChange}
           />
 
           {/* Return arrival time */}
           <ReturnArrivalBlock
-            pickupTo={slot.return_pickup_to ?? '17:30'}
+            pickupTo={slot.return_pickup_to ?? ''}
             from={slot.return_arrival_from ?? ''}
             to={slot.return_arrival_to ?? ''}
             onChange={onReturnArrivalChange}
@@ -348,6 +350,7 @@ function SelectBox({
           onChange={(e) => onChange(e.target.value)}
           className="w-full h-11 border border-[#E2E8F0] rounded-lg pl-3 pr-9 text-sm text-[#0B1E3D] bg-white focus:outline-none focus:border-[#00C2A8] appearance-none"
         >
+          <option value="" disabled hidden>— Pick time —</option>
           {options.map((o) => (
             <option key={o} value={o}>{formatTime12h(o)}</option>
           ))}
@@ -388,10 +391,10 @@ function ReturnRow({
 function ReturnTimeBlock({
   title, from, to, onChange,
 }: { title: string; from: string; to: string; onChange: (from: string, to: string) => void }) {
-  const validTo = ALL_OPTIONS.filter((opt) => {
+  const validTo = from ? ALL_OPTIONS.filter((opt) => {
     const d = timeDiffMinutes(from, opt);
     return d >= 30 && d <= 120;
-  });
+  }) : [];
   return (
     <div>
       <label className="block text-sm font-semibold text-[#0B1E3D] mb-2">{title}</label>
@@ -406,20 +409,19 @@ function ReturnTimeBlock({
 function ReturnArrivalBlock({
   pickupTo, from, to, onChange,
 }: { pickupTo: string; from: string; to: string; onChange: (from: string, to: string) => void }) {
-  const min = addMinutes(pickupTo, 30);
-  const fromOptions = ALL_OPTIONS.filter((opt) => timeDiffMinutes(min, opt) >= 0);
-  const fromVal = from || min;
-  const validTo = ALL_OPTIONS.filter((opt) => {
-    const d = timeDiffMinutes(fromVal, opt);
+  const fromOptions = pickupTo
+    ? ALL_OPTIONS.filter((opt) => timeDiffMinutes(addMinutes(pickupTo, 30), opt) >= 0)
+    : ALL_OPTIONS;
+  const validTo = from ? ALL_OPTIONS.filter((opt) => {
+    const d = timeDiffMinutes(from, opt);
     return d >= 30 && d <= 120;
-  });
-  const toVal = to || addMinutes(fromVal, 30);
+  }) : [];
   return (
     <div>
       <label className="block text-sm font-semibold text-[#0B1E3D] mb-2">Arrival time</label>
       <div className="grid grid-cols-2 gap-3">
-        <SelectBox label="From" value={fromVal} options={fromOptions} onChange={(v) => onChange(v, addMinutes(v, 30))} />
-        <SelectBox label="To" value={toVal} options={validTo} onChange={(v) => onChange(fromVal, v)} />
+        <SelectBox label="From" value={from} options={fromOptions} onChange={(v) => onChange(v, addMinutes(v, 30))} />
+        <SelectBox label="To" value={to} options={validTo} onChange={(v) => onChange(from, v)} />
       </div>
       <p className="text-xs text-[#9AA0A6] mt-1">
         At least 1 h after pickup ends · 30 min window, max 2 h

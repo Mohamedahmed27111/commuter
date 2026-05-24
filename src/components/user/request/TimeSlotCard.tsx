@@ -4,7 +4,7 @@ import type { TimeSlot, WeekDay } from '@/types/shared';
 import {
   addMinutes,
   formatTime12h,
-  getHalfHourOptions,
+  getQuarterHourOptions,
   timeDiffMinutes,
 } from '@/lib/timeUtils';
 
@@ -22,13 +22,15 @@ interface TimeSlotCardProps {
   onEditReturnRoute: () => void;
   onTripTypeChange:  (tripType: 'one_way' | 'round_trip') => void;
   onPickupChange:    (from: string, to: string) => void;
+  onArrivalChange:   (from: string, to: string) => void;
   onReturnChange:    (from: string, to: string) => void;
+  onReturnArrivalChange: (from: string, to: string) => void;
   onDayToggle:       (day: WeekDay) => void;
   onRemove:          () => void;
 }
 
 const ALL_DAYS: WeekDay[] = ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
-const ALL_OPTIONS = getHalfHourOptions();
+const ALL_OPTIONS = getQuarterHourOptions();
 const SLOT_COLORS = [
   { accent: '#00C2A8', soft: '#EFF7F6', border: '#C8E8E4', deep: '#0B1E3D' },
   { accent: '#0B1E3D', soft: '#EEF1F5', border: '#CBD4E1', deep: '#0B1E3D' },
@@ -48,7 +50,9 @@ export default function TimeSlotCard({
   onEditReturnRoute,
   onTripTypeChange,
   onPickupChange,
+  onArrivalChange,
   onReturnChange,
+  onReturnArrivalChange,
   onDayToggle,
   onRemove,
 }: TimeSlotCardProps) {
@@ -67,11 +71,27 @@ export default function TimeSlotCard({
     return diff >= 30 && diff <= 120;
   });
 
+  // Arrival options — must start ≥ 30 min after pickup_to
+  const arrivalFromMin = addMinutes(slot.pickup_to, 30);
+  const validArrivalFromOptions = ALL_OPTIONS.filter(opt => timeDiffMinutes(arrivalFromMin, opt) >= 0);
+  const validArrivalToOptions = ALL_OPTIONS.filter(opt => {
+    const d = timeDiffMinutes(slot.arrival_from || arrivalFromMin, opt);
+    return d >= 30 && d <= 120;
+  });
+
   const returnFrom = slot.return_pickup_from ?? '17:00';
   const returnTo   = slot.return_pickup_to   ?? '17:30';
   const validReturnToOptions = ALL_OPTIONS.filter((opt) => {
     const diff = timeDiffMinutes(returnFrom, opt);
     return diff >= 30 && diff <= 120;
+  });
+
+  // Return arrival options
+  const retArrivalFromMin = addMinutes(returnTo, 30);
+  const validReturnArrivalFromOptions = ALL_OPTIONS.filter(opt => timeDiffMinutes(retArrivalFromMin, opt) >= 0);
+  const validReturnArrivalToOptions = ALL_OPTIONS.filter(opt => {
+    const d = timeDiffMinutes(slot.return_arrival_from || retArrivalFromMin, opt);
+    return d >= 30 && d <= 120;
   });
 
   function handleFromChange(newFrom: string) {
@@ -135,14 +155,19 @@ export default function TimeSlotCard({
                   ? `${slot.route.distance_km.toFixed(1)} km · ~${Math.round(slot.route.duration_minutes)} min`
                   : ''}
               </span>
-              <button
-                type="button"
-                onClick={onSetRoute}
-                className="text-xs font-medium hover:underline"
-                style={{ color: palette.accent, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
-              >
-                ✏ Edit route
-              </button>
+              {/* Slot 1 is always editable. Slots 2+ are locked (they inherit slot 1's route). */}
+              {slotIndex === 0 ? (
+                <button
+                  type="button"
+                  onClick={onSetRoute}
+                  className="text-xs font-medium hover:underline"
+                  style={{ color: palette.accent, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
+                >
+                  ✏ Edit route
+                </button>
+              ) : (
+                <span className="text-[10px] text-[#9AA0A6] italic">Locked · route from Time slot 1</span>
+              )}
             </div>
 
             {/* "Same as slot 1" note */}
@@ -161,9 +186,9 @@ export default function TimeSlotCard({
               </p>
             )}
           </div>
-        ) : (
+        ) : slotIndex === 0 ? (
           <div className="border-2 border-dashed border-[#E2E8F0] rounded-xl p-4 flex flex-col items-center gap-2 text-center">
-            <span className="text-2xl">📍</span>
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#00C2A8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
             <p className="text-sm text-[#5A6A7A]">No route selected</p>
             <button
               type="button"
@@ -173,6 +198,10 @@ export default function TimeSlotCard({
             >
               Set route
             </button>
+          </div>
+        ) : (
+          <div className="border border-[#E2E8F0] rounded-xl p-4 text-center bg-[#F8F9FA]">
+            <p className="text-sm text-[#9AA0A6]">Route will be set from Time slot 1</p>
           </div>
         )}
       </div>
@@ -239,14 +268,39 @@ export default function TimeSlotCard({
           </p>
         </div>
 
-        {/* Estimated arrival — computed, read-only */}
-        {!routeLocked && slot.arrival_from && slot.arrival_to && (
+        {/* Estimated arrival — editable selects */}
+        {!routeLocked && (
           <div>
-            <label className="block text-xs font-medium text-[#5A6A7A] mb-1">Estimated arrival</label>
-            <div className="bg-[#F8F9FA] border border-[#E2E8F0] rounded-xl px-3 py-2 text-sm text-[#0B1E3D] font-medium">
-              {formatTime12h(slot.arrival_from)} → {formatTime12h(slot.arrival_to)}
-              <span className="text-xs text-[#9AA0A6] ml-2 font-normal">(computed)</span>
+            <label className="block text-xs font-medium text-[#5A6A7A] mb-2">Arrival time</label>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs text-[#9AA0A6] mb-1">From</label>
+                <select
+                  value={slot.arrival_from || arrivalFromMin}
+                  onChange={(e) => onArrivalChange(e.target.value, addMinutes(e.target.value, 30))}
+                  className="w-full h-11 border border-[#E2E8F0] rounded-lg px-3 text-sm text-[#0B1E3D] bg-white focus:outline-none"
+                  style={{ outlineColor: palette.accent }}
+                >
+                  {validArrivalFromOptions.map((opt) => (
+                    <option key={opt} value={opt}>{formatTime12h(opt)}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-[#9AA0A6] mb-1">To</label>
+                <select
+                  value={slot.arrival_to || addMinutes(slot.arrival_from || arrivalFromMin, 30)}
+                  onChange={(e) => onArrivalChange(slot.arrival_from || arrivalFromMin, e.target.value)}
+                  className="w-full h-11 border border-[#E2E8F0] rounded-lg px-3 text-sm text-[#0B1E3D] bg-white focus:outline-none"
+                  style={{ outlineColor: palette.accent }}
+                >
+                  {validArrivalToOptions.map((opt) => (
+                    <option key={opt} value={opt}>{formatTime12h(opt)}</option>
+                  ))}
+                </select>
+              </div>
             </div>
+            <p className="text-xs text-[#9AA0A6] mt-1">At least 30 min after pickup ends</p>
           </div>
         )}
 
@@ -316,43 +370,67 @@ export default function TimeSlotCard({
               </div>
             </div>
 
-            {/* Return arrival — computed */}
-            {slot.return_arrival_from && slot.return_arrival_to && (
-              <div>
-                <label className="block text-xs font-medium text-[#5A6A7A] mb-1">Estimated return arrival</label>
-                <div className="bg-[#F8F9FA] border border-[#E2E8F0] rounded-xl px-3 py-2 text-sm text-[#0B1E3D] font-medium">
-                  {formatTime12h(slot.return_arrival_from)} → {formatTime12h(slot.return_arrival_to)}
-                  <span className="text-xs text-[#9AA0A6] ml-2 font-normal">(computed)</span>
+            {/* Return arrival — editable selects */}
+            <div>
+              <label className="block text-xs font-medium text-[#5A6A7A] mb-2">Return arrival time</label>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-[#9AA0A6] mb-1">From</label>
+                  <select
+                    value={slot.return_arrival_from || retArrivalFromMin}
+                    onChange={(e) => onReturnArrivalChange(e.target.value, addMinutes(e.target.value, 30))}
+                    className="w-full h-11 border border-[#E2E8F0] rounded-lg px-3 text-sm text-[#0B1E3D] bg-white focus:outline-none"
+                    style={{ outlineColor: palette.accent }}
+                  >
+                    {validReturnArrivalFromOptions.map((opt) => (
+                      <option key={opt} value={opt}>{formatTime12h(opt)}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-[#9AA0A6] mb-1">To</label>
+                  <select
+                    value={slot.return_arrival_to || addMinutes(slot.return_arrival_from || retArrivalFromMin, 30)}
+                    onChange={(e) => onReturnArrivalChange(slot.return_arrival_from || retArrivalFromMin, e.target.value)}
+                    className="w-full h-11 border border-[#E2E8F0] rounded-lg px-3 text-sm text-[#0B1E3D] bg-white focus:outline-none"
+                    style={{ outlineColor: palette.accent }}
+                  >
+                    {validReturnArrivalToOptions.map((opt) => (
+                      <option key={opt} value={opt}>{formatTime12h(opt)}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
-            )}
+              <p className="text-xs text-[#9AA0A6] mt-1">At least 30 min after return pickup ends</p>
+            </div>
           </div>
         )}
       </div>
 
-      {/* ── Days — always interactive, at the bottom ── */}
-      <div>
+      {/* ── Days — locked until route is set ── */}
+      <div className={routeLocked ? 'opacity-40 pointer-events-none select-none' : ''}>
         <label className="block text-xs font-medium text-[#5A6A7A] mb-2">Days for this slot</label>
         <div className="flex gap-1.5 flex-wrap">
           {ALL_DAYS.map((day) => {
             const isSelected   = slot.days.includes(day);
             const takenByOther = !isSelected && assignedDays.includes(day);
+            const isDisabled   = routeLocked || takenByOther;
             return (
               <button
                 key={day}
                 type="button"
-                disabled={takenByOther}
-                onClick={() => !takenByOther && onDayToggle(day)}
+                disabled={isDisabled}
+                onClick={() => !isDisabled && onDayToggle(day)}
                 className={`w-10 h-10 rounded-full text-xs font-medium border transition-colors ${
                   isSelected
                     ? 'text-white'
-                    : takenByOther
+                    : isDisabled
                       ? 'bg-[#F1F3F4] border-[#E2E8F0] text-[#C5CDD6] cursor-not-allowed'
                       : 'bg-white border-[#E2E8F0] text-[#5A6A7A]'
                 }`}
                 style={isSelected
                   ? { background: palette.accent, borderColor: palette.accent }
-                  : !takenByOther
+                  : !isDisabled
                     ? { borderColor: palette.border, color: palette.deep }
                     : undefined}
               >
@@ -361,7 +439,9 @@ export default function TimeSlotCard({
             );
           })}
         </div>
-        {slot.days.length === 0 && (
+        {routeLocked ? (
+          <p className="text-xs text-[#9AA0A6] mt-1.5">Set a route above to choose days for this slot.</p>
+        ) : slot.days.length === 0 && (
           <p className="text-xs text-[#E74C3C] mt-1.5">Select at least one day for this slot</p>
         )}
       </div>

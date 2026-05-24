@@ -1,192 +1,216 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { toast } from 'react-hot-toast';
-import StepIndicator from '@/components/auth/driver/StepIndicator';
-import Step1Personal, { type Step1Data } from '@/components/auth/driver/steps/Step1Personal';
-import Step2CarInfo, { type Step2Data } from '@/components/auth/driver/steps/Step2CarInfo';
-import Step3Documents, { type Step3Data } from '@/components/auth/driver/steps/Step3Documents';
-import authApi from '@/lib/api/auth';
-import { useRedirectIfAuth } from '@/lib/auth/useRedirectIfAuth';
-import { CheckCircle } from 'lucide-react';
+import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { toast } from 'react-hot-toast';
+import authApi, {
+  extractToken, extractRole, extractName, extractId,
+  type AuthApiResponse,
+} from '@/lib/api/auth';
+import { sendOtp, verifyOtp } from '@/lib/api/auth';
+import { useAuth } from '@/lib/auth/AuthContext';
+import { useRedirectIfAuth } from '@/lib/auth/useRedirectIfAuth';
+import { saveUserData } from '@/lib/auth/tokenStorage';
+import Step1Info,    { type Step1Data } from '@/components/auth/user/steps/Step1Info';
+import Step2Address, { type Step2Data } from '@/components/auth/user/steps/Step2Address';
+import Step3Otp from '@/components/auth/user/steps/Step3Otp';
 
-const SESSION_KEY = 'commuter_driver_signup';
+// ── Step indicator ────────────────────────────────────────────────────────────
 
-interface WizardData {
-  step1?: Partial<Step1Data>;
-  step2?: Partial<Step2Data>;
+const STEPS = ['Personal info', 'Address', 'Verify email', 'Driver details'] as const;
+
+function StepBar({ current }: { current: 1 | 2 | 3 | 4 }) {
+  return (
+    <div className="flex items-center mb-8" role="list" aria-label="Sign-up progress">
+      {STEPS.map((label, idx) => {
+        const n      = (idx + 1) as 1 | 2 | 3 | 4;
+        const done   = n < current;
+        const active = n === current;
+
+        return (
+          <div key={n} className="flex items-center flex-1 last:flex-none" role="listitem">
+            <div
+              className={[
+                'flex items-center justify-center w-8 h-8 rounded-full border-2 flex-shrink-0 text-xs font-bold transition-all',
+                done   ? 'bg-[#00C2A8] border-[#00C2A8] text-[#0B1E3D]'
+                       : active
+                       ? 'bg-white border-[#00C2A8] text-[#00C2A8] shadow-[0_0_0_3px_rgba(0,194,168,0.2)]'
+                       : 'bg-white border-[#D1D5DB] text-[#9CA3AF]',
+              ].join(' ')}
+              aria-current={active ? 'step' : undefined}
+            >
+              {done ? (
+                <svg width="12" height="10" viewBox="0 0 12 10" fill="none" aria-hidden>
+                  <path d="M1 5L4.5 8.5L11 1.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              ) : (
+                n
+              )}
+            </div>
+
+            <span className={[
+              'ml-1.5 text-xs whitespace-nowrap',
+              active ? 'text-[#0B1E3D] font-semibold' : done ? 'text-[#00C2A8] font-medium' : 'text-[#9CA3AF]',
+            ].join(' ')}>
+              {label}
+            </span>
+
+            {idx < STEPS.length - 1 && (
+              <div className={`flex-1 h-px mx-3 ${done ? 'bg-[#00C2A8]' : 'bg-[#E2E8F0]'}`} aria-hidden />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
-function loadWizard(): WizardData {
-  if (typeof window === 'undefined') return {};
-  try {
-    return JSON.parse(sessionStorage.getItem(SESSION_KEY) ?? '{}');
-  } catch {
-    return {};
-  }
-}
-
-function saveWizard(data: WizardData) {
-  if (typeof window === 'undefined') return;
-  sessionStorage.setItem(SESSION_KEY, JSON.stringify(data));
-}
-
-function clearWizard() {
-  if (typeof window === 'undefined') return;
-  sessionStorage.removeItem(SESSION_KEY);
-}
+// ── Wizard ────────────────────────────────────────────────────────────────────
 
 export default function DriverSignUpWizard() {
-  const [step, setStep]         = useState<1 | 2 | 3>(1);
-  const [highestStep, setHighestStep] = useState<number>(1);
-  const [step1Data, setStep1Data] = useState<Partial<Step1Data>>({});
-  const [step2Data, setStep2Data] = useState<Partial<Step2Data>>({});
-  const [submittedEmail, setSubmittedEmail] = useState('');
-  const [success, setSuccess] = useState(false);
+  const router = useRouter();
+  const { login } = useAuth();
 
-  // Redirect already-authenticated users away from the sign-up wizard
-  // (also handles bfcache restores from the back button).
+  const [step,          setStep]          = useState<1 | 2 | 3>(1);
+  const [step1Data,     setStep1Data]     = useState<Partial<Step1Data>>({});
+  const [loading,       setLoading]       = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [otpError,      setOtpError]      = useState<string | null>(null);
+  // store auth response between step 2 and step 3
+  const [pendingAuth,   setPendingAuth]   = useState<AuthApiResponse | null>(null);
+
+  // If already logged in, skip the wizard entirely (handles bfcache too)
   useRedirectIfAuth();
-
-  // Restore from sessionStorage
-  useEffect(() => {
-    const saved = loadWizard();
-    if (saved.step1) setStep1Data(saved.step1);
-    if (saved.step2) setStep2Data(saved.step2);
-  }, []);
 
   function handleStep1(data: Step1Data) {
     setStep1Data(data);
-    saveWizard({ step1: data, step2: step2Data });
     setStep(2);
-    setHighestStep((h) => Math.max(h, 2));
   }
 
-  function handleStep2(data: Step2Data) {
-    setStep2Data(data);
-    saveWizard({ step1: step1Data, step2: data });
-    setStep(3);
-    setHighestStep((h) => Math.max(h, 3));
-  }
-
-  async function handleStep3(docs: Step3Data) {
-    // Pull whatever the wizard collected. Driver step1/step2 may not cover every
-    // backend field — we send safe fallbacks; the backend will reject anything
-    // truly required so the user sees a real error message.
-    const s1 = step1Data as Partial<Step1Data> & Record<string, unknown>;
-
+  async function handleStep2(addrData: Step2Data) {
+    if (!step1Data.name) return; // guard
+    setLoading(true);
     try {
-      const email = String(s1.email ?? '');
-      const password = String((s1 as { password?: string }).password ?? '');
-      const passwordConfirmation = String(
-        (s1 as { password_confirmation?: string; confirmPassword?: string })
-          .password_confirmation
-        ?? (s1 as { confirmPassword?: string }).confirmPassword
-        ?? password,
-      );
-
-      await authApi.register({
+      const result = await authApi.register({
         role:                  'driver',
-        name:                  String(s1.name ?? '').trim(),
-        email,
-        phone_number:          String((s1 as { phone_number?: string; phone?: string }).phone_number ?? (s1 as { phone?: string }).phone ?? ''),
-        whatsapp_number:       String((s1 as { whatsapp_number?: string }).whatsapp_number ?? (s1 as { phone?: string }).phone ?? ''),
-        province:              String((s1 as { province?: string }).province ?? ''),
-        gender:                ((s1 as { gender?: 'male' | 'female' }).gender) ?? 'male',
-        birthdate:             String((s1 as { birthdate?: string; date_of_birth?: string; dateOfBirth?: string }).birthdate ?? (s1 as { date_of_birth?: string }).date_of_birth ?? (s1 as { dateOfBirth?: string }).dateOfBirth ?? ''),
-        district:              String((s1 as { district?: string }).district ?? ''),
-        sub_district:          String((s1 as { sub_district?: string }).sub_district ?? ''),
-        building:              String((s1 as { building?: string }).building ?? ''),
-        street:                String((s1 as { street?: string }).street ?? ''),
-        landmark:              String((s1 as { landmark?: string; address?: string }).landmark ?? (s1 as { address?: string }).address ?? ''),
-        password,
-        password_confirmation: passwordConfirmation,
+        name:                  step1Data.name!.trim(),
+        email:                 step1Data.email!.trim(),
+        phone_number:          step1Data.phone_number!,
+        whatsapp_number:       step1Data.whatsapp_same_as_phone
+                                 ? step1Data.phone_number!
+                                 : step1Data.whatsapp_number!,
+        province:              addrData.province.trim(),
+        gender:                step1Data.gender ?? 'male',
+        birthdate:             step1Data.birthdate ?? '',
+        district:              addrData.district.trim(),
+        sub_district:          addrData.sub_district.trim(),
+        building:              addrData.building.trim(),
+        street:                addrData.street.trim(),
+        landmark:              addrData.landmark.trim(),
+        password:              step1Data.password!,
+        password_confirmation: step1Data.password_confirmation!,
       });
-
-      // Upload documents (best-effort; backend may want them on the same request)
-      try {
-        for (const [field, file] of Object.entries(docs)) {
-          if (file instanceof File) {
-            const fd = new FormData();
-            fd.append(field, file);
-            // Fire and forget — if endpoint not ready, we still complete signup
-            const { call } = await import('@/lib/api/client');
-            await call(`driver/documents/${field}`, { method: 'POST', body: fd, auth: false }).catch(() => undefined);
-          }
-        }
-      } catch {
-        // Ignore document upload errors — driver can re-upload from profile
-      }
-
-      setSubmittedEmail(email);
-      clearWizard();
-      setSuccess(true);
+      setPendingAuth(result);
+      // Send OTP to the registered email
+      await sendOtp(step1Data.email!.trim());
+      setStep(3);
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Registration failed. Please try again.');
+      toast.error(err instanceof Error ? err.message : 'Sign up failed. Please try again.');
+    } finally {
+      setLoading(false);
     }
   }
 
-  const stepTitles: Record<1 | 2 | 3, string> = {
-    1: 'Personal information',
-    2: 'Car information',
-    3: 'Upload documents',
-  };
+  async function handleVerifyOtp(code: string) {
+    if (!step1Data.email || !pendingAuth) return;
+    setLoading(true);
+    setOtpError(null);
+    try {
+      await verifyOtp(step1Data.email.trim(), code);
+      const token = extractToken(pendingAuth);
+      if (token) {
+        login({
+          token,
+          role: extractRole(pendingAuth) || 'driver',
+          name: extractName(pendingAuth) || step1Data.name!.trim(),
+          id:   extractId(pendingAuth),
+        });
+        if (typeof window !== 'undefined') localStorage.setItem('commuter_email', step1Data.email!.trim());
+        // Store everything we submitted so the profile shows real data immediately
+        const registeredUser = (pendingAuth as AuthApiResponse & { user?: Record<string, unknown> }).user ?? {};
+        saveUserData({
+          ...registeredUser,
+          name:            step1Data.name!.trim(),
+          email:           step1Data.email!.trim(),
+          phone_number:    step1Data.phone_number ?? '',
+          whatsapp_number: step1Data.whatsapp_same_as_phone ? step1Data.phone_number : (step1Data.whatsapp_number ?? ''),
+          gender:          step1Data.gender ?? 'male',
+          date_of_birth:   step1Data.birthdate ?? '',
+          role:            'driver',
+        });
+        toast.success(`Welcome to Commuter, ${step1Data.name!.trim()}! 🎉`);
+        router.replace('/driver/onboarding');
+      } else {
+        // No auto-login token from backend — send to sign-in with success flag
+        router.replace('/driver/sign-in?registered=true');
+      }
+    } catch (err: unknown) {
+      setOtpError(err instanceof Error ? err.message : 'Invalid or expired code. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }
 
-  if (success) {
-    return (
-      <div className="min-h-screen bg-primary flex items-center justify-center px-6">
-        <div className="bg-white rounded-[20px] p-10 max-w-md w-full text-center shadow-2xl">
-          <div className="flex justify-center mb-5">
-            <CheckCircle size={64} className="text-secondary" />
-          </div>
-          <h2 className="text-2xl font-bold text-primary mb-3">Application submitted!</h2>
-          <p className="text-text-muted text-sm leading-relaxed mb-4">
-            We&apos;ve received your info and documents. Our team will review your application within 24–48 hours.
-          </p>
-          <p className="text-sm text-primary mb-8">
-            We&apos;ll email you at: <strong>{submittedEmail}</strong>
-          </p>
-          <Link
-            href="/driver/sign-in"
-            className="flex items-center justify-center w-full h-[52px] rounded-xl text-sm font-semibold transition-opacity hover:opacity-90"
-            style={{ background: '#00C2A8', color: '#fff' }}
-          >
-            Go to sign in
-          </Link>
-        </div>
-      </div>
-    );
+  async function handleResendOtp() {
+    if (!step1Data.email) return;
+    setResendLoading(true);
+    setOtpError(null);
+    try {
+      await sendOtp(step1Data.email.trim());
+      toast.success('A new code has been sent to your email.');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to resend code.');
+    } finally {
+      setResendLoading(false);
+    }
   }
 
   return (
     <div>
-      <StepIndicator
-        currentStep={step}
-        completedUpTo={highestStep - 1}
-        onStepClick={(s) => { if (s < step) setStep(s); }}
-      />
+      <h1 className="text-[28px] font-bold text-[#0B1E3D] mb-1">Become a driver</h1>
+      <p className="text-sm text-[#5A6A7A] mb-6">Join Commuter as a driver partner</p>
 
-      <h2 className="text-2xl font-bold text-primary mb-1">{stepTitles[step]}</h2>
-      <p className="text-sm text-text-muted mb-6">Step {step} of 3</p>
+      <StepBar current={step} />
 
       {step === 1 && (
-        <Step1Personal initial={step1Data} onNext={handleStep1} />
+        <Step1Info initial={step1Data} onNext={handleStep1} />
       )}
       {step === 2 && (
-        <Step2CarInfo
-          initial={step2Data}
-          onNext={handleStep2}
+        <Step2Address
+          initial={{}}
+          loading={loading}
           onBack={() => setStep(1)}
+          onSubmit={handleStep2}
         />
       )}
       {step === 3 && (
-        <Step3Documents
+        <Step3Otp
           email={step1Data.email ?? ''}
-          onBack={() => setStep(2)}
-          onSubmit={handleStep3}
+          loading={loading}
+          resendLoading={resendLoading}
+          error={otpError}
+          onVerify={handleVerifyOtp}
+          onResend={handleResendOtp}
         />
       )}
+
+      <p className="mt-5 text-center text-sm text-[#5A6A7A]">
+        Already have an account?{' '}
+        <Link href="/driver/sign-in" className="text-[#00C2A8] font-medium hover:underline">
+          Sign in →
+        </Link>
+      </p>
     </div>
   );
 }
