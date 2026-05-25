@@ -12,6 +12,12 @@ import { reverseGeocode } from '@/lib/nominatim';
 const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? '';
 const CAIRO   = { lat: 30.0444, lng: 31.2357 };
 
+const CAIRO_BOUNDS = { north: 30.35, south: 29.75, east: 31.90, west: 30.75 };
+function isInCairo(lat: number, lng: number) {
+  return lat >= CAIRO_BOUNDS.south && lat <= CAIRO_BOUNDS.north &&
+         lng >= CAIRO_BOUNDS.west  && lng <= CAIRO_BOUNDS.east;
+}
+
 const NICK_ICONS: Record<string, string> = {
   home:  '🏠',
   work:  '🏢',
@@ -34,6 +40,7 @@ function LocationPickerMap({ initial, onConfirm, onClose }: MapPickerProps) {
   const [marker,  setMarker]  = useState<{ lat: number; lng: number } | null>(initial ?? null);
   const [address, setAddress] = useState('');
   const [resolving, setResolving] = useState(false);
+  const [outOfBounds, setOutOfBounds] = useState(false);
 
   const onLoad = useCallback((map: google.maps.Map) => { mapRef.current = map; }, []);
 
@@ -41,6 +48,8 @@ function LocationPickerMap({ initial, onConfirm, onClose }: MapPickerProps) {
     const lat = e.latLng?.lat();
     const lng = e.latLng?.lng();
     if (!lat || !lng) return;
+    if (!isInCairo(lat, lng)) { setOutOfBounds(true); return; }
+    setOutOfBounds(false);
     setMarker({ lat, lng });
     setResolving(true);
     try {
@@ -94,6 +103,11 @@ function LocationPickerMap({ initial, onConfirm, onClose }: MapPickerProps) {
               disableDefaultUI: true,
               zoomControl: true,
               clickableIcons: false,
+              restriction: {
+                latLngBounds: CAIRO_BOUNDS,
+                strictBounds: false,
+              },
+              minZoom: 9,
             }}
             onLoad={onLoad}
             onClick={handleMapClick}
@@ -102,6 +116,19 @@ function LocationPickerMap({ initial, onConfirm, onClose }: MapPickerProps) {
               <Marker position={marker} icon={pinIcon} />
             )}
           </GoogleMap>
+        )}
+
+        {/* Out-of-bounds warning */}
+        {outOfBounds && (
+          <div style={{
+            position: 'absolute', top: 10, left: '50%', transform: 'translateX(-50%)',
+            background: 'rgba(231,76,60,0.92)', color: '#fff',
+            fontSize: 12, fontWeight: 600, padding: '7px 16px',
+            borderRadius: 20, whiteSpace: 'nowrap', pointerEvents: 'none',
+            backdropFilter: 'blur(4px)', zIndex: 20,
+          }}>
+            Only locations within Greater Cairo are allowed
+          </div>
         )}
 
         {/* Hint overlay */}

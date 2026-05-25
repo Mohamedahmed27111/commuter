@@ -18,7 +18,6 @@ import {
   Phone, MapPin, Calendar, LogOut, CheckCircle2,
   Clock, FolderOpen, CreditCard, ChevronDown, ChevronUp, KeyRound,
 } from 'lucide-react';
-import Image from 'next/image';
 import { format } from 'date-fns';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -96,7 +95,8 @@ function Avatar({ photoUrl, name, size = 64, fontSize = 22 }: { photoUrl: string
       display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative',
     }}>
       {photoUrl ? (
-        <Image src={photoUrl} alt={`Photo of ${name}`} fill style={{ objectFit: 'cover' }} sizes={`${size}px`} />
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={photoUrl} alt={`Photo of ${name}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
       ) : (
         <span style={{ fontSize, fontWeight: 700, color: '#00C2A8' }}>{name.charAt(0).toUpperCase()}</span>
       )}
@@ -326,7 +326,8 @@ function DesktopProfile({ displayName, email, phone, address, profileData, docUr
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
             {docUrls.profilePhoto ? (
-              <Image src={docUrls.profilePhoto} alt={displayName} fill style={{ objectFit: 'cover' }} sizes="84px" />
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={docUrls.profilePhoto} alt={displayName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             ) : (
               <span style={{ fontSize: 28, fontWeight: 900, color: '#00C2A8' }}>{initials}</span>
             )}

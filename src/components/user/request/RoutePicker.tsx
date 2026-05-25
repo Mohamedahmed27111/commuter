@@ -60,6 +60,7 @@ function RoutePickerInner({
   const { setIntent } = useIntent();
   const { lat: userLat, lng: userLng, locate } = useUserLocation();
   const [pendingLocField, setPendingLocField] = useState<'from' | 'to' | null>(null);
+  const [pickingField,    setPickingField]    = useState<'from' | 'to' | null>(null);
 
   // Push ride_type + maxStops into intent so FloatingSearchBar respects them
   useEffect(() => {
@@ -101,6 +102,18 @@ function RoutePickerInner({
     }
   }
 
+  function handlePickOnMap(field: 'from' | 'to') {
+    setPickingField(field);
+  }
+
+  async function handleMapPick(lat: number, lng: number) {
+    const address = await reverseGeocode(lat, lng);
+    const loc: GeoLocation = { address, lat, lng };
+    if (pickingField === 'from') setOrigin(loc);
+    else if (pickingField === 'to') setDestination(loc);
+    setPickingField(null);
+  }
+
   const route = routes[0] ?? null;
   const canConfirm = !!origin && !!destination && route !== null && !loading;
 
@@ -137,13 +150,42 @@ function RoutePickerInner({
       <div className="flex-1 relative overflow-hidden">
         {/* Map fills the space */}
         <div className="absolute inset-0 z-0">
-          <UserMap userLoc={userLat && userLng ? { lat: userLat, lng: userLng } : null} />
+          <UserMap
+            userLoc={userLat && userLng ? { lat: userLat, lng: userLng } : null}
+            pickingField={pickingField}
+            onMapPick={handleMapPick}
+          />
         </div>
 
         {/* Floating search bar */}
         <div className="absolute top-0 left-0 right-0 z-[1000]">
-          <FloatingSearchBar onCurrentLocation={handleCurrentLocation} />
+          <FloatingSearchBar
+            onCurrentLocation={handleCurrentLocation}
+            onPickOnMap={handlePickOnMap}
+          />
         </div>
+
+        {/* Picking-mode hint banner */}
+        {pickingField && (
+          <div
+            style={{
+              position: 'absolute', bottom: 16, left: '50%', transform: 'translateX(-50%)',
+              background: 'rgba(11,30,61,0.88)', color: '#fff',
+              fontSize: 13, fontWeight: 600, padding: '10px 22px',
+              borderRadius: 24, whiteSpace: 'nowrap', zIndex: 500,
+              backdropFilter: 'blur(6px)', boxShadow: '0 4px 16px rgba(0,0,0,0.25)',
+              display: 'flex', alignItems: 'center', gap: 10,
+            }}
+          >
+            <span>Tap the map to set {pickingField === 'from' ? 'origin' : 'destination'}</span>
+            <button
+              onClick={() => setPickingField(null)}
+              style={{ background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: 12, color: '#fff', padding: '3px 10px', cursor: 'pointer', fontSize: 12, fontWeight: 700 }}
+            >
+              Cancel
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Bottom bar — confirm when route is ready */}

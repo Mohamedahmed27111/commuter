@@ -12,6 +12,10 @@ export async function GET(req: NextRequest) {
   url.searchParams.set('key', API_KEY);
   url.searchParams.set('components', 'country:eg');
   url.searchParams.set('types', 'geocode|establishment');
+  // Restrict results to Greater Cairo area
+  url.searchParams.set('location', '30.0614,31.2497');
+  url.searchParams.set('radius', '40000');
+  url.searchParams.set('strictbounds', 'true');
 
   const res = await fetch(url.toString(), { next: { revalidate: 0 } });
   if (!res.ok) return NextResponse.json([]);

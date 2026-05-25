@@ -133,6 +133,11 @@ export default function PickupMapInner({
           streetViewControl: false,
           fullscreenControl: false,
           zoomControlOptions: { position: google.maps.ControlPosition.RIGHT_CENTER },
+          restriction: {
+            latLngBounds: { north: 30.35, south: 29.75, east: 31.90, west: 30.75 },
+            strictBounds: false,
+          },
+          minZoom: 9,
         }}
       >
         {/* Walk-radius circles around each pickup point */}

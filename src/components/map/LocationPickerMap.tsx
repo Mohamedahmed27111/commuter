@@ -9,6 +9,16 @@ import { Search, Loader2, Crosshair, X, MapPin } from 'lucide-react';
 const API_KEY  = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? '';
 const CAIRO    = { lat: 30.0444, lng: 31.2357 };
 
+// Greater Cairo bounding box (Cairo + Giza + New Cairo + 6th of October + Qalyubia)
+const CAIRO_BOUNDS = { north: 30.35, south: 29.75, east: 31.90, west: 30.75 };
+
+function isInCairo(lat: number, lng: number) {
+  return (
+    lat >= CAIRO_BOUNDS.south && lat <= CAIRO_BOUNDS.north &&
+    lng >= CAIRO_BOUNDS.west  && lng <= CAIRO_BOUNDS.east
+  );
+}
+
 // Same teardrop pin icon as UserMap
 const PIN_ICON_URL = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(
   `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="52">` +
@@ -32,12 +42,13 @@ export default function LocationPickerMap({ lat, lng, name, onChange, error }: L
   const mapRef      = useRef<google.maps.Map | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const [query,     setQuery]     = useState(name);
-  const [results,   setResults]   = useState<{ place_id: string; display_name: string }[]>([]);
-  const [searching, setSearching] = useState(false);
-  const [locating,  setLocating]  = useState(false);
-  const [showDrop,  setShowDrop]  = useState(false);
-  const [zoom,      setZoom]      = useState(11);
+  const [query,       setQuery]       = useState(name);
+  const [results,     setResults]     = useState<{ place_id: string; display_name: string }[]>([]);
+  const [searching,   setSearching]   = useState(false);
+  const [locating,    setLocating]    = useState(false);
+  const [showDrop,    setShowDrop]    = useState(false);
+  const [zoom,        setZoom]        = useState(11);
+  const [outOfBounds, setOutOfBounds] = useState(false);
 
   const markerPos = lat && lng ? { lat: parseFloat(lat), lng: parseFloat(lng) } : null;
 
@@ -73,6 +84,8 @@ export default function LocationPickerMap({ lat, lng, name, onChange, error }: L
     if (!e.latLng) return;
     const newLat = e.latLng.lat();
     const newLng = e.latLng.lng();
+    if (!isInCairo(newLat, newLng)) { setOutOfBounds(true); return; }
+    setOutOfBounds(false);
     const addr   = await reverseGeocode(newLat, newLng);
     const label  = formatDisplayName(addr) || `${newLat.toFixed(5)}, ${newLng.toFixed(5)}`;
     setQuery(label);
@@ -84,6 +97,8 @@ export default function LocationPickerMap({ lat, lng, name, onChange, error }: L
     if (!e.latLng) return;
     const newLat = e.latLng.lat();
     const newLng = e.latLng.lng();
+    if (!isInCairo(newLat, newLng)) { setOutOfBounds(true); return; }
+    setOutOfBounds(false);
     const addr   = await reverseGeocode(newLat, newLng);
     const label  = formatDisplayName(addr) || `${newLat.toFixed(5)}, ${newLng.toFixed(5)}`;
     setQuery(label);
@@ -97,6 +112,12 @@ export default function LocationPickerMap({ lat, lng, name, onChange, error }: L
       async (pos) => {
         const newLat = pos.coords.latitude;
         const newLng = pos.coords.longitude;
+        if (!isInCairo(newLat, newLng)) {
+          setOutOfBounds(true);
+          setLocating(false);
+          return;
+        }
+        setOutOfBounds(false);
         const addr   = await reverseGeocode(newLat, newLng);
         const label  = formatDisplayName(addr) || 'Current location';
         setQuery(label);
@@ -224,6 +245,11 @@ export default function LocationPickerMap({ lat, lng, name, onChange, error }: L
               scrollwheel: true,
               gestureHandling: 'greedy',
               clickableIcons: false,
+              restriction: {
+                latLngBounds: CAIRO_BOUNDS,
+                strictBounds: false,
+              },
+              minZoom: 9,
             }}
           >
             {markerPos && (() => {
@@ -272,6 +298,19 @@ export default function LocationPickerMap({ lat, lng, name, onChange, error }: L
               ? <Loader2 size={18} className="animate-spin" />
               : <Crosshair size={18} />}
           </button>
+        )}
+
+        {/* Out-of-bounds warning */}
+        {outOfBounds && (
+          <div style={{
+            position: 'absolute', top: 10, left: '50%', transform: 'translateX(-50%)',
+            background: 'rgba(231,76,60,0.92)', color: '#fff',
+            fontSize: 12, fontWeight: 600, padding: '7px 16px',
+            borderRadius: 20, whiteSpace: 'nowrap', pointerEvents: 'none',
+            backdropFilter: 'blur(4px)', zIndex: 20,
+          }}>
+            Only locations within Greater Cairo are allowed
+          </div>
         )}
 
         {/* Tap-hint pill — shown before pin is placed */}

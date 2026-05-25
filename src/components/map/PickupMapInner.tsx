@@ -107,6 +107,11 @@ export default function PickupMapInner({
           fullscreenControl: false,
           scrollwheel: false,
           zoomControlOptions: { position: google.maps.ControlPosition.RIGHT_CENTER },
+          restriction: {
+            latLngBounds: { north: 30.35, south: 29.75, east: 31.90, west: 30.75 },
+            strictBounds: false,
+          },
+          minZoom: 9,
         }}
       >
         {/* Road route from OSRM — glow halo + solid line */}

@@ -4,29 +4,50 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { GoogleMap, useJsApiLoader, Marker, Circle, OverlayView } from '@react-google-maps/api';
 import { MAP_STYLE } from '@/lib/googleMapsStyle';
 import { useMap } from '@/lib/MapContext';
+import toast from 'react-hot-toast';
 
 const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? '';
 
 const CAIRO = { lat: 30.0444, lng: 31.2357 };
 
+const CAIRO_BOUNDS = { north: 30.35, south: 29.75, east: 31.90, west: 30.75 };
+function isInCairo(lat: number, lng: number) {
+  return lat >= CAIRO_BOUNDS.south && lat <= CAIRO_BOUNDS.north &&
+         lng >= CAIRO_BOUNDS.west  && lng <= CAIRO_BOUNDS.east;
+}
+
 // ── SVG marker icons ──────────────────────────────────────────────────────────
 
-// Origin: navy circle, teal ring, teal centre dot + drop shadow
+// Origin: green circle + thick white ring  → clearly visible on any background
 const originIconUrl = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(
-  `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48">` +
-  `<circle cx="24" cy="24" r="21" fill="#0B1E3D" stroke="#00C2A8" stroke-width="3.5"/>` +
-  `<circle cx="24" cy="24" r="6" fill="#00C2A8"/>` +
+  `<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44">` +
+  `<circle cx="22" cy="22" r="21" fill="white"/>` +
+  `<circle cx="22" cy="22" r="17" fill="#22C55E"/>` +
+  `<circle cx="22" cy="22" r="7.5" fill="white"/>` +
+  `<circle cx="22" cy="22" r="4.5" fill="#14532D"/>` +
   `</svg>`
 )}`;
 
-// Destination: teal teardrop, white inner ring, navy dot + drop shadow
+// Destination: red teardrop + thick white outer path  → unmistakable pin shape
 const destinationIconUrl = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(
-  `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="52">` +
-  `<path d="M20 0C8.95 0 0 8.95 0 20c0 14.5 20 36 20 36S40 34.5 40 20C40 8.95 31.05 0 20 0z" fill="#00C2A8"/>` +
-  `<circle cx="20" cy="20" r="9" fill="white"/>` +
-  `<circle cx="20" cy="20" r="5" fill="#0B1E3D"/>` +
+  `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="50">` +
+  `<path d="M18 0C8.06 0 0 8.06 0 18c0 13.05 18 32 18 32S36 31.05 36 18C36 8.06 27.94 0 18 0z" fill="white"/>` +
+  `<path d="M18 4C10.27 4 4 10.27 4 18c0 11.04 14 28 14 28S32 29.04 32 18C32 10.27 25.73 4 18 4z" fill="#EF4444"/>` +
+  `<circle cx="18" cy="18" r="6.5" fill="white"/>` +
+  `<circle cx="18" cy="18" r="3.5" fill="#7F1D1D"/>` +
   `</svg>`
 )}`;
+
+// Via-stop: amber circle + thick white ring + bold number
+function makeStopIcon(n: number) {
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="34" height="34">` +
+    `<circle cx="17" cy="17" r="16" fill="white"/>` +
+    `<circle cx="17" cy="17" r="13" fill="#F59E0B"/>` +
+    `<text x="17" y="22" text-anchor="middle" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="800" fill="white">${n}</text>` +
+    `</svg>`
+  )}`;
+}
 
 interface UserMapProps {
   userLoc: { lat: number; lng: number } | null;
@@ -141,7 +162,13 @@ export default function UserMap({
 
   const handleClick = useCallback((e: google.maps.MapMouseEvent) => {
     if (pickingField && onMapPick && e.latLng) {
-      onMapPick(e.latLng.lat(), e.latLng.lng());
+      const lat = e.latLng.lat();
+      const lng = e.latLng.lng();
+      if (!isInCairo(lat, lng)) {
+        toast.error('Only locations within Greater Cairo are allowed');
+        return;
+      }
+      onMapPick(lat, lng);
     }
   }, [pickingField, onMapPick]);
 
@@ -158,12 +185,12 @@ export default function UserMap({
     );
   }
 
-  // Scale markers with zoom level (doubles every 3 zoom steps, clamped)
-  const zf = Math.max(0.5, Math.min(2.4, Math.pow(2, (zoom - 13) / 3)));
-  const origS  = Math.round(48 * zf);
-  const stopS  = Math.round(36 * zf);
-  const destW  = Math.round(40 * zf);
-  const destH  = Math.round(52 * zf);
+  // Linear scale: zoom 9 → 0.60×  |  zoom 13 → 1.00×  |  zoom 18 → 1.50×
+  const zf     = Math.max(0.60, Math.min(1.50, 0.60 + (zoom - 9) / 10));
+  const origS  = Math.round(44 * zf);   // circle  44 px base
+  const stopS  = Math.round(34 * zf);   // circle  34 px base
+  const destW  = Math.round(36 * zf);   // teardrop 36×50 base
+  const destH  = Math.round(50 * zf);
 
   return (
     <div className="map-container" style={{ cursor: pickingField ? 'crosshair' : undefined }}>
@@ -181,6 +208,11 @@ export default function UserMap({
           scrollwheel: true,
           zoomControl: false,       // use our custom controls
           gestureHandling: 'greedy',
+          restriction: {
+            latLngBounds: CAIRO_BOUNDS,
+            strictBounds: false,
+          },
+          minZoom: 9,
         }}
       >
         {/* ── Alternative routes & primary route are rendered imperatively ── */}
@@ -213,7 +245,7 @@ export default function UserMap({
             key={`stop-${i}`}
             position={{ lat: s.lat, lng: s.lng }}
             icon={{
-              url: `data:image/svg+xml;utf-8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36"><circle cx="18" cy="18" r="16" fill="%23F59E0B" stroke="%23fff" stroke-width="2.5"/><text x="18" y="23" text-anchor="middle" font-family="Arial,sans-serif" font-size="14" font-weight="700" fill="%23fff">${i + 1}</text></svg>`)}`,
+              url: makeStopIcon(i + 1),
               scaledSize: new google.maps.Size(stopS, stopS),
               anchor: new google.maps.Point(stopS / 2, stopS / 2),
             }}
