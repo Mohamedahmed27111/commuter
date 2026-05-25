@@ -1,266 +1,616 @@
 ﻿'use client';
 
-import { useState, useCallback } from 'react';
-// Mock data removed
-import { DriverProfile, DriverDocuments } from '@/types/driver';
+import { useState, useCallback, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { DriverDocuments } from '@/types/driver';
 import DocumentUploadField from '@/components/driver/DocumentUploadField';
 import toast from 'react-hot-toast';
 import { uploadDocument } from '@/lib/api/driver';
-import { Star, Shield, User, Car, FileText, Pencil } from 'lucide-react';
+import driverApi from '@/lib/api/driver';
+import { getUserData } from '@/lib/auth/tokenStorage';
+import { useAuth } from '@/lib/auth/AuthContext';
+import { useMediaQuery } from '@/lib/useMediaQuery';
+import authApi from '@/lib/api/auth';
+import DriverEditProfileModal from '@/components/driver/DriverEditProfileModal';
+import ChangePasswordModal from '@/components/user/profile/ChangePasswordModal';
+import {
+  Shield, Car, FileText, Pencil, Loader2,
+  Phone, MapPin, Calendar, LogOut, CheckCircle2,
+  Clock, FolderOpen, CreditCard, ChevronDown, ChevronUp, KeyRound,
+} from 'lucide-react';
 import Image from 'next/image';
 import { format } from 'date-fns';
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface DriverProfileMeData {
+  id: number;
+  user_id: number;
+  national_id: string | null;
+  license_expiry: string | null;
+  car_type: string | null;
+  car_brand: string | null;
+  car_model: string | null;
+  car_year: number | null;
+  car_color: string | null;
+  license_plate: string | null;
+  location_name: string | null;
+  default_lng: string | null;
+  default_lat: string | null;
+  profile_photo: string | null;
+  national_id_image_front: string | null;
+  national_id_image_back: string | null;
+  driving_license: string | null;
+  vehicle_license: string | null;
+  criminal_record_certificate: string | null;
+  is_verified: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+const STORAGE_BASE = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000/api')
+  .replace(/\/api\/?$/, '/storage/');
+
+function storageUrl(path: string | null | undefined): string | null {
+  if (!path) return null;
+  if (path.startsWith('http')) return path;
+  return `${STORAGE_BASE}${path}`;
+}
+
+function fmtDateTime(iso: string | null | undefined) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '—';
+  return format(d, "dd/MM/yyyy · hh:mm aa");
+}
+
 const DOCUMENTS: { label: string; fieldName: keyof DriverDocuments }[] = [
-  { label: 'National ID - front',         fieldName: 'nationalIdFront' },
-  { label: 'National ID - back',          fieldName: 'nationalIdBack' },
-  { label: 'Driving license',             fieldName: 'drivingLicense' },
-  { label: 'Car license',                 fieldName: 'carLicense' },
-  { label: 'Criminal Record Certificate', fieldName: 'criminalRecord' },
-  { label: 'Profile photo',               fieldName: 'profilePhoto' },
+  { label: 'National ID – front',        fieldName: 'nationalIdFront' },
+  { label: 'National ID – back',         fieldName: 'nationalIdBack' },
+  { label: 'Driving license',            fieldName: 'drivingLicense' },
+  { label: 'Car license',                fieldName: 'carLicense' },
+  { label: 'Criminal Record Certificate',fieldName: 'criminalRecord' },
+  { label: 'Profile photo',              fieldName: 'profilePhoto' },
 ];
 
-type ProfileTab = 'personal' | 'car' | 'documents';
+// ─── Shared helpers ───────────────────────────────────────────────────────────
 
-function InfoRow({ label, value }: { label: string; value: string }) {
+interface ProfileData {
+  displayName: string;
+  email: string;
+  phone: string;
+  address: string;
+  profileData: DriverProfileMeData | null;
+  docUrls: DriverDocuments;
+  onUpload: (fieldName: keyof DriverDocuments, file: File) => Promise<void>;
+  onEdit: () => void;
+  onChangePassword: () => void;
+  onLogout: () => void;
+}
+
+function Avatar({ photoUrl, name, size = 64, fontSize = 22 }: { photoUrl: string | null; name: string; size?: number; fontSize?: number }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      <dt style={{ fontSize: 11, color: '#9CA3AF', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</dt>
-      <dd style={{ fontSize: 14, color: '#0B1E3D', fontWeight: 500, margin: 0 }}>{value}</dd>
+    <div style={{
+      width: size, height: size, borderRadius: '50%', flexShrink: 0,
+      background: '#C8E6E2', overflow: 'hidden',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative',
+    }}>
+      {photoUrl ? (
+        <Image src={photoUrl} alt={`Photo of ${name}`} fill style={{ objectFit: 'cover' }} sizes={`${size}px`} />
+      ) : (
+        <span style={{ fontSize, fontWeight: 700, color: '#00C2A8' }}>{name.charAt(0).toUpperCase()}</span>
+      )}
     </div>
   );
 }
 
-export default function ProfilePage() {
-  // TODO: fetch driver profile from API
-  const [driver, setDriver] = useState<DriverProfile>({
-    id: '',
-    name: '',
-    phone: '',
-    email: '',
-    address: '',
-    nationalId: '',
-    drivingLicenseNumber: '',
-    carLicensePlate: '',
-    carModel: '',
-    carYear: new Date().getFullYear(),
-    carColor: '',
-    rating: 0,
-    totalTrips: 0,
-    walletBalance: 0,
-    joinedAt: new Date().toISOString(),
-    documents: {
-      nationalIdFront: null,
-      nationalIdBack: null,
-      drivingLicense: null,
-      carLicense: null,
-      criminalRecord: null,
-      profilePhoto: null,
-    },
-    isVerified: false,
-    completedCycles: 0,
-    activeCycles: 0,
-    gender: 'male',
-  });
-  const [activeTab, setActiveTab] = useState<ProfileTab>('personal');
+// ─── MOBILE VIEW ─────────────────────────────────────────────────────────────
 
-  const completedCyclesCount = 0; // TODO: fetch from API
+function MobileProfile({ displayName, email, phone, address, profileData, docUrls, onUpload, onEdit, onChangePassword, onLogout }: ProfileData) {
+  const [docsOpen, setDocsOpen] = useState(false);
 
-  const activeCyclesCount = 0; // TODO: fetch from API
+  const isVerified = profileData?.is_verified ?? false;
+  const vehicle = [profileData?.car_brand, profileData?.car_model, profileData?.car_year]
+    .filter(Boolean).join(' ') + (profileData?.car_color ? ` · ${profileData.car_color}` : '') || '—';
 
-  const handleUpload = useCallback(
-    async (fieldName: keyof DriverDocuments, file: File) => {
-      try {
-        await uploadDocument(fieldName, file);
-        const localUrl = URL.createObjectURL(file);
-        setDriver((prev) => ({
-          ...prev,
-          documents: { ...prev.documents, [fieldName]: localUrl },
-        }));
-        toast.success('Document uploaded successfully');
-      } catch {
-        throw new Error('Upload failed. Please try again.');
-      }
-    },
-    []
-  );
-
-  const TABS: { key: ProfileTab; label: string; icon: React.ReactNode }[] = [
-    { key: 'personal',  label: 'Personal Info', icon: <User     size={15} /> },
-    { key: 'car',       label: 'Car Info',       icon: <Car      size={15} /> },
-    { key: 'documents', label: 'Documents',      icon: <FileText size={15} /> },
-  ];
+  const CARD: React.CSSProperties = {
+    background: '#EFF7F5', border: '1px solid #C8E6E2', borderRadius: 16,
+    padding: '18px 16px', marginBottom: 14,
+  };
 
   return (
-    <div style={{ fontFamily: 'Inter, system-ui, sans-serif', display: 'flex', flexDirection: 'column', gap: 0 }}>
-      <style>{`
-        .profile-hero-body { padding: 0 28px 24px; position: relative; }
-        .profile-stats-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; margin-bottom: 24px; }
-        .profile-stat-card { background: #fff; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px 20px; }
-        .profile-stat-num { font-size: 30px; font-weight: 700; color: #0B1E3D; margin: 0; line-height: 1; }
-        .profile-tab-content { padding: 28px 28px 32px; }
-        .profile-docs-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 20px; }
-        @media (max-width: 767px) {
-          .profile-hero-body { padding: 0 16px 18px !important; }
-          .profile-stats-grid { gap: 8px !important; margin-bottom: 16px !important; }
-          .profile-stat-card { padding: 14px 12px !important; }
-          .profile-stat-num { font-size: 22px !important; }
-          .profile-tab-content { padding: 18px 16px 24px !important; }
-          .profile-docs-grid { grid-template-columns: repeat(2,1fr) !important; gap: 12px !important; }
-        }
-      `}</style>
+    <div style={{ padding: '20px 16px 40px', fontFamily: 'Inter, system-ui, sans-serif', background: '#fff', minHeight: '100vh' }}>
 
-      <div style={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: 16, overflow: 'hidden', marginBottom: 20 }}>
-        <div style={{ height: 100, background: 'linear-gradient(135deg, #0B1E3D 0%, #163566 60%, #00C2A8 100%)' }} />
-        <div className="profile-hero-body">
-          <div style={{ marginTop: -40, marginBottom: 12, display: 'inline-block', position: 'relative' }}>
-            <div style={{
-              width: 80, height: 80, borderRadius: '50%',
-              border: '3px solid #fff', background: '#EFF7F6',
-              overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.12)', position: 'relative',
-            }}>
-              {driver.documents.profilePhoto ? (
-                <Image
-                  src={driver.documents.profilePhoto}
-                  alt={`Profile photo of ${driver.name}`}
-                  fill
-                  style={{ objectFit: 'cover' }}
-                  sizes="80px"
-                />
-              ) : (
-                <span style={{ fontSize: 28, fontWeight: 700, color: '#00C2A8' }}>
-                  {driver.name.charAt(0)}
-                </span>
-              )}
+      {/* Header */}
+      <h1 style={{ fontSize: 28, fontWeight: 800, color: '#0B1E3D', margin: '0 0 4px' }}>Profile</h1>
+      <p style={{ fontSize: 13, color: '#94A3B8', margin: '0 0 20px' }}>Your account and driver details</p>
+
+      {/* ── Account status ── */}
+      <p style={{ fontSize: 15, fontWeight: 700, color: '#0B1E3D', margin: '0 0 10px' }}>Account status</p>
+      <div style={CARD}>
+        {/* Status headline */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingBottom: 14 }}>
+          {isVerified
+            ? <CheckCircle2 size={20} color="#22C55E" />
+            : <Clock size={20} color="#F97316" />
+          }
+          <span style={{ fontSize: 15, fontWeight: 700, color: isVerified ? '#16A34A' : '#F97316' }}>
+            {isVerified ? 'Verified' : 'Pending verification'}
+          </span>
+        </div>
+        <div style={{ height: 1, background: '#C8E6E2', marginBottom: 14 }} />
+        {/* Driver profile row */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 14 }}>
+          <FolderOpen size={18} color="#00C2A8" style={{ marginTop: 2, flexShrink: 0 }} />
+          <div>
+            <div style={{ fontSize: 12, color: '#6B7280', fontWeight: 500 }}>Driver profile</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: '#0B1E3D' }}>
+              {profileData ? 'Profile submitted' : 'Not submitted'}
             </div>
-            {driver.isVerified && (
-              <span title="Verified driver" style={{
-                position: 'absolute', bottom: 2, right: 2,
-                width: 22, height: 22, borderRadius: '50%',
-                background: '#00C2A8', border: '2px solid #fff',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
-                <Shield size={11} style={{ color: '#fff' }} />
-              </span>
-            )}
           </div>
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-            <div>
-              <h1 style={{ fontSize: 22, fontWeight: 700, color: '#0B1E3D', margin: 0 }}>{driver.name}</h1>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 5, flexWrap: 'wrap' }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                  {[1, 2, 3, 4, 5].map((s) => (
-                    <Star key={s} size={13} style={{ color: '#F5A623', fill: s <= Math.round(driver.rating) ? '#F5A623' : 'none' }} />
-                  ))}
-                  <span style={{ fontSize: 13, fontWeight: 600, color: '#0B1E3D', marginLeft: 4 }}>{driver.rating.toFixed(1)}</span>
-                </span>
-                <span style={{ fontSize: 13, color: '#9CA3AF' }}>.</span>
-                <span style={{ fontSize: 13, color: '#5A6A7A' }}>{driver.totalTrips} trips</span>
-                <span style={{ fontSize: 13, color: '#9CA3AF' }}>.</span>
-                <span style={{ fontSize: 13, color: '#5A6A7A' }}>Member since {format(new Date(driver.joinedAt), 'MMM yyyy')}</span>
-              </div>
+        </div>
+        {/* Verification row */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+          <Shield size={18} color="#00C2A8" style={{ marginTop: 2, flexShrink: 0 }} />
+          <div>
+            <div style={{ fontSize: 12, color: '#6B7280', fontWeight: 500 }}>Verification</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: isVerified ? '#16A34A' : '#F97316' }}>
+              {isVerified ? 'Verified' : 'Pending verification'}
             </div>
-            <button
-              onClick={() => toast('Edit profile coming soon')}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 6,
-                padding: '8px 18px', borderRadius: 8, fontSize: 13, fontWeight: 600,
-                background: 'transparent', color: '#00C2A8', border: '1.5px solid #00C2A8',
-                cursor: 'pointer', fontFamily: 'inherit',
-              }}
-            >
-              <Pencil size={13} /> Edit profile
-            </button>
           </div>
         </div>
       </div>
 
-      <div className="profile-stats-grid">
-        <div className="profile-stat-card">
-          <p className="profile-stat-num">{completedCyclesCount}</p>
-          <p style={{ fontSize: 13, color: '#5A6A7A', margin: '6px 0 0' }}>Completed Cycles</p>
-        </div>
-        <div className="profile-stat-card">
-          <p className="profile-stat-num" style={{ color: '#00C2A8' }}>{activeCyclesCount}</p>
-          <p style={{ fontSize: 13, color: '#5A6A7A', margin: '6px 0 0' }}>Active Cycles</p>
-        </div>
-        <div className="profile-stat-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-          <div>
-            <p style={{ fontSize: 24, fontWeight: 700, color: '#F5A623', margin: 0, lineHeight: 1 }}>
-              EGP {driver.walletBalance.toLocaleString('en-EG')}
-            </p>
-            <p style={{ fontSize: 13, color: '#5A6A7A', margin: '6px 0 0' }}>Wallet Balance</p>
+      {/* ── Identity card ── */}
+      <div style={CARD}>
+        {/* Avatar + name + email + edit */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
+          <Avatar photoUrl={docUrls.profilePhoto} name={displayName} size={56} fontSize={20} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: '#0B1E3D', lineHeight: 1.2 }}>{displayName}</div>
+            <div style={{ fontSize: 12, color: '#6B7280', marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{email}</div>
           </div>
           <button
-            onClick={() => toast('Withdraw coming soon')}
+            onClick={onEdit}
             style={{
-              marginTop: 10, padding: '5px 14px', borderRadius: 7, fontSize: 12, fontWeight: 600,
-              background: 'transparent', color: '#00C2A8', border: '1.5px solid #00C2A8',
-              cursor: 'pointer', fontFamily: 'inherit', alignSelf: 'flex-start',
+              width: 40, height: 40, borderRadius: 10, flexShrink: 0,
+              background: '#fff', border: '1.5px solid #00C2A8',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
             }}
           >
-            Withdraw
+            <Pencil size={16} color="#00C2A8" />
           </button>
+        </div>
+        <div style={{ height: 1, background: '#C8E6E2', marginBottom: 14 }} />
+        {/* Contact rows */}
+        {[
+          { Icon: Phone,    label: 'Mobile',       value: phone },
+          { Icon: MapPin,   label: 'Address',      value: address },
+          { Icon: Calendar, label: 'Member since', value: fmtDateTime(profileData?.created_at) },
+        ].map(({ Icon, label, value }, i) => (
+          <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: i < 2 ? 14 : 0 }}>
+            <Icon size={18} color="#00C2A8" style={{ marginTop: 3, flexShrink: 0 }} strokeWidth={1.8} />
+            <div>
+              <div style={{ fontSize: 12, color: '#6B7280', fontWeight: 500 }}>{label}</div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: '#0B1E3D', lineHeight: 1.4 }}>{value}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Driver profile card ── */}
+      {profileData && (
+        <>
+          <p style={{ fontSize: 15, fontWeight: 700, color: '#0B1E3D', margin: '0 0 10px' }}>Driver profile</p>
+          <div style={CARD}>
+            {[
+              { Icon: CreditCard, label: 'National ID',    value: profileData.national_id ?? '—' },
+              { Icon: Calendar,   label: 'License expiry', value: profileData.license_expiry ?? '—' },
+              { Icon: Car,        label: 'Car type',       value: profileData.car_type ?? '—' },
+              { Icon: Car,        label: 'Vehicle',        value: vehicle },
+              { Icon: Calendar,   label: 'Profile since',  value: fmtDateTime(profileData.created_at) },
+            ].map(({ Icon, label, value }, i, arr) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: i < arr.length - 1 ? 14 : 0 }}>
+                <Icon size={18} color="#00C2A8" style={{ marginTop: 3, flexShrink: 0 }} strokeWidth={1.8} />
+                <div>
+                  <div style={{ fontSize: 12, color: '#6B7280', fontWeight: 500 }}>{label}</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: '#0B1E3D', lineHeight: 1.4 }}>{value}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* ── Documents ── */}
+      <button
+        onClick={() => setDocsOpen(v => !v)}
+        style={{
+          width: '100%', display: 'flex', alignItems: 'center', gap: 12,
+          padding: '16px', borderRadius: 14, marginBottom: docsOpen ? 0 : 14,
+          background: '#EFF7F5', border: '1px solid #C8E6E2',
+          cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
+        }}
+      >
+        <FileText size={18} color="#00C2A8" strokeWidth={1.8} />
+        <span style={{ flex: 1, fontSize: 15, fontWeight: 700, color: '#0B1E3D' }}>Documents</span>
+        {docsOpen ? <ChevronUp size={18} color="#94A3B8" /> : <ChevronDown size={18} color="#94A3B8" />}
+      </button>
+      {docsOpen && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14, padding: '14px 0' }}>
+          {DOCUMENTS.map(({ label, fieldName }) => (
+            <DocumentUploadField key={fieldName} label={label} fieldName={fieldName} currentUrl={docUrls[fieldName]} onUpload={onUpload} />
+          ))}
+        </div>
+      )}
+
+      {/* ── Change password ── */}
+      <button
+        onClick={onChangePassword}
+        style={{
+          width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+          padding: '14px', borderRadius: 14, marginBottom: 12,
+          border: '1.5px solid #C8E6E2', background: '#EFF7F5',
+          color: '#00C2A8', fontSize: 14, fontWeight: 700,
+          cursor: 'pointer', fontFamily: 'inherit',
+        }}
+      >
+        <KeyRound size={17} color="#00C2A8" />
+        Change password
+      </button>
+
+      {/* ── Log out ── */}
+      <button
+        onClick={onLogout}
+        style={{
+          width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+          padding: '16px', borderRadius: 14,
+          border: '1.5px solid #EF4444', background: '#fff',
+          color: '#EF4444', fontSize: 15, fontWeight: 700,
+          cursor: 'pointer', fontFamily: 'inherit',
+        }}
+      >
+        <LogOut size={18} color="#EF4444" />
+        Log out
+      </button>
+    </div>
+  );
+}
+
+// ─── DESKTOP VIEW ─────────────────────────────────────────────────────────────
+
+function DesktopProfile({ displayName, email, phone, address, profileData, docUrls, onUpload, onEdit, onChangePassword, onLogout }: ProfileData) {
+  const isVerified = profileData?.is_verified ?? false;
+  const initials = displayName.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?';
+  const vehicle = [profileData?.car_brand, profileData?.car_model, profileData?.car_year]
+    .filter(Boolean).join(' ') + (profileData?.car_color ? ` · ${profileData.car_color}` : '') || '—';
+
+  function Section({ title, children }: { title: string; children: React.ReactNode }) {
+    return (
+      <div style={{ background: '#fff', border: '1.5px solid #F1F5F9', borderRadius: 20, overflow: 'hidden', boxShadow: '0 2px 12px rgba(11,30,61,0.05)' }}>
+        <div style={{ padding: '16px 24px', borderBottom: '1px solid #F1F5F9' }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: '#94A3B8', letterSpacing: '0.08em', textTransform: 'uppercase' }}>{title}</span>
+        </div>
+        <div style={{ padding: '20px 24px' }}>{children}</div>
+      </div>
+    );
+  }
+
+  function InfoRow({ label, value }: { label: string; value: string }) {
+    return (
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ fontSize: 11, color: '#94A3B8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>{label}</div>
+        <div style={{ fontSize: 14, fontWeight: 600, color: '#0F172A', lineHeight: 1.4 }}>{value}</div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ maxWidth: 960, margin: '0 auto', padding: '44px 40px 80px', fontFamily: 'Inter, system-ui, sans-serif' }}>
+
+      {/* ── HERO ── */}
+      <div style={{
+        background: '#0B1E3D', borderRadius: 24, padding: '36px 40px 30px',
+        position: 'relative', overflow: 'hidden', marginBottom: 20,
+      }}>
+        <div style={{ position: 'absolute', top: -60, right: -40, width: 200, height: 200, borderRadius: '50%', background: '#00C2A8', opacity: 0.07, pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', bottom: -50, right: 110, width: 150, height: 150, borderRadius: '50%', background: '#00C2A8', opacity: 0.04, pointerEvents: 'none' }} />
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 22, position: 'relative', marginBottom: 26 }}>
+          {/* Avatar */}
+          <div style={{
+            width: 84, height: 84, borderRadius: '50%', flexShrink: 0, position: 'relative',
+            border: '3px solid rgba(255,255,255,0.15)',
+            boxShadow: '0 8px 24px rgba(0,194,168,0.3)',
+            background: '#C8E6E2', overflow: 'hidden',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            {docUrls.profilePhoto ? (
+              <Image src={docUrls.profilePhoto} alt={displayName} fill style={{ objectFit: 'cover' }} sizes="84px" />
+            ) : (
+              <span style={{ fontSize: 28, fontWeight: 900, color: '#00C2A8' }}>{initials}</span>
+            )}
+          </div>
+
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 30, fontWeight: 900, color: '#fff', lineHeight: 1.1, letterSpacing: '-0.5px' }}>{displayName}</div>
+            <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.48)', marginTop: 6 }}>{email}</div>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, marginTop: 12, padding: '5px 13px', borderRadius: 20, background: isVerified ? 'rgba(34,197,94,0.14)' : 'rgba(249,115,22,0.14)', border: `1px solid ${isVerified ? 'rgba(34,197,94,0.3)' : 'rgba(249,115,22,0.3)'}` }}>
+              <div style={{ width: 7, height: 7, borderRadius: '50%', background: isVerified ? '#22C55E' : '#F97316', boxShadow: `0 0 6px ${isVerified ? '#22C55E' : '#F97316'}` }} />
+              <span style={{ fontSize: 12, color: isVerified ? '#22C55E' : '#F97316', fontWeight: 700 }}>
+                {isVerified ? 'Verified driver' : 'Pending verification'}
+              </span>
+            </div>
+          </div>
+
+          <button
+            onClick={onEdit}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              padding: '11px 20px', borderRadius: 12, flexShrink: 0,
+              border: '1.5px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.07)',
+              color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+            }}
+          >
+            <Pencil size={15} color="#fff" /> Edit Profile
+          </button>
+        </div>
+
+        <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', marginBottom: 22 }} />
+
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 28 }}>
+          {[
+            { Icon: Phone,    value: phone },
+            { Icon: MapPin,   value: address },
+            { Icon: Calendar, value: profileData ? `Member since ${format(new Date(profileData.created_at), 'dd MMM yyyy')}` : '—' },
+          ].map(({ Icon, value }, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Icon size={14} color="rgba(255,255,255,0.35)" strokeWidth={1.8} />
+              <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)', fontWeight: 500 }}>{value}</span>
+            </div>
+          ))}
         </div>
       </div>
 
-      <div style={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: 16, overflow: 'hidden' }}>
-        <div style={{ display: 'flex', borderBottom: '1px solid #E2E8F0' }}>
-          {TABS.map(({ key, label, icon }) => {
-            const active = activeTab === key;
-            return (
-              <button
-                key={key}
-                onClick={() => setActiveTab(key)}
-                style={{
-                  flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                  padding: '14px 8px', fontSize: 13, fontWeight: active ? 600 : 400,
-                  color: active ? '#0B1E3D' : '#9CA3AF',
-                  background: 'none', border: 'none',
-                  borderBottom: active ? '2px solid #00C2A8' : '2px solid transparent',
-                  cursor: 'pointer', transition: 'color 0.15s', fontFamily: 'inherit',
-                  marginBottom: -1,
-                }}
-              >
-                {icon} {label}
-              </button>
-            );
-          })}
-        </div>
-        <div className="profile-tab-content">
-          {activeTab === 'personal' && (
-            <dl style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '20px 32px' }}>
-              <InfoRow label="Full name"     value={driver.name} />
-              <InfoRow label="Phone number"  value={driver.phone} />
-              <InfoRow label="Email"         value={driver.email} />
-              <InfoRow label="Home address"  value={driver.address} />
-              <InfoRow label="National ID"   value={driver.nationalId} />
-            </dl>
-          )}
-          {activeTab === 'car' && (
-            <dl style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '20px 32px' }}>
-              <InfoRow label="Car model"           value={driver.carModel} />
-              <InfoRow label="Year"                value={String(driver.carYear)} />
-              <InfoRow label="Color"               value={driver.carColor} />
-              <InfoRow label="License plate"       value={driver.carLicensePlate} />
-              <InfoRow label="Driving license no." value={driver.drivingLicenseNumber} />
-            </dl>
-          )}
-          {activeTab === 'documents' && (
-            <div className="profile-docs-grid">
-              {DOCUMENTS.map(({ label, fieldName }) => (
-                <DocumentUploadField
-                  key={fieldName}
-                  label={label}
-                  fieldName={fieldName}
-                  currentUrl={driver.documents[fieldName]}
-                  onUpload={handleUpload}
-                />
+      {/* ── TWO COLUMNS ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+
+        {/* Personal info */}
+        <Section title="Personal Information">
+          <InfoRow label="Full name"    value={displayName} />
+          <InfoRow label="Phone number" value={phone} />
+          <InfoRow label="Email"        value={email} />
+          <InfoRow label="Home address" value={address} />
+          <InfoRow label="National ID"  value={profileData?.national_id ?? '—'} />
+        </Section>
+
+        {/* Driver + status */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <Section title="Driver Details">
+            <InfoRow label="Car type"       value={profileData?.car_type ?? '—'} />
+            <InfoRow label="Vehicle"        value={vehicle} />
+            <InfoRow label="License plate"  value={profileData?.license_plate ?? '—'} />
+            <InfoRow label="License expiry" value={profileData?.license_expiry ?? '—'} />
+            <InfoRow label="Profile since"  value={fmtDateTime(profileData?.created_at)} />
+          </Section>
+
+          {/* Status card */}
+          <div style={{ background: isVerified ? '#F0FDF4' : '#FFF7ED', border: `1.5px solid ${isVerified ? '#BBF7D0' : '#FED7AA'}`, borderRadius: 18, padding: '18px 20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+              {isVerified ? <CheckCircle2 size={20} color="#22C55E" /> : <Clock size={20} color="#F97316" />}
+              <span style={{ fontSize: 14, fontWeight: 700, color: isVerified ? '#16A34A' : '#EA580C' }}>
+                {isVerified ? 'Account Verified' : 'Pending Verification'}
+              </span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {[
+                { Icon: FolderOpen, label: 'Driver profile', value: profileData ? 'Profile submitted' : 'Not submitted' },
+                { Icon: Shield,     label: 'Verification',   value: isVerified ? 'Verified' : 'Pending verification', color: isVerified ? '#16A34A' : '#EA580C' },
+              ].map(({ Icon, label, value, color }, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <Icon size={15} color="#00C2A8" strokeWidth={1.8} />
+                  <span style={{ fontSize: 13, color: '#6B7280', fontWeight: 500, flex: 1 }}>{label}</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: color ?? '#0B1E3D' }}>{value}</span>
+                </div>
               ))}
             </div>
-          )}
+          </div>
         </div>
       </div>
+
+      {/* ── DOCUMENTS ── */}
+      <div style={{ background: '#fff', border: '1.5px solid #F1F5F9', borderRadius: 20, overflow: 'hidden', boxShadow: '0 2px 12px rgba(11,30,61,0.05)', marginBottom: 16 }}>
+        <div style={{ padding: '16px 24px', borderBottom: '1px solid #F1F5F9' }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: '#94A3B8', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Documents</span>
+        </div>
+        <div style={{ padding: '24px', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+          {DOCUMENTS.map(({ label, fieldName }) => (
+            <DocumentUploadField key={fieldName} label={label} fieldName={fieldName} currentUrl={docUrls[fieldName]} onUpload={onUpload} />
+          ))}
+        </div>
+      </div>
+
+      {/* ── SIGN OUT ── */}
+      <div style={{ display: 'flex', gap: 12 }}>
+        <button
+          onClick={onChangePassword}
+          style={{
+            flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9,
+            padding: '14px', borderRadius: 14,
+            border: '1.5px solid #C8E6E2', background: '#EFF7F5',
+            color: '#00C2A8', fontSize: 14, fontWeight: 700,
+            cursor: 'pointer', fontFamily: 'inherit',
+            transition: 'background .15s',
+          }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#DFF1EE'; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#EFF7F5'; }}
+        >
+          <KeyRound size={17} color="#00C2A8" /> Change password
+        </button>
+        <button
+          onClick={onLogout}
+          style={{
+            flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9,
+            padding: '14px', borderRadius: 14,
+            border: '1.5px solid #FEE2E2', background: '#FFF5F5',
+            color: '#EF4444', fontSize: 14, fontWeight: 700,
+            cursor: 'pointer', fontFamily: 'inherit',
+          }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#FEE2E2'; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#FFF5F5'; }}
+        >
+          <LogOut size={17} color="#EF4444" /> Sign out
+        </button>
+      </div>
     </div>
+  );
+}
+
+// ─── MAIN PAGE ────────────────────────────────────────────────────────────────
+
+export default function ProfilePage() {
+  const router = useRouter();
+  const { logout, name: authName, updateName } = useAuth();
+  const isDesktop = useMediaQuery('(min-width: 768px)');
+
+  const [profileData, setProfileData] = useState<DriverProfileMeData | null>(null);
+  const [loading, setLoading]         = useState(true);
+  const [editOpen, setEditOpen]       = useState(false);
+  const [changePwOpen, setChangePwOpen] = useState(false);
+  const [docUrls, setDocUrls]         = useState<DriverDocuments>({
+    nationalIdFront: null, nationalIdBack: null, drivingLicense: null,
+    carLicense: null, criminalRecord: null, profilePhoto: null,
+  });
+
+  const userData = getUserData() ?? {};
+  // Live personal info (refreshed from GET /profile + edits)
+  const [personal, setPersonal] = useState<{
+    name: string; email: string; phone: string;
+    building: string; street: string; sub_district: string;
+    district: string; province: string; landmark: string;
+  }>({
+    name:        (userData.name as string)         || authName || '',
+    email:       (userData.email as string)        || '',
+    phone:       (userData.phone_number as string) || '',
+    building:    (userData.building as string)     || '',
+    street:      (userData.street as string)       || '',
+    sub_district:(userData.sub_district as string) || '',
+    district:    (userData.district as string)     || '',
+    province:    (userData.province as string)     || '',
+    landmark:    (userData.landmark as string)     || '',
+  });
+
+  const displayName = personal.name  || '—';
+  const email       = personal.email || '—';
+  const phone       = personal.phone || '—';
+  const address     = [
+    personal.building, personal.street, personal.sub_district,
+    personal.district, personal.province, personal.landmark,
+  ].filter(Boolean).join(', ') || '—';
+
+  useEffect(() => {
+    // Load driver profile + fresh personal info in parallel
+    Promise.allSettled([
+      driverApi.getProfileMe(),
+      driverApi.getPersonalInfo(),
+    ]).then(([driverRes, personalRes]) => {
+      if (driverRes.status === 'fulfilled') {
+        const d = (driverRes.value as { data: DriverProfileMeData }).data;
+        setProfileData(d);
+        setDocUrls({
+          nationalIdFront: storageUrl(d.national_id_image_front),
+          nationalIdBack:  storageUrl(d.national_id_image_back),
+          drivingLicense:  storageUrl(d.driving_license),
+          carLicense:      storageUrl(d.vehicle_license),
+          criminalRecord:  storageUrl(d.criminal_record_certificate),
+          profilePhoto:    storageUrl(d.profile_photo),
+        });
+      }
+      if (personalRes.status === 'fulfilled') {
+        const raw = personalRes.value as Record<string, unknown>;
+        const u = (raw.user ?? raw.data ?? raw) as Record<string, unknown>;
+        setPersonal((p) => ({
+          name:        (u.name         as string) || p.name,
+          email:       (u.email        as string) || p.email,
+          phone:       ((u.phone_number as string) || (u.phone as string)) || p.phone,
+          building:    (u.building     as string) || p.building,
+          street:      (u.street       as string) || p.street,
+          sub_district:(u.sub_district as string) || p.sub_district,
+          district:    (u.district     as string) || p.district,
+          province:    (u.province     as string) || p.province,
+          landmark:    (u.landmark     as string) || p.landmark,
+        }));
+      }
+    }).finally(() => setLoading(false));
+  }, []);
+
+  const handleUpload = useCallback(async (fieldName: keyof DriverDocuments, file: File) => {
+    try {
+      await uploadDocument(fieldName, file);
+      const localUrl = URL.createObjectURL(file);
+      setDocUrls((prev) => ({ ...prev, [fieldName]: localUrl }));
+      toast.success('Document uploaded successfully');
+    } catch {
+      throw new Error('Upload failed. Please try again.');
+    }
+  }, []);
+
+  async function handleLogout() {
+    try { await authApi.logout(); } catch { /* ignore */ }
+    logout();
+    router.replace('/');
+  }
+
+  function handleEdit() {
+    setEditOpen(true);
+  }
+
+  function handleProfileSaved({ name, phone, driver }: { name: string; phone: string; driver: Partial<DriverProfileMeData> }) {
+    setPersonal((p) => ({ ...p, name, phone }));
+    if (name) updateName(name);
+    setProfileData((prev) => prev ? { ...prev, ...driver } as DriverProfileMeData : prev);
+  }
+
+  if (loading) return (
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 300 }}>
+      <Loader2 size={32} style={{ color: '#00C2A8' }} className="animate-spin" />
+    </div>
+  );
+
+  if (isDesktop === null) return (
+    <div style={{ maxWidth: 960, margin: '0 auto', padding: '44px 40px' }}>
+      <div style={{ height: 200, background: '#E2E8F0', borderRadius: 24, marginBottom: 20 }} />
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        {[1,2,3,4].map(i => <div key={i} style={{ height: 180, background: '#E2E8F0', borderRadius: 20 }} />)}
+      </div>
+    </div>
+  );
+
+  const sharedProps: ProfileData = {
+    displayName, email, phone, address, profileData, docUrls,
+    onUpload: handleUpload, onEdit: handleEdit, onLogout: handleLogout,
+    onChangePassword: () => setChangePwOpen(true),
+  };
+
+  return (
+    <>
+      {isDesktop
+        ? <DesktopProfile {...sharedProps} />
+        : <MobileProfile  {...sharedProps} />}
+
+      <DriverEditProfileModal
+        isOpen={editOpen}
+        onClose={() => setEditOpen(false)}
+        initialName={displayName}
+        initialPhone={phone}
+        driverProfile={profileData}
+        onSaved={handleProfileSaved}
+      />
+
+      <ChangePasswordModal
+        isOpen={changePwOpen}
+        onClose={() => setChangePwOpen(false)}
+      />
+    </>
   );
 }

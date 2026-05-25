@@ -57,9 +57,7 @@ function LocationPickerMap({ initial, onConfirm, onClose }: MapPickerProps) {
     ? {
         url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(
           `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="52">` +
-          `<defs><filter id="s" x="-40%" y="-20%" width="180%" height="160%">` +
-          `<feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#0B1E3D" flood-opacity="0.35"/></filter></defs>` +
-          `<path d="M20 0C8.95 0 0 8.95 0 20c0 14.5 20 36 20 36S40 34.5 40 20C40 8.95 31.05 0 20 0z" fill="#00C2A8" filter="url(#s)"/>` +
+          `<path d="M20 0C8.95 0 0 8.95 0 20c0 14.5 20 36 20 36S40 34.5 40 20C40 8.95 31.05 0 20 0z" fill="#00C2A8"/>` +
           `<circle cx="20" cy="20" r="9" fill="white"/>` +
           `<circle cx="20" cy="20" r="5" fill="#0B1E3D"/>` +
           `</svg>`

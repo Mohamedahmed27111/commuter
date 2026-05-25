@@ -23,9 +23,7 @@ async function fetchRoute(waypoints: { lat: number; lng: number }[]): Promise<[n
 function pickupMarkerUrl(index: number) {
   return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(
     `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32">` +
-    `<defs><filter id="s" x="-30%" y="-30%" width="160%" height="160%">` +
-    `<feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#0B1E3D" flood-opacity="0.4"/></filter></defs>` +
-    `<circle cx="16" cy="16" r="15" fill="#0B1E3D" stroke="#00C2A8" stroke-width="2.5" filter="url(#s)"/>` +
+    `<circle cx="16" cy="16" r="15" fill="#0B1E3D" stroke="#00C2A8" stroke-width="2.5"/>` +
     `<text x="16" y="21" text-anchor="middle" fill="white" font-size="12" font-weight="700" font-family="Inter,sans-serif">${index + 1}</text>` +
     `</svg>`
   )}`;
@@ -33,9 +31,7 @@ function pickupMarkerUrl(index: number) {
 
 const DEST_URL = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(
   `<svg xmlns="http://www.w3.org/2000/svg" width="38" height="50">` +
-  `<defs><filter id="s" x="-30%" y="-20%" width="160%" height="160%">` +
-  `<feDropShadow dx="0" dy="3" stdDeviation="3.5" flood-color="#0B1E3D" flood-opacity="0.35"/></filter></defs>` +
-  `<path d="M19 0C8.5 0 0 8.5 0 19c0 13.7 19 34 19 34S38 32.7 38 19C38 8.5 29.5 0 19 0z" fill="#F5A623" filter="url(#s)"/>` +
+  `<path d="M19 0C8.5 0 0 8.5 0 19c0 13.7 19 34 19 34S38 32.7 38 19C38 8.5 29.5 0 19 0z" fill="#F5A623"/>` +
   `<circle cx="19" cy="19" r="8" fill="white"/>` +
   `<circle cx="19" cy="19" r="4.5" fill="#0B1E3D"/>` +
   `</svg>`

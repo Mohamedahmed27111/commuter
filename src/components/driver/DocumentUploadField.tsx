@@ -2,7 +2,6 @@
 
 import { useRef, useState } from 'react';
 import { DriverDocuments } from '@/types/driver';
-import Image from 'next/image';
 import { Upload, FileText, Eye, RefreshCw } from 'lucide-react';
 
 interface DocumentUploadFieldProps {
@@ -130,13 +129,12 @@ export default function DocumentUploadField({
       {state === 'has-file' && previewUrl && (
         <div className="border border-[#C8E8E4] rounded-md overflow-hidden bg-secondary-lt">
           {isImage(previewUrl) ? (
-            <div className="relative h-36 w-full">
-              <Image
+            <div className="relative h-36 w-full overflow-hidden">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
                 src={previewUrl}
                 alt={`Uploaded ${label}`}
-                fill
-                className="object-contain p-2"
-                sizes="(max-width: 400px) 100vw, 400px"
+                style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 8 }}
               />
             </div>
           ) : isPdf(previewUrl) ? (

@@ -2,60 +2,17 @@
 
 import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { toast } from 'react-hot-toast';
 import {
   Car, Layers, Palette, Hash, MapPin, CreditCard, Shield,
-  Loader2, Info, CheckCircle, Upload, X, FileText, Crosshair,
+  Loader2, Info, CheckCircle, Upload, X, FileText, LogOut,
 } from 'lucide-react';
 import driverApi from '@/lib/api/driver';
+import authApi from '@/lib/api/auth';
+import { useAuth } from '@/lib/auth/AuthContext';
+import LocationPickerMap from '@/components/map/LocationPickerMap';
 
-// ─── Step indicator (4 steps, last active) ───────────────────────────────────
 
-const STEPS = ['Personal info', 'Address', 'Verify email', 'Driver details'] as const;
-
-function StepBar() {
-  const current = 4 as const;
-  return (
-    <div className="flex items-center mb-6" role="list" aria-label="Sign-up progress">
-      {STEPS.map((label, idx) => {
-        const n      = (idx + 1) as 1 | 2 | 3 | 4;
-        const done   = n < current;
-        const active = n === current;
-
-        return (
-          <div key={n} className="flex items-center flex-1 last:flex-none" role="listitem">
-            <div
-              className={[
-                'flex items-center justify-center w-7 h-7 rounded-full border-2 flex-shrink-0 text-[11px] font-bold transition-all',
-                done   ? 'bg-[#00C2A8] border-[#00C2A8] text-white'
-                       : active
-                       ? 'bg-white border-[#00C2A8] text-[#00C2A8] shadow-[0_0_0_3px_rgba(0,194,168,0.2)]'
-                       : 'bg-white border-[#D1D5DB] text-[#9CA3AF]',
-              ].join(' ')}
-              aria-current={active ? 'step' : undefined}
-            >
-              {done ? (
-                <svg width="10" height="9" viewBox="0 0 12 10" fill="none" aria-hidden>
-                  <path d="M1 5L4.5 8.5L11 1.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              ) : n}
-            </div>
-            <span className={[
-              'ml-1.5 text-[11px] whitespace-nowrap',
-              active ? 'text-[#0B1E3D] font-semibold' : done ? 'text-[#00C2A8] font-medium' : 'text-[#9CA3AF]',
-            ].join(' ')}>
-              {label}
-            </span>
-            {idx < STEPS.length - 1 && (
-              <div className={`flex-1 h-px mx-2 ${done ? 'bg-[#00C2A8]' : 'bg-[#E2E8F0]'}`} aria-hidden />
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
 
 // ─── UI helpers ──────────────────────────────────────────────────────────────
 
@@ -208,6 +165,13 @@ interface FormState {
 
 export default function DriverOnboardingPage() {
   const router = useRouter();
+  const { logout } = useAuth();
+
+  async function handleLogout() {
+    try { await authApi.logout(); } catch { /* ignore */ }
+    logout();
+    router.replace('/');
+  }
 
   const [form, setForm] = useState<FormState>({
     national_id:    '',
@@ -230,7 +194,6 @@ export default function DriverOnboardingPage() {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
-  const [locating, setLocating] = useState(false);
   const [success, setSuccess] = useState(false);
 
   const plateL1Ref = useRef<HTMLInputElement>(null);
@@ -240,30 +203,6 @@ export default function DriverOnboardingPage() {
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
-
-  function useCurrentLocation() {
-    if (typeof navigator === 'undefined' || !navigator.geolocation) {
-      toast.error('Geolocation is not supported by your browser.');
-      return;
-    }
-    setLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        set('default_lat', pos.coords.latitude.toFixed(6));
-        set('default_lng', pos.coords.longitude.toFixed(6));
-        if (!form.default_location_name) {
-          set('default_location_name', 'Current location');
-        }
-        toast.success('Location captured');
-        setLocating(false);
-      },
-      (err) => {
-        toast.error(err.message || 'Could not get your location.');
-        setLocating(false);
-      },
-      { enableHighAccuracy: true, timeout: 10000 },
-    );
-  }
 
   function validate(): boolean {
     const e: Record<string, string> = {};
@@ -277,8 +216,7 @@ export default function DriverOnboardingPage() {
     if (form.car_color === 'other' && !form.car_color_custom.trim()) e.car_color_custom = 'Specify the color.';
     if (!form.plateL1 || !form.plateL2 || !form.plateL3) e.plate = 'Enter all 3 Arabic letters.';
     else if (!form.plate_number) e.plate = 'Enter the plate number.';
-    if (!form.default_location_name.trim()) e.default_location_name = 'Enter a location name.';
-    if (!form.default_lat || !form.default_lng) e.default_location = 'Use “Current location” or enter coordinates.';
+    if (!form.default_lat || !form.default_lng) e.default_location = 'Pick a location on the map or search for one.';
     if (!form.national_id_image_front) e.national_id_image_front = 'Upload the front of your National ID.';
     if (!form.national_id_image_back)  e.national_id_image_back  = 'Upload the back of your National ID.';
     if (!form.license_image)           e.license_image           = 'Upload your driving license.';
@@ -349,12 +287,22 @@ export default function DriverOnboardingPage() {
     <div className="min-h-screen" style={{ background: '#F8F9FA' }}>
       <main className="max-w-2xl mx-auto px-5 pt-6 pb-10">
         {/* Header */}
-        <div className="mb-5">
-          <h1 className="text-[26px] font-bold text-[#0B1E3D]">Home</h1>
-          <p className="text-sm text-[#5A6A7A]">Complete your driver registration</p>
+        <div className="mb-5 flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-[26px] font-bold text-[#0B1E3D]">Driver details</h1>
+            <p className="text-sm text-[#5A6A7A]">Complete your driver registration</p>
+          </div>
+          <button
+            type="button"
+            onClick={handleLogout}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 10, border: '1.5px solid #E2E8F0', background: '#fff', color: '#E74C3C', fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, fontFamily: 'inherit' }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = '#FFF5F5'; e.currentTarget.style.borderColor = '#E74C3C'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#E2E8F0'; }}
+          >
+            <LogOut size={14} />
+            Log out
+          </button>
         </div>
-
-        <StepBar />
 
         {/* Notice */}
         <div className="mb-6 flex items-start gap-2 p-3 rounded-lg" style={{ background: '#FFF7ED', border: '1px solid #FED7AA' }}>
@@ -553,38 +501,16 @@ export default function DriverOnboardingPage() {
 
           {/* Default location */}
           <SectionCard icon={<MapPin size={14} />} title="Default location">
-            <div className="mb-3">
-              <label className="block text-xs font-medium text-[#0B1E3D] mb-1.5">Location name</label>
-              <div className="relative">
-                <MapPin size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#9CA3AF] pointer-events-none" aria-hidden />
-                <input
-                  type="text"
-                  value={form.default_location_name}
-                  onChange={(e) => set('default_location_name', e.target.value)}
-                  placeholder="e.g. Sheraton, Nasr City"
-                  className={inputCls(errors.default_location_name) + ' pl-10'}
-                />
-              </div>
-              {errors.default_location_name && <p className="mt-1 text-xs text-[#E74C3C]">{errors.default_location_name}</p>}
-            </div>
-
-            <button
-              type="button"
-              onClick={useCurrentLocation}
-              disabled={locating}
-              className="w-full h-12 rounded-lg text-sm font-semibold border-[1.5px] flex items-center justify-center gap-2 transition-colors hover:bg-[#EFF7F6] disabled:opacity-60"
-              style={{ borderColor: '#00C2A8', color: '#00C2A8', background: '#fff' }}
-            >
-              {locating ? <Loader2 size={16} className="animate-spin" /> : <Crosshair size={16} />}
-              Use current location
-            </button>
-
-            {(form.default_lat && form.default_lng) && (
-              <p className="mt-2 text-[11px] text-[#5A6A7A]">
-                Captured: <strong>{form.default_lat}, {form.default_lng}</strong>
-              </p>
-            )}
-            {errors.default_location && <p className="mt-2 text-xs text-[#E74C3C]">{errors.default_location}</p>}
+            <LocationPickerMap
+              lat={form.default_lat}
+              lng={form.default_lng}
+              name={form.default_location_name}
+              onChange={(newLat, newLng, newName) => {
+                setForm((f) => ({ ...f, default_lat: newLat, default_lng: newLng, default_location_name: newName }));
+                if (newLat && newLng) setErrors((e) => { const { default_location: _, ...rest } = e; return rest; });
+              }}
+              error={errors.default_location}
+            />
           </SectionCard>
 
           {/* Upload documents */}
@@ -627,11 +553,6 @@ export default function DriverOnboardingPage() {
             {loading && <Loader2 size={16} className="animate-spin" />}
             Submit application
           </button>
-
-          <p className="mt-4 text-center text-xs text-[#9CA3AF]">
-            Need to come back later?{' '}
-            <Link href="/driver/requests" className="text-[#00C2A8] font-medium">Skip for now</Link>
-          </p>
         </form>
       </main>
     </div>

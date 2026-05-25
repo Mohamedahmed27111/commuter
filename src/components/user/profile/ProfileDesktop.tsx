@@ -1,10 +1,10 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Wallet, Bookmark, Users, Sliders, Shield, LogOut, ChevronRight,
-  Phone, MessageSquare, MapPin, Calendar, Pencil,
+  Phone, MessageSquare, MapPin, Pencil,
 } from 'lucide-react';
 import userApi from '@/lib/api/user';
 import { useAuth } from '@/lib/auth/AuthContext';
@@ -16,26 +16,68 @@ import FavoritePlacesModal from '@/components/user/profile/FavoritePlacesModal';
 import RelatedPassengersModal from '@/components/user/profile/RelatedPassengersModal';
 import authApi from '@/lib/api/auth';
 
-const menuItems = [
-  { label: 'My Wallet', icon: Wallet, href: '/user/wallet' },
-] as const;
-
 function formatAddress(p: UserProfile) {
   return [p.building, p.street, p.sub_district, p.district, p.province, p.landmark]
-    .filter(Boolean).join(', ') || '—';
+    .filter(Boolean).join(', ') || 'â€”';
 }
 
 function formatJoinDate(iso: string) {
-  if (!iso) return '—';
+  if (!iso) return 'â€”';
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '—';
+  if (Number.isNaN(d.getTime())) return 'â€”';
   const day   = String(d.getDate()).padStart(2, '0');
   const month = String(d.getMonth() + 1).padStart(2, '0');
   const year  = d.getFullYear();
-  const h12   = d.getHours() % 12 || 12;
-  const mins  = String(d.getMinutes()).padStart(2, '0');
-  const ampm  = d.getHours() >= 12 ? 'PM' : 'AM';
-  return `${day}/${month}/${year} · ${String(h12).padStart(2, '0')}:${mins} ${ampm}`;
+  return `${day} / ${month} / ${year}`;
+}
+
+/* â”€â”€ Tile card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+function Tile({
+  icon: Icon,
+  label,
+  sub,
+  onClick,
+  href,
+  accent = '#00C2A8',
+}: {
+  icon: React.ElementType;
+  label: string;
+  sub: string;
+  onClick?: () => void;
+  href?: string;
+  accent?: string;
+}) {
+  const content = (
+    <>
+      <div style={{
+        width: 44, height: 44, borderRadius: 13, flexShrink: 0,
+        background: `${accent}14`,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        <Icon size={20} color={accent} strokeWidth={1.8} />
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: '#0F172A', letterSpacing: '-0.1px' }}>{label}</div>
+        <div style={{ fontSize: 12, color: '#94A3B8', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sub}</div>
+      </div>
+      <ChevronRight size={16} color="#CBD5E1" />
+    </>
+  );
+
+  const base: React.CSSProperties = {
+    display: 'flex', alignItems: 'center', gap: 14,
+    padding: '18px 20px', borderRadius: 16, width: '100%',
+    border: '1.5px solid #F1F5F9', background: '#FAFAFA',
+    cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', textDecoration: 'none',
+    transition: 'border-color .15s, background .15s, box-shadow .15s',
+    boxSizing: 'border-box',
+  };
+
+  const hover = (el: HTMLElement) => { el.style.borderColor = `${accent}40`; el.style.background = '#fff'; el.style.boxShadow = `0 4px 18px ${accent}18`; };
+  const leave = (el: HTMLElement) => { el.style.borderColor = '#F1F5F9'; el.style.background = '#FAFAFA'; el.style.boxShadow = 'none'; };
+
+  if (href) return <a href={href} style={base} onMouseEnter={e => hover(e.currentTarget as HTMLElement)} onMouseLeave={e => leave(e.currentTarget as HTMLElement)}>{content}</a>;
+  return <button onClick={onClick} style={base} onMouseEnter={e => hover(e.currentTarget as HTMLElement)} onMouseLeave={e => leave(e.currentTarget as HTMLElement)}>{content}</button>;
 }
 
 export default function ProfileDesktop() {
@@ -71,177 +113,161 @@ export default function ProfileDesktop() {
     ? profile.name.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase()
     : '?';
 
-  /* ── Loading skeleton ────────────────────────────────────────── */
+  /* â”€â”€ Skeleton â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   if (loading) {
     return (
-      <div style={{ maxWidth: 820, margin: '0 auto', padding: '40px 32px', fontFamily: 'Inter, system-ui, sans-serif' }}>
-        <div style={{ height: 34, width: 160, background: '#E2E8F0', borderRadius: 8, marginBottom: 6 }} />
-        <div style={{ height: 18, width: 200, background: '#E2E8F0', borderRadius: 6, marginBottom: 28 }} />
-        <div style={{ height: 260, background: '#E2E8F0', borderRadius: 24, marginBottom: 16 }} />
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 16 }}>
-          {[1, 2, 3].map((i) => <div key={i} style={{ height: 80, background: '#E2E8F0', borderRadius: 18 }} />)}
+      <div style={{ maxWidth: 920, margin: '0 auto', padding: '48px 40px 80px', fontFamily: 'Inter, system-ui, sans-serif' }}>
+        <div style={{ height: 220, background: '#E2E8F0', borderRadius: 24, marginBottom: 20 }} />
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+          {[1, 2, 3, 4].map((i) => <div key={i} style={{ height: 72, background: '#E2E8F0', borderRadius: 16 }} />)}
         </div>
-        <div style={{ height: 58, background: '#E2E8F0', borderRadius: 18 }} />
       </div>
     );
   }
 
   if (!profile) return null;
 
-  const infoRows: { icon: React.ReactNode; label: string; value: string; wide?: boolean }[] = [
-    { icon: <Phone        size={20} color="#00C2A8" />, label: 'Mobile',       value: profile.phone             || '—' },
-    { icon: <MessageSquare size={20} color="#00C2A8" />, label: 'WhatsApp',   value: profile.whatsapp_number   || '—' },
-    { icon: <MapPin       size={20} color="#00C2A8" />, label: 'Address',      value: formatAddress(profile),       wide: true },
-    { icon: <Calendar     size={20} color="#00C2A8" />, label: 'Member since', value: formatJoinDate(profile.joined_at), wide: true },
-  ];
-
-  /* ── Render ──────────────────────────────────────────────────── */
+  /* â”€â”€ Render â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   return (
-    <div style={{ maxWidth: 820, margin: '0 auto', padding: '40px 32px 60px', fontFamily: 'Inter, system-ui, sans-serif' }}>
+    <div style={{ maxWidth: 920, margin: '0 auto', padding: '48px 40px 80px', fontFamily: 'Inter, system-ui, sans-serif' }}>
 
-      {/* Page header */}
-      <div style={{ marginBottom: 28 }}>
-        <h1 style={{ fontSize: 30, fontWeight: 800, color: '#0B1E3D', margin: 0, lineHeight: 1.2 }}>Profile</h1>
-        <p style={{ fontSize: 14, color: '#8A9AB0', margin: '5px 0 0' }}>Your account and settings</p>
-      </div>
+      {/* â•â• HERO CARD â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+      <div style={{
+        background: '#0B1E3D', borderRadius: 24, padding: '36px 40px 32px',
+        position: 'relative', overflow: 'hidden', marginBottom: 14,
+      }}>
+        {/* decorative blobs */}
+        <div style={{ position: 'absolute', top: -70, right: -50, width: 220, height: 220, borderRadius: '50%', background: '#00C2A8', opacity: 0.07, pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', bottom: -50, right: 120, width: 160, height: 160, borderRadius: '50%', background: '#00C2A8', opacity: 0.045, pointerEvents: 'none' }} />
 
-      {/* ── Profile card ─────────────────────────────────────────── */}
-      <div style={{ background: '#EFF7F6', border: '1px solid #C8E6E2', borderRadius: 24, padding: '28px 32px', marginBottom: 20 }}>
-
-        {/* Avatar + name + edit button */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 24 }}>
+        {/* Top row â€” avatar + identity + edit */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 22, position: 'relative', marginBottom: 28 }}>
+          {/* Avatar */}
           <div style={{
-            width: 80, height: 80, borderRadius: '50%',
-            background: '#00C2A8', color: '#fff',
+            width: 84, height: 84, borderRadius: '50%', flexShrink: 0,
+            background: 'linear-gradient(135deg, #00C2A8 0%, #007A6A 100%)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontWeight: 800, fontSize: 26, flexShrink: 0,
+            fontSize: 28, fontWeight: 900, color: '#fff', letterSpacing: '-0.5px',
+            border: '3px solid rgba(255,255,255,0.12)',
+            boxShadow: '0 8px 24px rgba(0,194,168,0.35)',
           }}>
             {initials}
           </div>
+
+          {/* Name / email / badge */}
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 22, fontWeight: 800, color: '#0B1E3D', lineHeight: 1.2 }}>{profile.name || '—'}</div>
-            <div style={{ fontSize: 14, color: '#5A6A7A', marginTop: 4 }}>{profile.email || '—'}</div>
+            <div style={{ fontSize: 30, fontWeight: 900, color: '#fff', lineHeight: 1.1, letterSpacing: '-0.6px' }}>
+              {profile.name || 'â€”'}
+            </div>
+            <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.48)', marginTop: 6 }}>
+              {profile.email || 'â€”'}
+            </div>
+            {/* Active badge */}
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, marginTop: 12, padding: '5px 13px', borderRadius: 20, background: 'rgba(0,194,168,0.14)', border: '1px solid rgba(0,194,168,0.28)' }}>
+              <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#00C2A8', boxShadow: '0 0 6px #00C2A8' }} />
+              <span style={{ fontSize: 12, color: '#00C2A8', fontWeight: 700, letterSpacing: '0.01em' }}>
+                Member since {formatJoinDate(profile.joined_at)}
+              </span>
+            </div>
           </div>
+
+          {/* Edit button */}
           <button
             onClick={() => setEditOpen(true)}
             style={{
-              width: 52, height: 52, borderRadius: 14,
-              background: '#fff', border: '1.5px solid #00C2A8',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              cursor: 'pointer', flexShrink: 0,
+              display: 'flex', alignItems: 'center', gap: 8,
+              padding: '11px 20px', borderRadius: 12, flexShrink: 0,
+              border: '1.5px solid rgba(255,255,255,0.2)',
+              background: 'rgba(255,255,255,0.07)', backdropFilter: 'blur(4px)',
+              color: '#fff', fontSize: 14, fontWeight: 600,
+              cursor: 'pointer', fontFamily: 'inherit',
+              transition: 'background .15s, border-color .15s',
             }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.13)'; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.35)'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.07)'; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.2)'; }}
           >
-            <Pencil size={20} color="#00C2A8" />
+            <Pencil size={15} color="#fff" />
+            Edit Profile
           </button>
         </div>
 
         {/* Divider */}
-        <div style={{ height: 1, background: '#C8E6E2', marginBottom: 24 }} />
+        <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', marginBottom: 24, position: 'relative' }} />
 
-        {/* Info rows — 2-col grid, Address & Member since span full width */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px 40px', marginBottom: 24 }}>
-          {infoRows.map(({ icon, label, value, wide }) => (
-            <div
-              key={label}
-              style={{ display: 'flex', gap: 14, alignItems: 'flex-start', ...(wide ? { gridColumn: 'span 2' } : {}) }}
-            >
-              <div style={{ marginTop: 2, flexShrink: 0 }}>{icon}</div>
-              <div>
-                <div style={{ fontSize: 12, color: '#6B82A0', fontWeight: 500, marginBottom: 2 }}>{label}</div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: '#0B1E3D', lineHeight: 1.4 }}>{value}</div>
-              </div>
+        {/* Contact info row */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 28, position: 'relative' }}>
+          {[
+            { Icon: Phone,         value: profile.phone             || 'â€”' },
+            { Icon: MessageSquare, value: profile.whatsapp_number   || 'â€”' },
+            { Icon: MapPin,        value: formatAddress(profile) },
+          ].map(({ Icon, value }, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Icon size={14} color="rgba(255,255,255,0.35)" strokeWidth={1.8} />
+              <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)', fontWeight: 500 }}>{value}</span>
             </div>
           ))}
         </div>
-
-        {/* Divider */}
-        <div style={{ height: 1, background: '#C8E6E2', marginBottom: 20 }} />
-
-        {/* My preferences */}
-        <button
-          onClick={() => setPrefOpen(true)}
-          style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 14, background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: 'left', fontFamily: 'inherit' }}
-        >
-          <div style={{ width: 48, height: 48, borderRadius: 14, background: '#fff', border: '1px solid #C8E6E2', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <Sliders size={22} color="#00C2A8" strokeWidth={1.8} />
-          </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 15, fontWeight: 700, color: '#0B1E3D', lineHeight: 1.2 }}>My preferences</div>
-            <div style={{ fontSize: 13, color: '#5A6A7A', marginTop: 3 }}>Set your ride preferences to help drivers match your style.</div>
-          </div>
-          <ChevronRight size={20} color="#94A3B8" />
-        </button>
       </div>
 
-      {/* ── Menu items — 2-col grid ───────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
-        {menuItems.map(({ label, icon: Icon, href }) => (
-          <a
-            key={href}
-            href={href}
-            style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '18px 20px', borderRadius: 18, border: '1px solid #E2E8F0', background: '#fff', textDecoration: 'none' }}
-          >
-            <div style={{ width: 52, height: 52, borderRadius: 14, background: '#EFF7F6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <Icon size={24} color="#00C2A8" strokeWidth={1.8} />
-            </div>
-            <span style={{ flex: 1, fontSize: 15, fontWeight: 700, color: '#0B1E3D' }}>{label}</span>
-            <ChevronRight size={20} color="#94A3B8" />
-          </a>
-        ))}
-
-        {/* Favorite Places */}
-        <button
-          onClick={() => setPlacesOpen(true)}
-          style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '18px 20px', borderRadius: 18, border: '1px solid #E2E8F0', background: '#fff', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}
-        >
-          <div style={{ width: 52, height: 52, borderRadius: 14, background: '#EFF7F6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <Bookmark size={24} color="#00C2A8" strokeWidth={1.8} />
-          </div>
-          <span style={{ flex: 1, fontSize: 15, fontWeight: 700, color: '#0B1E3D' }}>Favorite Places</span>
-          <ChevronRight size={20} color="#94A3B8" />
-        </button>
-
-        {/* Related Passengers */}
-        <button
-          onClick={() => setPassOpen(true)}
-          style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '18px 20px', borderRadius: 18, border: '1px solid #E2E8F0', background: '#fff', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}
-        >
-          <div style={{ width: 52, height: 52, borderRadius: 14, background: '#EFF7F6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <Users size={24} color="#00C2A8" strokeWidth={1.8} />
-          </div>
-          <span style={{ flex: 1, fontSize: 15, fontWeight: 700, color: '#0B1E3D' }}>Related Passengers</span>
-          <ChevronRight size={20} color="#94A3B8" />
-        </button>
-
-        {/* Security */}
-        <button
-          onClick={() => setChangePwOpen(true)}
-          style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '18px 20px', borderRadius: 18, border: '1px solid #E2E8F0', background: '#fff', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}
-        >
-          <div style={{ width: 52, height: 52, borderRadius: 14, background: '#EFF7F6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <Shield size={24} color="#00C2A8" strokeWidth={1.8} />
-          </div>
-          <span style={{ flex: 1, fontSize: 15, fontWeight: 700, color: '#0B1E3D' }}>Security</span>
-          <ChevronRight size={20} color="#94A3B8" />
-        </button>
-      </div>
-
-      {/* ── Log out ───────────────────────────────────────────────── */}
+      {/* â•â• PREFERENCES CTA â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
       <button
-        onClick={handleLogout}
-        style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '16px', borderRadius: 18, border: '1.5px solid #EF4444', background: '#fff', color: '#EF4444', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
+        onClick={() => setPrefOpen(true)}
+        style={{
+          width: '100%', display: 'flex', alignItems: 'center', gap: 20,
+          padding: '22px 28px', borderRadius: 20, marginBottom: 14,
+          background: 'linear-gradient(130deg, #00C2A8 0%, #009E88 100%)',
+          border: 'none', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
+          transition: 'filter .15s, box-shadow .15s',
+          boxShadow: '0 6px 24px rgba(0,194,168,0.28)',
+          boxSizing: 'border-box',
+        }}
+        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.filter = 'brightness(1.06)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 10px 32px rgba(0,194,168,0.38)'; }}
+        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.filter = 'brightness(1)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 6px 24px rgba(0,194,168,0.28)'; }}
       >
-        <LogOut size={20} color="#EF4444" />
-        Log out
+        <div style={{ width: 50, height: 50, borderRadius: 14, background: 'rgba(255,255,255,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <Sliders size={24} color="#fff" strokeWidth={1.8} />
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 17, fontWeight: 800, color: '#fff', lineHeight: 1.2, letterSpacing: '-0.2px' }}>Ride Preferences</div>
+          <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.72)', marginTop: 4 }}>Customize how drivers match your style and comfort</div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '8px 14px', borderRadius: 10, background: 'rgba(255,255,255,0.18)' }}>
+          <span style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>Configure</span>
+          <ChevronRight size={15} color="#fff" />
+        </div>
       </button>
 
-      {/* ── Modals ───────────────────────────────────────────────── */}
-      <EditProfileModal
-        profile={profile}
-        isOpen={editOpen}
-        onClose={() => setEditOpen(false)}
-        onSave={handleSave}
-      />
+      {/* â•â• ACCOUNT TILES â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+      <div style={{ fontSize: 11, fontWeight: 700, color: '#94A3B8', letterSpacing: '0.09em', textTransform: 'uppercase', marginBottom: 10, paddingLeft: 2 }}>
+        Account
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+        <Tile icon={Wallet}   label="My Wallet"            sub="Balance & transactions"         href="/user/wallet" />
+        <Tile icon={Bookmark} label="Favorite Places"      sub="Manage saved locations"         onClick={() => setPlacesOpen(true)} />
+        <Tile icon={Users}    label="Related Passengers"   sub="Family & group members"         onClick={() => setPassOpen(true)} />
+        <Tile icon={Shield}   label="Security"             sub="Password & account security"    onClick={() => setChangePwOpen(true)} accent="#6366F1" />
+      </div>
+
+      {/* â•â• SIGN OUT â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+      <button
+        onClick={handleLogout}
+        style={{
+          width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9,
+          padding: '14px', borderRadius: 14,
+          border: '1.5px solid #FEE2E2', background: '#FFF5F5',
+          color: '#EF4444', fontSize: 14, fontWeight: 700,
+          cursor: 'pointer', fontFamily: 'inherit',
+          transition: 'background .15s, border-color .15s',
+        }}
+        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#FEE2E2'; (e.currentTarget as HTMLElement).style.borderColor = '#FCA5A5'; }}
+        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#FFF5F5'; (e.currentTarget as HTMLElement).style.borderColor = '#FEE2E2'; }}
+      >
+        <LogOut size={17} color="#EF4444" />
+        Sign out
+      </button>
+
+      {/* â”€â”€ Modals â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      <EditProfileModal profile={profile} isOpen={editOpen} onClose={() => setEditOpen(false)} onSave={handleSave} />
       <PreferencesModal isOpen={prefOpen} onClose={() => setPrefOpen(false)} />
       <ChangePasswordModal isOpen={changePwOpen} onClose={() => setChangePwOpen(false)} />
       <FavoritePlacesModal isOpen={placesOpen} onClose={() => setPlacesOpen(false)} />

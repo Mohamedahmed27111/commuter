@@ -90,7 +90,14 @@ import { call } from './client';
 const driverApi = {
   // Profile
   getProfile:           ()                                   => call('driver/profile'),
+  getProfileMe:         ()                                   => call('driver/profile/me'),
   updateProfile:        (data: Record<string, unknown>)      => call('driver/profile', { method: 'PATCH', body: data }),
+  // PUT /driver/profile — full driver profile update (national_id, car_*, license_*, default_lat/lng, etc.)
+  updateDriverProfile:  (data: Record<string, unknown>)      => call('driver/profile', { method: 'PUT', body: data }),
+  // PATCH /profile — personal info (name, phone_number) — same endpoint as user portal
+  updatePersonalInfo:   (data: Record<string, unknown>)      => call('profile', { method: 'PATCH', body: data }),
+  // GET /profile — personal info
+  getPersonalInfo:      ()                                   => call('profile'),
 
   // Driver onboarding (multipart) — POST /driver/profile with text + file fields
   submitProfile:        (fd: FormData)                       => call('driver/profile', { method: 'POST', body: fd }),
@@ -143,8 +150,16 @@ const driverApi = {
   sendChat:             (tripId: string, passengerId: string, text: string) =>
     call(`trips/${tripId}/chat/${passengerId}`, { method: 'POST', body: { text } }),
 
+  // Status
+  getStatus:            ()                                   => call<{ has_profile: boolean; is_verified: boolean }>('driver/status'),
+
   // Notifications
   getNotifications:     ()                                   => call('driver/notifications'),
+
+  // Availability
+  getAvailability:      ()                                   => call('driver/availability'),
+  addAvailability:      (data: Record<string, unknown>)      => call('driver/availability', { method: 'POST', body: data }),
+  deleteAvailability:   (id: number | string)                => call(`driver/availability/${id}`, { method: 'DELETE' }),
 };
 
 export default driverApi;

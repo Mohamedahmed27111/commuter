@@ -8,11 +8,8 @@ import { toast } from 'react-hot-toast';
 import PasswordInput from '@/components/shared/PasswordInput';
 import authApi, { extractToken, extractRole, extractName, extractId } from '@/lib/api/auth';
 import driverApi from '@/lib/api/driver';
-import { ApiError } from '@/lib/api/client';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useRedirectIfAuth } from '@/lib/auth/useRedirectIfAuth';
-
-const DEMO = { email: 'driver@commuter.eg', password: 'demo1234' };
 
 export default function DriverSignInForm() {
   const router = useRouter();
@@ -57,24 +54,22 @@ export default function DriverSignInForm() {
 
       toast.success(`Welcome back, ${name}! 👋`);
 
-      // Check whether this driver has completed their vehicle/document profile.
-      // If GET /driver/profile returns 404, they haven't — send to onboarding.
+      // Check driver status to determine if profile setup is needed.
       let destination: string;
       try {
-        await driverApi.getProfile();
-        // Profile exists → go to the originally requested page or dashboard.
-        destination = nextPath && !nextPath.startsWith('/driver/sign') && !nextPath.startsWith('/sign')
-          ? nextPath
-          : '/driver/requests';
-      } catch (profileErr: unknown) {
-        if (profileErr instanceof ApiError && profileErr.status === 404) {
+        const status = await driverApi.getStatus() as { has_profile: boolean; is_verified: boolean };
+        if (!status.has_profile) {
           destination = '/driver/onboarding';
         } else {
-          // Network error or unexpected issue — default to dashboard.
           destination = nextPath && !nextPath.startsWith('/driver/sign') && !nextPath.startsWith('/sign')
             ? nextPath
             : '/driver/requests';
         }
+      } catch {
+        // Network error or unexpected issue — default to dashboard.
+        destination = nextPath && !nextPath.startsWith('/driver/sign') && !nextPath.startsWith('/sign')
+          ? nextPath
+          : '/driver/requests';
       }
       router.replace(destination);
     } catch (err: unknown) {
@@ -91,17 +86,6 @@ export default function DriverSignInForm() {
     <form onSubmit={handleSubmit} noValidate style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
       <h1 style={{ fontSize: 28, fontWeight: 700, color: '#0B1E3D', margin: '0 0 6px' }}>Driver sign in</h1>
       <p style={{ fontSize: 14, color: '#5A6A7A', margin: '0 0 24px' }}>Enter your credentials to access the driver portal</p>
-
-      {/* Demo credentials */}
-      <button
-        type="button"
-        onClick={() => { setEmail(DEMO.email); setPassword(DEMO.password); setEmailErr(''); setPwErr(''); }}
-        style={{ display: 'block', width: '100%', textAlign: 'left', marginBottom: 24, padding: '12px 14px', borderRadius: 10, background: '#EFF7F6', border: '1px solid #C0E6E1', cursor: 'pointer', fontFamily: 'inherit' }}
-      >
-        <p style={{ fontSize: 13, fontWeight: 600, color: '#0B1E3D', margin: '0 0 4px' }}>Demo credentials <span style={{ fontSize: 11, fontWeight: 400, color: '#00C2A8' }}>— click to fill</span></p>
-        <p style={{ fontSize: 13, color: '#5A6A7A', margin: '0 0 2px' }}>Email: <strong style={{ color: '#0B1E3D' }}>{DEMO.email}</strong></p>
-        <p style={{ fontSize: 13, color: '#5A6A7A', margin: 0 }}>Password: <strong style={{ color: '#0B1E3D' }}>{DEMO.password}</strong></p>
-      </button>
 
       {/* Email */}
       <div style={{ marginBottom: 16 }}>

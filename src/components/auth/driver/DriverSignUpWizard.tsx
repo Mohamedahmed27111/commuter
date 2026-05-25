@@ -18,13 +18,13 @@ import Step3Otp from '@/components/auth/user/steps/Step3Otp';
 
 // ── Step indicator ────────────────────────────────────────────────────────────
 
-const STEPS = ['Personal info', 'Address', 'Verify email', 'Driver details'] as const;
+const STEPS = ['Personal info', 'Address', 'Verify email'] as const;
 
-function StepBar({ current }: { current: 1 | 2 | 3 | 4 }) {
+function StepBar({ current }: { current: 1 | 2 | 3 }) {
   return (
     <div className="flex items-center mb-8" role="list" aria-label="Sign-up progress">
       {STEPS.map((label, idx) => {
-        const n      = (idx + 1) as 1 | 2 | 3 | 4;
+        const n      = (idx + 1) as 1 | 2 | 3;
         const done   = n < current;
         const active = n === current;
 

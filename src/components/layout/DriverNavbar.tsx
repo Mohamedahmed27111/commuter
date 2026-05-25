@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react';
-import { Menu, X, ChevronDown, LogOut, User } from 'lucide-react';
+import { ChevronDown, LogOut, User } from 'lucide-react';
 import { useAuth } from '@/lib/auth/AuthContext';
 import authApi from '@/lib/api/auth';
 import LanguageToggle from './LanguageToggle';
@@ -16,11 +16,11 @@ export default function DriverNavbar() {
   const router      = useRouter();
 
   const LINKS = [
-    { label: t('requests'),   href: '/driver/requests'  },
-    { label: t('my_cycles'),  href: '/driver/my-cycles' },
-    { label: t('profile'),    href: '/driver/profile'   },
+    { label: t('requests'),     href: '/driver/requests'    },
+    { label: t('my_cycles'),    href: '/driver/my-cycles'   },
+    { label: t('availability'), href: '/driver/availability'},
+    { label: t('profile'),      href: '/driver/profile'     },
   ];
-  const [mobileOpen,    setMobileOpen]    = useState(false);
   const [dropdownOpen,  setDropdownOpen]  = useState(false);
   const [driverName,    setDriverName]    = useState('Driver');
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -39,11 +39,6 @@ export default function DriverNavbar() {
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
-
-  // Close mobile menu whenever the route changes
-  useEffect(() => {
-    setMobileOpen(false);
-  }, [pathname]);
 
   async function handleLogout() {
     try {
@@ -79,12 +74,12 @@ export default function DriverNavbar() {
       <nav style={{
         position: 'sticky', top: 0, zIndex: 50,
         height: 64, background: '#0B1E3D',
-        display: 'flex', alignItems: 'center',
+        alignItems: 'center',
         padding: '0 32px', gap: 0,
         borderBottom: '1px solid rgba(255,255,255,0.08)',
         fontFamily: 'Inter, system-ui, sans-serif',
       }}
-      className="cnav-bar">
+      className="cnav-bar hidden md:flex">
         {/* Logo — left */}
         <Link href="/driver/requests" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none', flexShrink: 0, position: 'relative', zIndex: 1 }}>
           <div style={{ width: 32, height: 32, borderRadius: 8, background: '#00C2A8', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -184,69 +179,10 @@ export default function DriverNavbar() {
         </div>
         </div>
 
-        {/* Mobile hamburger */}
-        <button
-          onClick={() => setMobileOpen((v) => !v)}
-          style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: '#fff', padding: 4, position: 'relative', zIndex: 1 }}
-          className="md:hidden"
-          aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
-        >
-          {mobileOpen ? <X size={22} /> : <Menu size={22} />}
-        </button>
+        {/* Mobile hamburger — hidden; bottom nav handles mobile navigation */}
       </nav>
 
-      {/* Backdrop — tap outside to close */}
-      {mobileOpen && (
-        <div
-          style={{ position: 'fixed', inset: 0, top: 64, zIndex: 47, background: 'rgba(0,0,0,0.4)' }}
-          onClick={() => setMobileOpen(false)}
-          aria-hidden
-        />
-      )}
-
-      {/* Mobile menu panel — fixed below sticky navbar so scroll position doesn't matter */}
-      <div style={{
-        display: mobileOpen ? 'flex' : 'none',
-        position: 'fixed', top: 64, left: 0, right: 0, zIndex: 48,
-        background: '#0B1E3D', flexDirection: 'column',
-        borderBottom: '1px solid rgba(255,255,255,0.1)',
-        paddingBottom: 12,
-      }}>
-        {LINKS.map(({ label, href }) => {
-          const active = pathname === href || pathname.startsWith(href + '/');
-          return (
-            <Link
-              key={href}
-              href={href}
-              onClick={() => setMobileOpen(false)}
-              className="mobile-link"
-              style={{
-                color: active ? '#00C2A8' : 'rgba(255,255,255,0.75)',
-                fontWeight: active ? 600 : 500,
-                borderLeft: active ? '3px solid #00C2A8' : '3px solid transparent',
-              }}
-            >
-              {label}
-            </Link>
-          );
-        })}
-
-        <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', margin: '8px 0 0', paddingTop: 8 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 20px' }}>
-            <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#00C2A8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#0B1E3D' }}>
-              {initials}
-            </div>
-            <span style={{ color: 'rgba(255,255,255,0.9)', fontSize: 14, fontWeight: 500 }}>{driverName}</span>
-          </div>
-          <button
-            onClick={handleLogout}
-            className="mobile-link"
-            style={{ color: '#E74C3C', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', width: '100%', textAlign: 'left' }}
-          >
-            <LogOut size={16} style={{ marginRight: 10 }} /> {tCommon('sign_out')}
-          </button>
-        </div>
-      </div>
+      {/* Mobile bottom nav handles mobile navigation — no drawer needed */}
     </>
   );
 }
