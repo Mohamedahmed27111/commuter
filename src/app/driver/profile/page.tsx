@@ -14,9 +14,9 @@ import authApi from '@/lib/api/auth';
 import DriverEditProfileModal from '@/components/driver/DriverEditProfileModal';
 import ChangePasswordModal from '@/components/user/profile/ChangePasswordModal';
 import {
-  Shield, Car, FileText, Pencil, Loader2, Camera,
+  Shield, FileText, Pencil, Loader2, Camera,
   Phone, MapPin, Calendar, LogOut, CheckCircle2,
-  Clock, FolderOpen, CreditCard, ChevronDown, ChevronUp, KeyRound, Wallet,
+  Clock, FolderOpen, ChevronDown, ChevronUp, KeyRound, Wallet,
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -338,7 +338,6 @@ function MobileProfile({ displayName, email, phone, address, profileData, docUrl
 
 function DesktopProfile({ displayName, email, phone, address, profileData, docUrls, onUpload, onEdit, onChangePassword, onWallet, onLogout }: ProfileData) {
   const isVerified = profileData?.is_verified ?? false;
-  const initials = displayName.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?';
   const vehicle = [profileData?.car_brand, profileData?.car_model, profileData?.car_year]
     .filter(Boolean).join(' ') + (profileData?.car_color ? ` · ${profileData.car_color}` : '') || '—';
 
