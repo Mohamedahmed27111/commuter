@@ -188,6 +188,14 @@ export default function RequestForm({
       if (arrivalGap < 30) return 'Arrival window must be at least 30 minutes';
       if (arrivalGap > 120) return 'Arrival window cannot exceed 2 hours';
 
+      // Route-aware gap: arrival_to must be ≥ pickup_from + routeDuration + 30 min
+      const routeDur   = Math.round(slot.route?.duration_minutes ?? 0);
+      const minGapReqd = routeDur + 30;
+      const totalGap   = timeDiffMinutes(slot.pickup_from, slot.arrival_to);
+      if (routeDur > 0 && totalGap < minGapReqd) {
+        return `Arrival must be at least ${minGapReqd} min after pickup start (~${routeDur} min route + 30 min buffer)`;
+      }
+
       if (slot.trip_type === 'round_trip') {
         if (!slot.return_pickup_from || !slot.return_pickup_to) {
           return `Time slot ${data.time_slots.indexOf(slot) + 1} is missing return pickup times`;

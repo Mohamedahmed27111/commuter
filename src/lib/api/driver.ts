@@ -62,17 +62,31 @@ export async function updateProfile(data: Partial<DriverProfile>): Promise<Drive
 export async function uploadDocument(fieldName: string, file: File): Promise<void> {
   const token = getToken();
   const formData = new FormData();
-  formData.append('file', file);
 
-  const res = await fetch(`${BASE_URL}/api/driver/documents/${fieldName}`, {
-    method: 'POST',
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-    body: formData,
-  });
-
-  if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(errorText || `Upload failed with status ${res.status}`);
+  // For profile photo, use PATCH /profile with profile_image field
+  if (fieldName === 'profilePhoto') {
+    formData.append('profile_image', file);
+    const res = await fetch(`${BASE_URL}/profile`, {
+      method: 'PATCH',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    });
+    if (!res.ok) {
+      const errorText = await res.text();
+      throw new Error(errorText || `Upload failed with status ${res.status}`);
+    }
+  } else {
+    // For other documents, try legacy endpoint
+    formData.append('file', file);
+    const res = await fetch(`${BASE_URL}/driver/documents/${fieldName}`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    });
+    if (!res.ok) {
+      const errorText = await res.text();
+      throw new Error(errorText || `Upload failed with status ${res.status}`);
+    }
   }
 }
 
@@ -105,7 +119,13 @@ const driverApi = {
   // Documents (multipart)
   uploadDocument:       (field: string, file: File) => {
     const fd = new FormData();
-    fd.append(field, file);
+    // Profile photo uses PATCH /profile with profile_image field
+    if (field === 'profilePhoto') {
+      fd.append('profile_image', file);
+      return call('profile', { method: 'PATCH', body: fd });
+    }
+    // Other documents use the driver/documents endpoint
+    fd.append('file', file);
     return call(`driver/documents/${field}`, { method: 'POST', body: fd });
   },
 

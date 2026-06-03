@@ -6,6 +6,52 @@ import type { UserProfile } from '@/types/user';
 import BottomSheet from '@/components/shared/BottomSheet';
 import userApi from '@/lib/api/user';
 
+type Tab = 'info' | 'address';
+
+const inputStyle: React.CSSProperties = {
+  width: '100%',
+  padding: '10px 12px',
+  border: '1.5px solid #E2E8F0',
+  borderRadius: 8,
+  fontSize: 14,
+  fontFamily: 'inherit',
+  color: '#0B1E3D',
+  outline: 'none',
+  minHeight: 44,
+  background: '#fff',
+  boxSizing: 'border-box',
+};
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#5A6A7A', marginBottom: 6 }}>
+        {label}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+function StyledInput({ value, onChange, type = 'text', placeholder }: {
+  value: string;
+  onChange: (v: string) => void;
+  type?: string;
+  placeholder?: string;
+}) {
+  return (
+    <input
+      type={type}
+      value={value}
+      placeholder={placeholder}
+      onChange={(e) => onChange(e.target.value)}
+      style={inputStyle}
+      onFocus={(e) => { e.currentTarget.style.borderColor = '#00C2A8'; e.currentTarget.style.background = '#EFF7F6'; }}
+      onBlur={(e)  => { e.currentTarget.style.borderColor = '#E2E8F0'; e.currentTarget.style.background = '#fff'; }}
+    />
+  );
+}
+
 interface EditProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -13,28 +59,77 @@ interface EditProfileModalProps {
   onSave: (updates: Partial<UserProfile>) => void;
 }
 
-export default function EditProfileModal({
-  isOpen,
-  onClose,
-  profile,
-  onSave,
-}: EditProfileModalProps) {
-  const [name,   setName]   = useState('');
-  const [phone,  setPhone]  = useState('');
+export default function EditProfileModal({ isOpen, onClose, profile, onSave }: EditProfileModalProps) {
+  const [tab, setTab] = useState<Tab>('info');
+
+  // Info tab fields
+  const [name,      setName]      = useState('');
+  const [email,     setEmail]     = useState('');
+  const [phone,     setPhone]     = useState('');
+  const [whatsapp,  setWhatsapp]  = useState('');
+  const [gender,    setGender]    = useState('');
+  const [birthdate, setBirthdate] = useState('');
+
+  // Address tab fields
+  const [province,    setProvince]    = useState('');
+  const [district,    setDistrict]    = useState('');
+  const [subDistrict, setSubDistrict] = useState('');
+  const [building,    setBuilding]    = useState('');
+  const [street,      setStreet]      = useState('');
+  const [landmark,    setLandmark]    = useState('');
+
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (profile && isOpen) {
-      setName(profile.name);
-      setPhone(profile.phone);
+      setName(profile.name ?? '');
+      setEmail(profile.email ?? '');
+      setPhone(profile.phone ?? '');
+      setWhatsapp(profile.whatsapp_number ?? '');
+      setGender(profile.gender ?? '');
+      setBirthdate(profile.date_of_birth ?? '');
+      setProvince(profile.province ?? '');
+      setDistrict(profile.district ?? '');
+      setSubDistrict(profile.sub_district ?? '');
+      setBuilding(profile.building ?? '');
+      setStreet(profile.street ?? '');
+      setLandmark(profile.landmark ?? '');
+      setTab('info');
     }
   }, [profile, isOpen]);
 
   async function handleSave() {
     setSaving(true);
     try {
-      await userApi.updateProfile({ name, phone_number: phone });
-      onSave({ name, phone });
+      await userApi.updateProfile({
+        name,
+        email,
+        phone_number:    phone,
+        whatsapp_number: whatsapp,
+        gender:          gender || undefined,
+        birthdate:       birthdate || undefined,
+        province,
+        district,
+        sub_district:    subDistrict,
+        building,
+        street,
+        landmark,
+      });
+      onSave({
+        name,
+        email,
+        phone,
+        whatsapp_number: whatsapp,
+        gender:          gender as UserProfile['gender'],
+        date_of_birth:   birthdate,
+        province,
+        district,
+        sub_district:    subDistrict,
+        building,
+        street,
+        landmark,
+      });
+      toast.success('Profile updated');
       onClose();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Update failed');
@@ -43,45 +138,100 @@ export default function EditProfileModal({
     }
   }
 
+  const tabBar = (
+    <div style={{ display: 'flex', gap: 4, background: '#F1F5F9', borderRadius: 10, padding: 4, marginBottom: 20 }}>
+      {(['info', 'address'] as Tab[]).map((t) => (
+        <button
+          key={t}
+          type="button"
+          onClick={() => setTab(t)}
+          style={{
+            flex: 1,
+            padding: '8px 0',
+            border: 'none',
+            borderRadius: 7,
+            fontFamily: 'inherit',
+            fontSize: 13,
+            fontWeight: 700,
+            cursor: 'pointer',
+            transition: 'background 0.15s, color 0.15s',
+            background: tab === t ? '#fff' : 'transparent',
+            color: tab === t ? '#0B1E3D' : '#5A6A7A',
+            boxShadow: tab === t ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
+          }}
+        >
+          {t === 'info' ? 'Personal info' : 'Address'}
+        </button>
+      ))}
+    </div>
+  );
+
+  const infoTab = (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <Field label="Full name">
+        <StyledInput value={name} onChange={setName} placeholder="Your full name" />
+      </Field>
+      <Field label="Email">
+        <StyledInput value={email} onChange={setEmail} type="email" placeholder="your@email.com" />
+      </Field>
+      <Field label="Phone number">
+        <StyledInput value={phone} onChange={setPhone} type="tel" placeholder="+20 …" />
+      </Field>
+      <Field label="WhatsApp number">
+        <StyledInput value={whatsapp} onChange={setWhatsapp} type="tel" placeholder="+20 …" />
+      </Field>
+      <Field label="Gender">
+        <select
+          value={gender}
+          onChange={(e) => setGender(e.target.value)}
+          style={{ ...inputStyle, appearance: 'none', WebkitAppearance: 'none' }}
+          onFocus={(e) => { e.currentTarget.style.borderColor = '#00C2A8'; e.currentTarget.style.background = '#EFF7F6'; }}
+          onBlur={(e)  => { e.currentTarget.style.borderColor = '#E2E8F0'; e.currentTarget.style.background = '#fff'; }}
+        >
+          <option value="">Select gender</option>
+          <option value="male">Male</option>
+          <option value="female">Female</option>
+        </select>
+      </Field>
+      <Field label="Date of birth">
+        <StyledInput value={birthdate} onChange={setBirthdate} type="date" />
+      </Field>
+    </div>
+  );
+
+  const addressTab = (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <Field label="Province">
+        <StyledInput value={province} onChange={setProvince} placeholder="e.g. Cairo" />
+      </Field>
+      <Field label="District">
+        <StyledInput value={district} onChange={setDistrict} placeholder="e.g. Nasr City" />
+      </Field>
+      <Field label="Sub-district">
+        <StyledInput value={subDistrict} onChange={setSubDistrict} placeholder="Sub-district" />
+      </Field>
+      <Field label="Building">
+        <StyledInput value={building} onChange={setBuilding} placeholder="Building no. / name" />
+      </Field>
+      <Field label="Street">
+        <StyledInput value={street} onChange={setStreet} placeholder="Street name" />
+      </Field>
+      <Field label="Landmark">
+        <StyledInput value={landmark} onChange={setLandmark} placeholder="Near …" />
+      </Field>
+    </div>
+  );
+
   const content = (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div>
-        <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#5A6A7A', marginBottom: 6 }}>
-          Full name
-        </label>
-        <input
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #E2E8F0', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', color: '#0B1E3D', outline: 'none', minHeight: 44 }}
-          onFocus={(e) => { e.currentTarget.style.borderColor = '#00C2A8'; e.currentTarget.style.background = '#EFF7F6'; }}
-          onBlur={(e) => { e.currentTarget.style.borderColor = '#E2E8F0'; e.currentTarget.style.background = '#fff'; }}
-        />
-      </div>
-
-      <div>
-        <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#5A6A7A', marginBottom: 6 }}>
-          Phone
-        </label>
-        <input
-          type="tel"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #E2E8F0', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', color: '#0B1E3D', outline: 'none', minHeight: 44 }}
-          onFocus={(e) => { e.currentTarget.style.borderColor = '#00C2A8'; e.currentTarget.style.background = '#EFF7F6'; }}
-          onBlur={(e) => { e.currentTarget.style.borderColor = '#E2E8F0'; e.currentTarget.style.background = '#fff'; }}
-        />
-      </div>
-
-      <div style={{ padding: '8px 12px', background: '#F8F9FA', borderRadius: 8, fontSize: 12, color: '#5A6A7A' }}>
-        Email and date of birth cannot be changed after registration.
-      </div>
-
+    <div style={{ display: 'flex', flexDirection: 'column' }}>
+      {tabBar}
+      {tab === 'info' ? infoTab : addressTab}
       <button
         onClick={handleSave}
         disabled={saving}
         style={{
           width: '100%',
+          marginTop: 20,
           padding: '14px',
           border: 'none',
           borderRadius: 10,
@@ -109,7 +259,8 @@ export default function EditProfileModal({
               style={{
                 position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)',
                 zIndex: 201, background: '#fff', borderRadius: 16, padding: 28,
-                width: 440, maxWidth: '90vw', boxShadow: '0 24px 48px rgba(0,0,0,0.2)',
+                width: 480, maxWidth: '90vw', boxShadow: '0 24px 48px rgba(0,0,0,0.2)',
+                maxHeight: '90vh', overflowY: 'auto',
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>

@@ -56,7 +56,7 @@ function RoutePickerInner({
   onConfirm,
   onCancel,
 }: RoutePickerProps) {
-  const { origin, destination, stops, routes, setOrigin, setDestination, loading } = useMap();
+  const { origin, destination, stops, routes, setOrigin, setDestination, loading, error } = useMap();
   const { setIntent } = useIntent();
   const { lat: userLat, lng: userLng, locate } = useUserLocation();
   const [pendingLocField, setPendingLocField] = useState<'from' | 'to' | null>(null);
@@ -208,6 +208,8 @@ function RoutePickerInner({
               Use this route ✓
             </button>
           </>
+        ) : error ? (
+          <p className="text-sm text-[#EF4444]">{error}</p>
         ) : (
           <p className="text-sm text-[#5A6A7A]">
             {loading ? 'Calculating route…' : 'Search origin and destination to see route'}

@@ -68,7 +68,7 @@ export default function UserMap({
   pickingField = null,
   onMapPick,
   walk_minutes = 0,
-}: UserMapProps) {
+}: UserMapProps) {  
   const { origin: from, destination: to, routes, stops } = useMap();
   const viaStops = stops.filter((s): s is NonNullable<typeof s> => s !== null);
   const { isLoaded } = useJsApiLoader({ id: 'google-map-script', googleMapsApiKey: API_KEY });

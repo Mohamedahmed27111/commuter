@@ -66,24 +66,32 @@ export default function TimeSlotCard({
 
   const pickupGap = timeDiffMinutes(slot.pickup_from, slot.pickup_to);
 
+  // Route-aware arrival constraints:
+  //   arrival_from ≥ pickup_to + routeDuration
+  //   arrival_to   ≥ pickup_from + routeDuration + 30  (the hard minimum gap)
+  const routeDuration = Math.round(slot.route?.duration_minutes ?? 0);
+  const BUFFER_MIN    = 30;
+  const minTotalGap   = routeDuration + BUFFER_MIN; // e.g. 45+30 = 75 min
+
   const validPickupToOptions = ALL_OPTIONS.filter((opt) => {
     const diff = timeDiffMinutes(slot.pickup_from, opt);
-    return diff >= 30 && diff <= 120;
+    return diff >= 15 && diff <= 120;
   });
 
-  // Arrival options — must start ≥ 30 min after pickup_to
-  const arrivalFromMin = addMinutes(slot.pickup_to, 30);
+  // Arrival options — arrival_from must start ≥ pickup_to + routeDuration
+  const arrivalFromMin = addMinutes(slot.pickup_to, routeDuration > 0 ? routeDuration : BUFFER_MIN);
   const validArrivalFromOptions = ALL_OPTIONS.filter(opt => timeDiffMinutes(arrivalFromMin, opt) >= 0);
   const validArrivalToOptions = ALL_OPTIONS.filter(opt => {
-    const d = timeDiffMinutes(slot.arrival_from || arrivalFromMin, opt);
-    return d >= 30 && d <= 120;
+    const dWindow      = timeDiffMinutes(slot.arrival_from || arrivalFromMin, opt);
+    const dFromPickup  = timeDiffMinutes(slot.pickup_from, opt);
+    return dWindow >= 15 && dWindow <= 120 && dFromPickup >= minTotalGap;
   });
 
   const returnFrom = slot.return_pickup_from ?? '17:00';
   const returnTo   = slot.return_pickup_to   ?? '17:30';
   const validReturnToOptions = ALL_OPTIONS.filter((opt) => {
     const diff = timeDiffMinutes(returnFrom, opt);
-    return diff >= 30 && diff <= 120;
+    return diff >= 15 && diff <= 120;
   });
 
   // Return arrival options
@@ -91,11 +99,23 @@ export default function TimeSlotCard({
   const validReturnArrivalFromOptions = ALL_OPTIONS.filter(opt => timeDiffMinutes(retArrivalFromMin, opt) >= 0);
   const validReturnArrivalToOptions = ALL_OPTIONS.filter(opt => {
     const d = timeDiffMinutes(slot.return_arrival_from || retArrivalFromMin, opt);
-    return d >= 30 && d <= 120;
+    return d >= 15 && d <= 120;
   });
 
   function handleFromChange(newFrom: string) {
-    onPickupChange(newFrom, addMinutes(newFrom, 30));
+    const newTo = addMinutes(newFrom, 15);
+    onPickupChange(newFrom, newTo);
+
+    // Auto-correct arrival times if they'd violate the new minimum gap
+    const newArrivalFromMin = addMinutes(newTo, routeDuration > 0 ? routeDuration : BUFFER_MIN);
+    const newArrivalToMin   = addMinutes(newFrom, minTotalGap);
+    const curFrom = slot.arrival_from || newArrivalFromMin;
+    const curTo   = slot.arrival_to   || addMinutes(curFrom, 15);
+    if (timeDiffMinutes(newArrivalFromMin, curFrom) < 0 || timeDiffMinutes(newArrivalToMin, curTo) < 0) {
+      const corrFrom = timeDiffMinutes(newArrivalFromMin, curFrom) < 0 ? newArrivalFromMin : curFrom;
+      const corrTo   = timeDiffMinutes(addMinutes(corrFrom, 15), curTo) < 0 ? addMinutes(corrFrom, 15) : curTo;
+      onArrivalChange(corrFrom, corrTo);
+    }
   }
 
   function handleReturnFromChange(newFrom: string) {
@@ -277,7 +297,7 @@ export default function TimeSlotCard({
                 <label className="block text-xs text-[#9AA0A6] mb-1">From</label>
                 <select
                   value={slot.arrival_from || arrivalFromMin}
-                  onChange={(e) => onArrivalChange(e.target.value, addMinutes(e.target.value, 30))}
+                  onChange={(e) => onArrivalChange(e.target.value, addMinutes(e.target.value, 15))}
                   className="w-full h-11 border border-[#E2E8F0] rounded-lg px-3 text-sm text-[#0B1E3D] bg-white focus:outline-none"
                   style={{ outlineColor: palette.accent }}
                 >
@@ -300,7 +320,11 @@ export default function TimeSlotCard({
                 </select>
               </div>
             </div>
-            <p className="text-xs text-[#9AA0A6] mt-1">At least 30 min after pickup ends</p>
+            <p className="text-xs text-[#9AA0A6] mt-1">
+              {routeDuration > 0
+                ? `~${routeDuration} min route + ${BUFFER_MIN} min buffer = ${minTotalGap} min minimum`
+                : 'At least 30 min after pickup ends'}
+            </p>
           </div>
         )}
 

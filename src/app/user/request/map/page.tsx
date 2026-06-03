@@ -30,7 +30,7 @@ function MapPageInner() {
 
   const wizard = useWizard();
   const { setRoute: saveToWizard } = wizard;
-  const { origin, destination, stops, setOrigin, setDestination, routes, loading: routeLoading } = useMap();
+  const { origin, destination, stops, setOrigin, setDestination, routes, loading: routeLoading, error: routeError } = useMap();
   const { setIntent } = useIntent();
   const { lat: userLat, lng: userLng, locate } = useUserLocation();
   const [pendingLocField, setPendingLocField] = useState<'from' | 'to' | null>(null);
@@ -93,8 +93,8 @@ function MapPageInner() {
       {/* Floating search bar — handles From / stops (private only) / To + suggestions */}
       <FloatingSearchBar onCurrentLocation={handleCurrentLocation} />
 
-      {/* Bottom bar — shown when a route is calculated */}
-      {route && (
+      {/* Bottom bar — shown when a route is calculated or an error occurred */}
+      {(route || routeError) && (
         <div
           style={{
             position: 'fixed',
@@ -111,31 +111,37 @@ function MapPageInner() {
           }}
           className="sm:bottom-0 bottom-16"
         >
-          <div>
-            <span style={{ fontSize: 14, fontWeight: 600, color: '#0B1E3D' }}>
-              {route.distance_km.toFixed(1)} km
-            </span>
-            <span style={{ fontSize: 14, color: '#5A6A7A', marginLeft: 8 }}>
-              · ~{Math.round(route.duration_minutes)} min
-            </span>
-          </div>
-          <button
-            onClick={handleContinue}
-            disabled={!canContinue}
-            style={{
-              padding: '10px 24px',
-              background: '#00C2A8',
-              color: '#0B1E3D',
-              fontWeight: 700,
-              borderRadius: 12,
-              fontSize: 14,
-              border: 'none',
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-            }}
-          >
-            Continue →
-          </button>
+          {route ? (
+            <>
+              <div>
+                <span style={{ fontSize: 14, fontWeight: 600, color: '#0B1E3D' }}>
+                  {route.distance_km.toFixed(1)} km
+                </span>
+                <span style={{ fontSize: 14, color: '#5A6A7A', marginLeft: 8 }}>
+                  · ~{Math.round(route.duration_minutes)} min
+                </span>
+              </div>
+              <button
+                onClick={handleContinue}
+                disabled={!canContinue}
+                style={{
+                  padding: '10px 24px',
+                  background: '#00C2A8',
+                  color: '#0B1E3D',
+                  fontWeight: 700,
+                  borderRadius: 12,
+                  fontSize: 14,
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                }}
+              >
+                Continue →
+              </button>
+            </>
+          ) : (
+            <p style={{ fontSize: 14, color: '#EF4444' }}>{routeError}</p>
+          )}
         </div>
       )}
     </div>

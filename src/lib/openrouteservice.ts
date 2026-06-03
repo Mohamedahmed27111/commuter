@@ -121,6 +121,14 @@ export async function fetchRoute(
 
   } catch (err) {
     console.error('[ORS] Fetch error:', err);
-    return [];
+    // Network error (no connectivity, timeout, CORS, etc.) — fall back to Google
+    try {
+      const routes = await fetchRouteViaGoogle(valid);
+      if (routes.length) setCached(`ors:${cacheKey}`, JSON.stringify(routes));
+      return routes;
+    } catch (fallbackErr) {
+      console.error('[Route] Google fallback also failed:', fallbackErr);
+      return [];
+    }
   }
 }

@@ -204,7 +204,7 @@ function MobileProfile({ displayName, email, phone, address, profileData, docUrl
       <div style={CARD}>
         {/* Avatar + name + email + edit */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
-          <ClickableAvatar photoUrl={docUrls.profilePhoto} name={displayName} size={56} fontSize={20} onUpload={(file) => onUpload('profilePhoto', file)} />
+          <ClickableAvatar photoUrl={docUrls.profilePhoto} name={displayName} size={80} fontSize={28} onUpload={(file) => onUpload('profilePhoto', file)} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 16, fontWeight: 700, color: '#0B1E3D', lineHeight: 1.2 }}>{displayName}</div>
             <div style={{ fontSize: 12, color: '#6B7280', marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{email}</div>
@@ -377,8 +377,8 @@ function DesktopProfile({ displayName, email, phone, address, profileData, docUr
           <ClickableAvatar
             photoUrl={docUrls.profilePhoto}
             name={displayName}
-            size={84}
-            fontSize={28}
+            size={110}
+            fontSize={36}
             onUpload={(file) => onUpload('profilePhoto', file)}
             wrapperStyle={{ border: '3px solid rgba(255,255,255,0.15)', boxShadow: '0 8px 24px rgba(0,194,168,0.3)' }}
           />
@@ -626,8 +626,8 @@ export default function ProfilePage() {
       setDocUrls((prev) => ({ ...prev, [fieldName]: localUrl }));
       if (fieldName === 'profilePhoto') updateProfilePhoto(localUrl);
       toast.success('Document uploaded successfully');
-    } catch {
-      throw new Error('Upload failed. Please try again.');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Upload failed. Please try again.');
     }
   }, [updateProfilePhoto]);
 
@@ -641,9 +641,20 @@ export default function ProfilePage() {
     setEditOpen(true);
   }
 
-  function handleProfileSaved({ name, phone, driver }: { name: string; phone: string; driver: Partial<DriverProfileMeData> }) {
-    setPersonal((p) => ({ ...p, name, phone }));
-    if (name) updateName(name);
+  function handleProfileSaved({ personal, driver }: { personal: Partial<{ name: string; email: string; phone: string; whatsapp_number: string; gender: string; birthdate: string; province: string; district: string; sub_district: string; building: string; street: string; landmark: string }>; driver: Partial<DriverProfileMeData> }) {
+    setPersonal((p) => ({
+      ...p,
+      name:        personal.name        ?? p.name,
+      email:       personal.email       ?? p.email,
+      phone:       personal.phone       ?? p.phone,
+      building:    personal.building    ?? p.building,
+      street:      personal.street      ?? p.street,
+      sub_district:personal.sub_district?? p.sub_district,
+      district:    personal.district    ?? p.district,
+      province:    personal.province    ?? p.province,
+      landmark:    personal.landmark    ?? p.landmark,
+    }));
+    if (personal.name) updateName(personal.name);
     setProfileData((prev) => prev ? { ...prev, ...driver } as DriverProfileMeData : prev);
   }
 
@@ -678,8 +689,20 @@ export default function ProfilePage() {
       <DriverEditProfileModal
         isOpen={editOpen}
         onClose={() => setEditOpen(false)}
-        initialName={displayName}
-        initialPhone={phone}
+        initialPersonal={{
+          name:            personal.name,
+          email:           personal.email,
+          phone:           personal.phone,
+          whatsapp_number: '',
+          gender:          '',
+          birthdate:       '',
+          province:        personal.province,
+          district:        personal.district,
+          sub_district:    personal.sub_district,
+          building:        personal.building,
+          street:          personal.street,
+          landmark:        personal.landmark,
+        }}
         driverProfile={profileData}
         onSaved={handleProfileSaved}
       />
