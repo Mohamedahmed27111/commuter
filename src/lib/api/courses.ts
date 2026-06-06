@@ -68,8 +68,7 @@ export interface CoursePayload {
   direction_type: CourseDirection;
   start_date:     string; // YYYY-MM-DD
   end_date:       string;
-  initial_price:  number;
-  final_price:    number;
+  estimated_total_price: number;
   notes:          string;
   weekly_trip_schedules: WeeklyTripSchedule[];
 }
@@ -138,8 +137,7 @@ export interface ApiCourse {
   code_group:            string | null;
   start_date:            string;  // "YYYY-MM-DD"
   end_date:              string;
-  initial_price:         string;
-  final_price:           string;
+  estimated_total_price: string;
   wallet_status:         WalletStatus;
   status:                CourseStatus;
   notes:                 string | null;
@@ -202,4 +200,79 @@ export interface UpdateStatusResponse {
 
 export function updateCourseStatus(id: number, payload: UpdateStatusPayload): Promise<UpdateStatusResponse> {
   return call<UpdateStatusResponse>(`courses/${id}/status`, { method: 'PUT', body: payload as unknown as Record<string, unknown> });
+}
+
+// ── Course Instances ──────────────────────────────────────────────────────────
+
+export interface InstanceRoute {
+  from_province:              string | null;
+  from_district:              string | null;
+  from_sub_district:          string | null;
+  pickup_point:               string;
+  from_latitude:              number;
+  from_longitude:             number;
+  to_province:                string | null;
+  to_district:                string | null;
+  to_sub_district:            string | null;
+  destination:                string;
+  to_latitude:                number;
+  to_longitude:               number;
+  expected_distance:          number;
+  estimated_duration_minutes: number;
+}
+
+export interface InstanceParticipant {
+  type:          'passenger' | 'user';
+  user_id:       number | null;
+  passenger_id:  number | null;
+  seat_position: SeatPosition;
+}
+
+export interface CourseInstance {
+  id:                      number;
+  course_id:               number;
+  weekly_trip_schedule_id: number;
+  trip_date:               string;
+  status:                  string;
+  trip_direction:          ScheduleDirection;
+  start_time_from:         string;
+  start_time_to:           string;
+  end_time_from:           string;
+  end_time_to:             string;
+  route:                   InstanceRoute;
+  participants:            InstanceParticipant[];
+  stops:                   unknown[];
+  matching_status:         string;
+  matching_group_code:     string | null;
+  matching_price:          string | null;
+  actual_start_time:       string | null;
+  actual_end_time:         string | null;
+  actual_route:            unknown | null;
+  execution_timeline:      unknown | null;
+  driver_id:               number | null;
+  driver_price:            string | null;
+  tracking:                unknown | null;
+}
+
+export interface GetCourseInstancesResponse {
+  success: boolean;
+  data:    CourseInstance[];
+  meta: {
+    current_page: number;
+    last_page:    number;
+    total:        number;
+  };
+}
+
+export interface GetCourseInstanceResponse {
+  success: boolean;
+  data:    CourseInstance;
+}
+
+export function getCourseInstances(courseId: number): Promise<GetCourseInstancesResponse> {
+  return call<GetCourseInstancesResponse>(`courses/${courseId}/instances`);
+}
+
+export function getCourseInstance(courseId: number, instanceId: number): Promise<GetCourseInstanceResponse> {
+  return call<GetCourseInstanceResponse>(`courses/${courseId}/instances/${instanceId}`);
 }

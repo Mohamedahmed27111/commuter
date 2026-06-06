@@ -244,7 +244,7 @@ export default function PrivateSchedulePage() {
   });
 
   // ── Submit ──────────────────────────────────────────────────────────────
-  async function buildAndSubmit(submittedMin: number, submittedMax: number) {
+  async function buildAndSubmit(submittedMax: number) {
     const errs = validate();
     if (errs.length > 0) { setError(errs.join('\n')); return; }
     setError(null);
@@ -344,8 +344,7 @@ export default function PrivateSchedulePage() {
         direction_type: tripType,
         start_date,
         end_date,
-        initial_price:  submittedMin,
-        final_price:    submittedMax,
+        estimated_total_price: submittedMax,
         notes:          wizard.notes ?? '',
         weekly_trip_schedules: schedules,
       });
@@ -547,6 +546,14 @@ export default function PrivateSchedulePage() {
             </div>
           </Section>
 
+          {/* Cycle start */}
+          <Section title="Cycle start">
+            <div className="bg-[#F8F9FA] border border-[#E2E8F0] rounded-xl p-3">
+              <p className="text-sm font-semibold text-[#0B1E3D]">{cycleStartLabel}</p>
+              <p className="text-xs text-[#5A6A7A] mt-0.5">Requests are grouped every Wednesday</p>
+            </div>
+          </Section>
+
           {error && (
             <div className="rounded-xl border border-[#FFCDD2] bg-[#FFEBEE] px-4 py-3">
               {error.split('\n').map((line, i) => (
@@ -587,7 +594,6 @@ export default function PrivateSchedulePage() {
           tripType={tripType}
           slots={slots}
           passengers={passengers}
-          priceMin={priceMin}
           priceMax={priceMax}
           cycleStartLabel={cycleStartLabel}
           notes={wizard.notes ?? ''}

@@ -333,7 +333,7 @@ export default function SchedulePage() {
     setShowReview(true);
   }
 
-  async function handleSubmit(submittedMin: number, submittedMax: number) {
+  async function handleSubmit(submittedMax: number) {
     setSubmitting(true);
     setValidationError(null);
 
@@ -430,8 +430,7 @@ export default function SchedulePage() {
         direction_type: directionType,
         start_date,
         end_date,
-        initial_price:  submittedMin,
-        final_price:    submittedMax,
+        estimated_total_price: submittedMax,
         notes:          wizard.notes ?? '',
         weekly_trip_schedules: schedules,
       });
@@ -691,7 +690,6 @@ export default function SchedulePage() {
           timeSlots={slots}
           returnRoutes={{}}
           cycleStartDate={cycleStartLabel}
-          priceMin={priceMin}
           priceMax={priceMax}
         />
       )}

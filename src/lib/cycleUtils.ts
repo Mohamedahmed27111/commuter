@@ -1,27 +1,55 @@
-import { addDays, startOfDay, getDay } from 'date-fns';
+import { addDays } from 'date-fns';
 
 // Day numbers: 0=Sun 1=Mon 2=Tue 3=Wed 4=Thu 5=Fri 6=Sat
-const PLANNING_DAY = 3; // Wednesday — team groups requests
-const CYCLE_DAY    = 6; // Saturday  — cycles always start here
+const CYCLE_DAY = 6; // Saturday — cycles always start here
+
+// Cairo timezone identifier
+const CAIRO_TZ = 'Africa/Cairo';
+
+/**
+ * Returns the current date components in Cairo (Egypt) timezone.
+ */
+function getCairoDateInfo(now: Date): { dayOfWeek: number; cairoDate: Date } {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: CAIRO_TZ,
+    year:     'numeric',
+    month:    '2-digit',
+    day:      '2-digit',
+    weekday:  'long',
+  }).formatToParts(now);
+
+  const year    = parseInt(parts.find(p => p.type === 'year')!.value);
+  const month   = parseInt(parts.find(p => p.type === 'month')!.value) - 1; // 0-indexed
+  const day     = parseInt(parts.find(p => p.type === 'day')!.value);
+  const weekday = parts.find(p => p.type === 'weekday')!.value;
+
+  const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const dayOfWeek = DAYS.indexOf(weekday);
+
+  // Construct a local Date whose calendar date matches Cairo's today
+  const cairoDate = new Date(year, month, day);
+  return { dayOfWeek, cairoDate };
+}
 
 /**
  * Returns the next available cycle start date (always a Saturday).
+ * All calculations are based on Cairo / Egypt time.
  *
  * Rules:
- *  - Mon/Tue → this Saturday (planning hasn't happened yet)
- *  - Wed/Thu/Fri/Sat/Sun → skip to the Saturday after next
- *    (current week's planning is done or cycle has already started)
+ *  - Sat / Sun / Mon / Tue / Wed → next Saturday
+ *    (booking window for the coming week is still open)
+ *  - Thu / Fri → Saturday after next
+ *    (booking window closed Wednesday 23:59:59 Cairo time)
  */
 export function getNextAvailableCycleStart(today: Date = new Date()): Date {
-  const todayStart  = startOfDay(today);
-  const dayOfWeek   = getDay(todayStart); // 0–6
+  const { dayOfWeek, cairoDate } = getCairoDateInfo(today);
 
-  // How many days until the coming Saturday (min 1, never 0 — today can't be start)
+  // Days until the coming Saturday (min 1 — today's Saturday still counts as "next")
   const daysUntilSat = ((CYCLE_DAY - dayOfWeek + 7) % 7) || 7;
-  const thisSaturday = addDays(todayStart, daysUntilSat);
+  const thisSaturday = addDays(cairoDate, daysUntilSat);
 
-  // Wed (3) through Sun (0) means the planning cutoff has passed
-  const cutoffReached = dayOfWeek >= PLANNING_DAY || dayOfWeek === 0;
+  // Booking window closes Wednesday 23:59:59 Cairo → Thu (4) and Fri (5) go to the following week
+  const cutoffReached = dayOfWeek === 4 || dayOfWeek === 5; // Thu or Fri
 
   return cutoffReached ? addDays(thisSaturday, 7) : thisSaturday;
 }

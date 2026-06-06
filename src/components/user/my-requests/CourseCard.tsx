@@ -78,8 +78,7 @@ export default function CourseCard({ course, onPaid }: Props) {
   // Unique days (count for subtitle display)
   const uniqueDays = Array.from(new Set(goSchedules.map(s => s.day_of_week))).length;
 
-  const priceMin = Math.round(parseFloat(course.initial_price));
-  const priceMax = Math.round(parseFloat(course.final_price));
+  const estimatedTotalPrice = Math.round(parseFloat(course.estimated_total_price));
 
   const needsPayment = course.wallet_status === 'waiting' && course.status === 'draft';
 
@@ -187,7 +186,7 @@ export default function CourseCard({ course, onPaid }: Props) {
             👤 {course.trip_type}
           </span>
           <span style={{ fontSize: 15, fontWeight: 800, color: '#0B1E3D' }}>
-            EGP {priceMin.toLocaleString()} – {priceMax.toLocaleString()}
+            EGP {estimatedTotalPrice.toLocaleString()}
           </span>
         </div>
       </div>

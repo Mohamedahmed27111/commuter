@@ -1,11 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { getCourse, confirmCoursePayment, updateCourseStatus, type ApiCourse, type ApiWeeklyTripSchedule, type CourseStatus } from '@/lib/api/courses';
-import { INDEX_WEEKDAY } from '@/lib/timeUtils';
+import {
+  getCourse, confirmCoursePayment, updateCourseStatus,
+  getCourseInstances, getCourseInstance,
+  type ApiCourse, type CourseStatus,
+  type CourseInstance,
+} from '@/lib/api/courses';
 import { getLastBalance } from '@/lib/api/wallet';
 import PageHeader from '@/components/shared/PageHeader';
+import BottomSheet from '@/components/shared/BottomSheet';
 
 // ── Status config ─────────────────────────────────────────────────────────────
 
@@ -81,6 +86,274 @@ function IcClock() {
   );
 }
 
+function IcRoute() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00C2A8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="6" cy="19" r="3" />
+      <path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15" />
+      <circle cx="18" cy="5" r="3" />
+    </svg>
+  );
+}
+
+// ── Matching status helpers ───────────────────────────────────────────────────
+
+const MATCHING_CONFIG: Record<string, { label: string; bg: string; color: string; border: string }> = {
+  PENDING:   { label: 'Pending',   bg: '#FFF8E1', color: '#F57F17', border: '#F9C74F' },
+  MATCHED:   { label: 'Matched',   bg: '#E3F2FD', color: '#1565C0', border: '#90CAF9' },
+  CONFIRMED: { label: 'Confirmed', bg: '#E8F5E9', color: '#27AE60', border: '#A8D5B5' },
+  CANCELLED: { label: 'Cancelled', bg: '#FFEBEE', color: '#E74C3C', border: '#FFCDD2' },
+};
+
+const INSTANCE_STATUS_CONFIG: Record<string, { label: string; bg: string; color: string; border: string }> = {
+  pending:   { label: 'Pending',   bg: '#FFF8E1', color: '#F57F17', border: '#F9C74F' },
+  matched:   { label: 'Matched',   bg: '#E3F2FD', color: '#1565C0', border: '#90CAF9' },
+  ongoing:   { label: 'Ongoing',   bg: '#E8F0FE', color: '#1A73E8', border: '#93B4F5' },
+  completed: { label: 'Completed', bg: '#F1F3F4', color: '#5A6A7A', border: '#E2E8F0' },
+  cancelled: { label: 'Cancelled', bg: '#FFEBEE', color: '#E74C3C', border: '#FFCDD2' },
+};
+
+// ── Instance card ─────────────────────────────────────────────────────────────
+
+function InstanceCard({ instance, onViewDetails }: { instance: CourseInstance; onViewDetails: () => void }) {
+  const iCfg = INSTANCE_STATUS_CONFIG[instance.status] ?? INSTANCE_STATUS_CONFIG.pending;
+  const mCfg = MATCHING_CONFIG[instance.matching_status] ?? MATCHING_CONFIG.PENDING;
+  const isGo = instance.trip_direction === 'go';
+
+  const dateLabel = new Date(instance.trip_date).toLocaleDateString('en-EG', {
+    weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
+  });
+
+  return (
+    <div style={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: 16, padding: '14px 16px', boxShadow: '0 1px 4px rgba(11,30,61,0.05)' }}>
+      {/* Top row: date + direction + status */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 13, fontWeight: 700, color: '#0B1E3D' }}>{dateLabel}</span>
+          <span style={{
+            fontSize: 11, fontWeight: 700, borderRadius: 20, padding: '2px 9px',
+            background: isGo ? '#E0FAF6' : '#F3F0FF', color: isGo ? '#00A896' : '#7C3AED',
+            border: `1px solid ${isGo ? '#B2DDD8' : '#C4B5FD'}`,
+          }}>
+            {isGo ? '↑ Go' : '↓ Return'}
+          </span>
+        </div>
+        <span style={{
+          fontSize: 11, fontWeight: 700, background: iCfg.bg, color: iCfg.color,
+          border: `1px solid ${iCfg.border}`, borderRadius: 20, padding: '2px 9px',
+        }}>
+          {iCfg.label}
+        </span>
+      </div>
+
+      {/* Route */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 3, flexShrink: 0 }}>
+          <div style={{ width: 8, height: 8, borderRadius: '50%', border: '2px solid #00C2A8', background: '#fff' }} />
+          <div style={{ width: 0, flex: 1, borderLeft: '2px dashed #B2DDD8', minHeight: 18, margin: '3px 0' }} />
+          <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#00C2A8' }} />
+        </div>
+        <div style={{ flex: 1 }}>
+          <p style={{ margin: '0 0 10px', fontSize: 12, color: '#5A6A7A', lineHeight: 1.35 }}>{instance.route.pickup_point}</p>
+          <p style={{ margin: 0, fontSize: 12, color: '#0B1E3D', fontWeight: 700, lineHeight: 1.35 }}>{instance.route.destination}</p>
+        </div>
+      </div>
+
+      {/* Time + distance */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#9AA0A6', marginBottom: 12 }}>
+        <span>🕐 {fmtTime(instance.start_time_from)} – {fmtTime(instance.start_time_to)}</span>
+        <span>{instance.route.expected_distance.toFixed(0)} km · ~{instance.route.estimated_duration_minutes} min</span>
+      </div>
+
+      {/* Matching row */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ fontSize: 11, color: '#9AA0A6', fontWeight: 600 }}>Matching</span>
+          <span style={{
+            fontSize: 11, fontWeight: 700, background: mCfg.bg, color: mCfg.color,
+            border: `1px solid ${mCfg.border}`, borderRadius: 20, padding: '2px 8px',
+          }}>
+            {mCfg.label}
+          </span>
+          {instance.matching_price && (
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#0B1E3D' }}>
+              EGP {parseFloat(instance.matching_price).toLocaleString()}
+            </span>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={onViewDetails}
+          style={{
+            fontSize: 12, fontWeight: 700, color: '#00C2A8', background: 'none',
+            border: '1px solid #B2DDD8', borderRadius: 20, padding: '4px 12px',
+            cursor: 'pointer', fontFamily: 'inherit',
+          }}
+        >
+          View details →
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Instance detail sheet ─────────────────────────────────────────────────────
+
+function InstanceDetailSheet({ instance, onClose }: { instance: CourseInstance | null; onClose: () => void }) {
+  if (!instance) return null;
+  const iCfg    = INSTANCE_STATUS_CONFIG[instance.status]          ?? INSTANCE_STATUS_CONFIG.pending;
+  const mCfg    = MATCHING_CONFIG[instance.matching_status]        ?? MATCHING_CONFIG.PENDING;
+  const isGo    = instance.trip_direction === 'go';
+  const dateStr = new Date(instance.trip_date).toLocaleDateString('en-EG', {
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+  });
+
+  return (
+    <div style={{ padding: '0 16px 24px', fontFamily: 'Inter, system-ui, sans-serif' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+        <p style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#0B1E3D' }}>{dateStr}</p>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <span style={{
+            fontSize: 11, fontWeight: 700, borderRadius: 20, padding: '3px 10px',
+            background: isGo ? '#E0FAF6' : '#F3F0FF', color: isGo ? '#00A896' : '#7C3AED',
+            border: `1px solid ${isGo ? '#B2DDD8' : '#C4B5FD'}`,
+          }}>
+            {isGo ? '↑ Go' : '↓ Return'}
+          </span>
+          <span style={{
+            fontSize: 11, fontWeight: 700, background: iCfg.bg, color: iCfg.color,
+            border: `1px solid ${iCfg.border}`, borderRadius: 20, padding: '3px 10px',
+          }}>
+            {iCfg.label}
+          </span>
+        </div>
+      </div>
+      <p style={{ margin: '0 0 20px', fontSize: 12, color: '#9AA0A6' }}>Trip #{instance.id} · Course #{instance.course_id}</p>
+
+      {/* Route card */}
+      <div style={{ background: '#F8F9FA', borderRadius: 14, padding: '14px 16px', marginBottom: 16 }}>
+        <p style={{ margin: '0 0 12px', fontSize: 11, fontWeight: 700, color: '#9AA0A6', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Route</p>
+        <div style={{ display: 'flex', gap: 12, marginBottom: 10 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 4, flexShrink: 0 }}>
+            <div style={{ width: 9, height: 9, borderRadius: '50%', border: '2px solid #00C2A8', background: '#fff' }} />
+            <div style={{ width: 0, flex: 1, borderLeft: '2px dashed #B2DDD8', minHeight: 24, margin: '3px 0' }} />
+            <div style={{ width: 9, height: 9, borderRadius: '50%', background: '#00C2A8' }} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <p style={{ margin: '0 0 14px', fontSize: 13, color: '#5A6A7A' }}>{instance.route.pickup_point}</p>
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#0B1E3D' }}>{instance.route.destination}</p>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 16, paddingTop: 10, borderTop: '1px solid #E2E8F0', fontSize: 12, color: '#5A6A7A' }}>
+          <span>📏 {instance.route.expected_distance.toFixed(1)} km</span>
+          <span>⏱ ~{instance.route.estimated_duration_minutes} min</span>
+        </div>
+      </div>
+
+      {/* Time window */}
+      <div style={{ background: '#F8F9FA', borderRadius: 14, padding: '14px 16px', marginBottom: 16 }}>
+        <p style={{ margin: '0 0 10px', fontSize: 11, fontWeight: 700, color: '#9AA0A6', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Time window</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+            <span style={{ color: '#5A6A7A' }}>Pickup</span>
+            <span style={{ fontWeight: 700, color: '#0B1E3D' }}>{fmtTime(instance.start_time_from)} – {fmtTime(instance.start_time_to)}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+            <span style={{ color: '#5A6A7A' }}>Arrival</span>
+            <span style={{ fontWeight: 700, color: '#0B1E3D' }}>{fmtTime(instance.end_time_from)} – {fmtTime(instance.end_time_to)}</span>
+          </div>
+          {instance.actual_start_time && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+              <span style={{ color: '#5A6A7A' }}>Actual start</span>
+              <span style={{ fontWeight: 700, color: '#27AE60' }}>{fmtTime(instance.actual_start_time)}</span>
+            </div>
+          )}
+          {instance.actual_end_time && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+              <span style={{ color: '#5A6A7A' }}>Actual end</span>
+              <span style={{ fontWeight: 700, color: '#27AE60' }}>{fmtTime(instance.actual_end_time)}</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Matching */}
+      <div style={{ background: '#F8F9FA', borderRadius: 14, padding: '14px 16px', marginBottom: 16 }}>
+        <p style={{ margin: '0 0 10px', fontSize: 11, fontWeight: 700, color: '#9AA0A6', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Matching</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13 }}>
+            <span style={{ color: '#5A6A7A' }}>Status</span>
+            <span style={{
+              fontSize: 11, fontWeight: 700, background: mCfg.bg, color: mCfg.color,
+              border: `1px solid ${mCfg.border}`, borderRadius: 20, padding: '3px 10px',
+            }}>
+              {mCfg.label}
+            </span>
+          </div>
+          {instance.matching_price && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+              <span style={{ color: '#5A6A7A' }}>Matched price</span>
+              <span style={{ fontWeight: 700, color: '#0B1E3D' }}>EGP {parseFloat(instance.matching_price).toLocaleString()}</span>
+            </div>
+          )}
+          {instance.matching_group_code && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+              <span style={{ color: '#5A6A7A' }}>Group code</span>
+              <span style={{ fontWeight: 700, color: '#0B1E3D', letterSpacing: '0.08em' }}>{instance.matching_group_code}</span>
+            </div>
+          )}
+          {instance.driver_id && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+              <span style={{ color: '#5A6A7A' }}>Driver ID</span>
+              <span style={{ fontWeight: 700, color: '#0B1E3D' }}>#{instance.driver_id}</span>
+            </div>
+          )}
+          {instance.driver_price && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+              <span style={{ color: '#5A6A7A' }}>Driver price</span>
+              <span style={{ fontWeight: 700, color: '#0B1E3D' }}>EGP {parseFloat(instance.driver_price).toLocaleString()}</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Participants */}
+      {instance.participants.length > 0 && (
+        <div style={{ background: '#F8F9FA', borderRadius: 14, padding: '14px 16px', marginBottom: 16 }}>
+          <p style={{ margin: '0 0 10px', fontSize: 11, fontWeight: 700, color: '#9AA0A6', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            Passengers ({instance.participants.length})
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {instance.participants.map((p, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 13 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{
+                    width: 28, height: 28, borderRadius: '50%', background: '#E0FAF6',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 14, flexShrink: 0,
+                  }}>
+                    {p.type === 'passenger' ? '👤' : '🙋'}
+                  </span>
+                  <span style={{ color: '#0B1E3D', fontWeight: 600 }}>
+                    {p.type === 'passenger' ? `Passenger #${p.passenger_id}` : `User #${p.user_id}`}
+                  </span>
+                </div>
+                <span style={{
+                  fontSize: 11, fontWeight: 600, color: '#5A6A7A',
+                  background: '#E2E8F0', borderRadius: 20, padding: '2px 8px',
+                }}>
+                  {p.seat_position.replace('_', ' ')}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Overview row ──────────────────────────────────────────────────────────────
 
 function OverviewRow({ icon, label, value, noBorder }: { icon: React.ReactNode; label: string; value: string; noBorder?: boolean }) {
@@ -92,57 +365,6 @@ function OverviewRow({ icon, label, value, noBorder }: { icon: React.ReactNode; 
           {label}
         </p>
         <p style={{ margin: 0, fontSize: 14, color: '#0B1E3D', fontWeight: 700 }}>{value}</p>
-      </div>
-    </div>
-  );
-}
-
-// ── Trip card ─────────────────────────────────────────────────────────────────
-
-function TripCard({ s }: { s: ApiWeeklyTripSchedule }) {
-  const abbr = INDEX_WEEKDAY[s.day_of_week] ?? '?';
-  const isGo = s.trip_direction === 'go';
-  return (
-    <div style={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: 16, padding: '14px 16px', boxShadow: '0 1px 4px rgba(11,30,61,0.05)' }}>
-      {/* Header: day pill + direction pill */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-        <span style={{ background: '#00C2A8', color: '#fff', fontSize: 12, fontWeight: 700, borderRadius: 50, padding: '4px 12px' }}>{abbr}</span>
-        <span style={{ background: '#F1F3F4', color: '#5A6A7A', fontSize: 12, fontWeight: 600, borderRadius: 50, padding: '3px 10px' }}>
-          {isGo ? 'go' : 'return'}
-        </span>
-      </div>
-
-      {/* ROUTE label */}
-      <p style={{ margin: '0 0 8px', fontSize: 11, fontWeight: 700, color: '#9AA0A6', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Route</p>
-
-      {/* Route visual */}
-      <div style={{ display: 'flex', gap: 12, marginBottom: 6 }}>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 4, flexShrink: 0 }}>
-          <div style={{ width: 9, height: 9, borderRadius: '50%', border: '2px solid #00C2A8', background: '#fff' }} />
-          <div style={{ width: 0, flex: 1, borderLeft: '2px dashed #B2DDD8', minHeight: 22, margin: '3px 0' }} />
-          <div style={{ width: 9, height: 9, borderRadius: '50%', background: '#00C2A8' }} />
-        </div>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <p style={{ margin: 0, fontSize: 13, color: '#0B1E3D', fontWeight: 400, lineHeight: 1.4 }}>{s.pickup_point}</p>
-          <p style={{ margin: 0, fontSize: 13, color: '#0B1E3D', fontWeight: 700 }}>{s.destination}</p>
-        </div>
-      </div>
-
-      {/* Distance + duration */}
-      <p style={{ margin: '0 0 12px', fontSize: 12, color: '#9AA0A6' }}>
-        {s.expected_distance.toFixed(0)} km · ~{s.estimated_duration_minutes} min
-      </p>
-
-      {/* Pickup + Arrival */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
-          <span style={{ color: '#5A6A7A', fontWeight: 500 }}>Pickup</span>
-          <span style={{ color: '#0B1E3D', fontWeight: 700 }}>{fmtTime(s.start_time_from)} – {fmtTime(s.start_time_to)}</span>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
-          <span style={{ color: '#5A6A7A', fontWeight: 500 }}>Arrival</span>
-          <span style={{ color: '#0B1E3D', fontWeight: 700 }}>{fmtTime(s.end_time_from)} – {fmtTime(s.end_time_to)}</span>
-        </div>
       </div>
     </div>
   );
@@ -163,12 +385,39 @@ export default function CourseDetailPage() {
   const [payError, setPayError] = useState<string | null>(null);
   const [payDone, setPayDone]   = useState(false);
 
+  // Instances
+  const [instances, setInstances]           = useState<CourseInstance[]>([]);
+  const [instancesLoading, setInstancesLoading] = useState(false);
+  const [selectedInstance, setSelectedInstance] = useState<CourseInstance | null>(null);
+  const [sheetOpen, setSheetOpen]           = useState(false);
+  const [instanceLoading, setInstanceLoading] = useState(false);
+
+  const openInstanceDetail = useCallback(async (instanceId: number) => {
+    setSheetOpen(true);
+    setInstanceLoading(true);
+    try {
+      const res = await getCourseInstance(id, instanceId);
+      setSelectedInstance(res.data);
+    } catch {
+      // fall back to the already-fetched data from the list
+      setSelectedInstance(instances.find(i => i.id === instanceId) ?? null);
+    } finally {
+      setInstanceLoading(false);
+    }
+  }, [id, instances]);
+
   useEffect(() => {
     if (!id) return;
     getCourse(id)
       .then(res => setCourse(res.data))
       .catch(() => setError('Failed to load trip details.'))
       .finally(() => setLoading(false));
+
+    setInstancesLoading(true);
+    getCourseInstances(id)
+      .then(res => setInstances(res.data))
+      .catch(() => {})
+      .finally(() => setInstancesLoading(false));
   }, [id]);
 
   useEffect(() => {
@@ -178,7 +427,7 @@ export default function CourseDetailPage() {
   async function handleConfirmPay() {
     if (!course) return;
     setPayError(null);
-    const cost = Math.round(parseFloat(course.final_price));
+    const cost = Math.round(parseFloat(course.estimated_total_price));
     if (balance !== null && balance < cost) {
       setPayError(`Insufficient balance — wallet has EGP ${balance.toLocaleString()}, but the trip costs EGP ${cost.toLocaleString()}.`);
       return;
@@ -221,23 +470,13 @@ export default function CourseDetailPage() {
 
   const cfg = STATUS_CONFIG[course.status] ?? STATUS_CONFIG.draft;
 
-  const priceMin = Math.round(parseFloat(course.initial_price));
-  const priceMax = Math.round(parseFloat(course.final_price));
+  const estimatedTotalPrice = Math.round(parseFloat(course.estimated_total_price));
 
   // First "go" schedule for top-level pickup window
   const firstGo = course.weekly_trip_schedules.find(s => s.trip_direction === 'go');
 
-  // Sort schedules: go first, then return; within each direction, sort by day_of_week
-  // Group schedules by day_of_week, go first within each day
-  const byDay = new Map<number, ApiWeeklyTripSchedule[]>();
-  for (const s of course.weekly_trip_schedules) {
-    const arr = byDay.get(s.day_of_week) ?? [];
-    arr.push(s);
-    byDay.set(s.day_of_week, arr);
-  }
-  const sortedDays = Array.from(byDay.keys()).sort((a, b) => a - b);
-
   return (
+    <>
     <div style={{ maxWidth: 640, margin: '0 auto', fontFamily: 'Inter, system-ui, sans-serif' }}>
       <PageHeader title="Trip details" onBack={() => router.back()} />
 
@@ -269,7 +508,7 @@ export default function CourseDetailPage() {
           {/* Info rows */}
           <div>
             <OverviewRow icon={<IcCalendar />} label="Dates"  value={`${course.start_date} → ${course.end_date}`} />
-            <OverviewRow icon={<IcPrice />}    label="Price"  value={`EGP ${priceMin.toLocaleString()} – ${priceMax.toLocaleString()}`} />
+            <OverviewRow icon={<IcPrice />}    label="Price"  value={`EGP ${estimatedTotalPrice.toLocaleString()}`} />
             <OverviewRow icon={<IcWallet />}   label="Wallet" value={course.wallet_status} />
             <OverviewRow icon={<IcCar />}      label="Type"   value={course.trip_type + (course.group_type ? ` · ${course.group_type}` : '')} />
             {firstGo && (
@@ -283,24 +522,35 @@ export default function CourseDetailPage() {
           </div>
         </div>
 
-        {/* ── Weekly schedule ── */}
-        {sortedDays.length > 0 && (
-          <div>
-            <p style={{ margin: '0 0 12px', fontSize: 12, fontWeight: 700, color: '#5A6A7A', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-              Weekly schedule
+        {/* ── Weekly schedule (instances) ── */}
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: '#5A6A7A', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              Weekly schedule {instances.length > 0 && <span style={{ color: '#00C2A8', fontWeight: 800 }}>({instances.length})</span>}
             </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {sortedDays.flatMap(dayIndex => {
-                const go  = byDay.get(dayIndex)!.find(s => s.trip_direction === 'go');
-                const ret = byDay.get(dayIndex)!.find(s => s.trip_direction === 'return');
-                return [
-                  go  ? <TripCard key={`${dayIndex}-go`}     s={go}  /> : null,
-                  ret ? <TripCard key={`${dayIndex}-return`} s={ret} /> : null,
-                ].filter(Boolean);
-              })}
-            </div>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IcRoute /></span>
           </div>
-        )}
+
+          {instancesLoading ? (
+            <div style={{ textAlign: 'center', padding: '28px 0', color: '#9AA0A6', fontSize: 13 }}>
+              Loading trips…
+            </div>
+          ) : instances.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '28px 0', color: '#9AA0A6', fontSize: 13, background: '#F8F9FA', borderRadius: 12 }}>
+              No trips scheduled yet.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {instances.map(inst => (
+                <InstanceCard
+                  key={inst.id}
+                  instance={inst}
+                  onViewDetails={() => openInstanceDetail(inst.id)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* ── Notes ── */}
         {course.notes && (
@@ -322,7 +572,7 @@ export default function CourseDetailPage() {
             {/* Balance row */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
               <span style={{ fontSize: 13, color: '#5A6A7A' }}>Wallet balance</span>
-              <span style={{ fontSize: 14, fontWeight: 700, color: balance !== null && balance < priceMax ? '#E74C3C' : '#27AE60' }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: balance !== null && balance < estimatedTotalPrice ? '#E74C3C' : '#27AE60' }}>
                 {balance !== null ? `EGP ${balance.toLocaleString()}` : '…'}
               </span>
             </div>
@@ -330,11 +580,11 @@ export default function CourseDetailPage() {
             {/* Cost row */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 14, borderBottom: '1px solid #F1F3F4', marginBottom: 14 }}>
               <span style={{ fontSize: 13, color: '#5A6A7A' }}>Trip cost</span>
-              <span style={{ fontSize: 14, fontWeight: 700, color: '#0B1E3D' }}>EGP {priceMax.toLocaleString()}</span>
+              <span style={{ fontSize: 14, fontWeight: 700, color: '#0B1E3D' }}>EGP {estimatedTotalPrice.toLocaleString()}</span>
             </div>
 
             {/* Insufficient balance warning */}
-            {balance !== null && balance < priceMax && (
+            {balance !== null && balance < estimatedTotalPrice && (
               <div style={{ background: '#FFF3E0', border: '1px solid #FFCCBC', borderRadius: 10, padding: '10px 12px', marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: 12, color: '#BF360C', fontWeight: 600 }}>Not enough balance</span>
                 <button
@@ -386,5 +636,24 @@ export default function CourseDetailPage() {
 
       </div>
     </div>
+
+    {/* ── Instance detail bottom sheet ── */}
+    <BottomSheet
+      isOpen={sheetOpen}
+      onClose={() => { setSheetOpen(false); setSelectedInstance(null); }}
+      title="Trip details"
+    >
+      {instanceLoading ? (
+        <div style={{ textAlign: 'center', padding: '40px 0', color: '#9AA0A6', fontSize: 14, fontFamily: 'Inter, system-ui, sans-serif' }}>
+          Loading…
+        </div>
+      ) : (
+        <InstanceDetailSheet
+          instance={selectedInstance}
+          onClose={() => { setSheetOpen(false); setSelectedInstance(null); }}
+        />
+      )}
+    </BottomSheet>
+    </>
   );
 }
