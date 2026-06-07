@@ -20,6 +20,7 @@ const PUBLIC = [
   '/forgot-password',
   '/reset-password',
   '/verify-email',
+  '/demo',
 ];
 
 function isPublic(pathname: string): boolean {
