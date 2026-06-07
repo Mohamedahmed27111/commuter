@@ -155,7 +155,7 @@ function Step1SignUp({ onNext, loading }: { onNext: (d: Step1State) => void; loa
   function validate() {
     const e: typeof errors = {};
     if (form.name.trim().length < 3) e.name = 'Full name is required (at least 3 characters).';
-    if (!form.email.trim() || !EMAIL_RE.test(form.email)) e.email = 'Enter a valid email address.';
+    if (form.email.trim() && !EMAIL_RE.test(form.email)) e.email = 'Enter a valid email address.';
     if (!EGYPT_PHONE.test(form.phone_number)) e.phone_number = 'Enter a valid Egyptian phone number.';
     if (!form.whatsapp_same && !EGYPT_PHONE.test(form.whatsapp_number))
       e.whatsapp_number = 'Enter a valid WhatsApp number.';
@@ -195,7 +195,7 @@ function Step1SignUp({ onNext, loading }: { onNext: (d: Step1State) => void; loa
 
       {/* Email */}
       <div>
-        <Label>Email</Label>
+        <Label>Email <span className="text-[#9CA3AF] font-normal">(optional)</span></Label>
         <div className="relative">
           <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
           <input value={form.email} onChange={set('email')} type="email" placeholder="you@example.com"
