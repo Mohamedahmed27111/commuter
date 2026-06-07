@@ -155,7 +155,7 @@ function Step1SignUp({ onNext, loading }: { onNext: (d: Step1State) => void; loa
   function validate() {
     const e: typeof errors = {};
     if (form.name.trim().length < 3) e.name = 'Full name is required (at least 3 characters).';
-    if (!EMAIL_RE.test(form.email)) e.email = 'Enter a valid email address.';
+    if (form.email.trim() && !EMAIL_RE.test(form.email)) e.email = 'Enter a valid email address.';
     if (!EGYPT_PHONE.test(form.phone_number)) e.phone_number = 'Enter a valid Egyptian phone number.';
     if (!form.whatsapp_same && !EGYPT_PHONE.test(form.whatsapp_number))
       e.whatsapp_number = 'Enter a valid WhatsApp number.';
@@ -195,7 +195,7 @@ function Step1SignUp({ onNext, loading }: { onNext: (d: Step1State) => void; loa
 
       {/* Email */}
       <div>
-        <Label>Email</Label>
+        <Label>Email <span className="text-[#9CA3AF] font-normal">(optional)</span></Label>
         <div className="relative">
           <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
           <input value={form.email} onChange={set('email')} type="email" placeholder="you@example.com"
@@ -339,12 +339,18 @@ function Step1SignUp({ onNext, loading }: { onNext: (d: Step1State) => void; loa
 // ─── STEP 2: Car Profile ──────────────────────────────────────────────────────
 
 interface Step2State {
-  car_type: 'taxi' | 'private';
+  car_type: 'taxi' | 'private' | 'van';
   car_brand: string;
   car_model: string;
   car_year: string;
   car_capacity: string;
 }
+
+const SEATS_BY_TYPE: Record<'taxi' | 'private' | 'van', number[]> = {
+  taxi:    [3, 4, 5, 6],
+  private: [3, 4, 5, 6],
+  van:     [6, 10, 11],
+};
 
 const CURRENT_YEAR = new Date().getFullYear();
 const YEARS = Array.from({ length: CURRENT_YEAR - 2005 + 1 }, (_, i) => CURRENT_YEAR - i);
@@ -392,12 +398,12 @@ function Step2CarProfile({ onNext, onBack, loading }: {
       {/* Car Type */}
       <div>
         <Label>Car type</Label>
-        <div className="grid grid-cols-2 gap-2">
-          {(['private', 'taxi'] as const).map((t) => (
+        <div className="grid grid-cols-3 gap-2">
+          {(['private', 'taxi', 'van'] as const).map((t) => (
             <button
               key={t}
               type="button"
-              onClick={() => setForm((f) => ({ ...f, car_type: t }))}
+              onClick={() => setForm((f) => ({ ...f, car_type: t, car_capacity: '' }))}
               className={[
                 'h-[52px] rounded-lg border-2 font-semibold text-sm capitalize transition-all',
                 form.car_type === t
@@ -405,7 +411,7 @@ function Step2CarProfile({ onNext, onBack, loading }: {
                   : 'border-[#D1D5DB] text-[#5A6A7A] hover:border-[#00C2A8]/50',
               ].join(' ')}
             >
-              {t === 'private' ? '🚗 Private' : '🚕 Taxi'}
+              {t === 'private' ? '🚗 Private' : t === 'taxi' ? '🚕 Taxi' : '🚐 Van'}
             </button>
           ))}
         </div>
@@ -441,7 +447,7 @@ function Step2CarProfile({ onNext, onBack, loading }: {
           <Label>Passenger capacity</Label>
           <select value={form.car_capacity} onChange={set('car_capacity')} className={selectCls(errors.car_capacity)}>
             <option value="">Select</option>
-            {[1, 2, 3, 4, 5, 6, 7].map((n) => (
+            {SEATS_BY_TYPE[form.car_type].map((n) => (
               <option key={n} value={n}>{n} seat{n > 1 ? 's' : ''}</option>
             ))}
           </select>
