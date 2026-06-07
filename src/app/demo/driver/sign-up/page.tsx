@@ -876,14 +876,14 @@ export default function DemoDriverSignUpPage() {
   }
 
   return (
-    <div style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif' }}>
+    <div className="auth-layout" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif' }}>
       {/* ── Left panel (desktop) ── */}
       <div
         className="auth-left-panel"
         style={{
-          width: '42%', height: '100vh', position: 'fixed', top: 0, left: 0,
+          width: '42%',
           background: '#0B1E3D', padding: '40px 52px',
-          flexDirection: 'column', flexShrink: 0, display: 'flex',
+          flexDirection: 'column', flexShrink: 0,
         }}
       >
         <Logo />
@@ -896,20 +896,8 @@ export default function DemoDriverSignUpPage() {
       </div>
 
       {/* ── Right panel (scroll) ── */}
-      <div
-        style={{
-          marginLeft: '42%',
-          minHeight: '100vh',
-          background: '#ffffff',
-          display: 'flex',
-          alignItems: 'flex-start',
-          justifyContent: 'center',
-          padding: '24px 32px 48px 32px',
-          overflowY: 'auto',
-        }}
-        className="auth-right-panel"
-      >
-        <div style={{ width: '100%', maxWidth: 540 }}>
+      <div className="auth-right-panel" style={{ background: '#ffffff' }}>
+        <div className="auth-form-scroll" style={{ maxWidth: 540, width: '100%', margin: '0 auto' }}>
           {step === 1 && <Step1SignUp  onNext={handleStep1} loading={loading} />}
           {step === 2 && <Step2CarProfile onNext={handleStep2} onBack={() => setStep(1)} loading={loading} />}
           {step === 3 && <Step3Availability onNext={handleStep3} onBack={() => setStep(2)} loading={loading} />}
@@ -921,7 +909,6 @@ export default function DemoDriverSignUpPage() {
       <style>{`
         @media (max-width: 768px) {
           .auth-left-panel { display: none !important; }
-          .auth-right-panel { margin-left: 0 !important; padding: 24px 16px !important; background: #ffffff !important; }
         }
       `}</style>
     </div>
