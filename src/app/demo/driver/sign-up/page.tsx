@@ -135,7 +135,7 @@ interface Step1State {
 }
 
 const EGYPT_PHONE = /^01[0125][0-9]{8}$/;
-const EMAIL_RE    = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const EMAIL_RE    = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
 
 function Step1SignUp({ onNext, loading }: { onNext: (d: Step1State) => void; loading: boolean }) {
   const [form, setForm] = useState<Step1State>({
