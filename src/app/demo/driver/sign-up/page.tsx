@@ -383,7 +383,7 @@ function Step2CarProfile({ onNext, onBack, loading }: {
     <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
       <div>
         <h2 className="text-2xl font-bold text-[#0B1E3D]">Your car details</h2>
-        <p className="text-sm text-[#5A6A7A] mt-1">Tell us about the car you'll be driving</p>
+        <p className="text-sm text-[#5A6A7A] mt-1">Tell us about the car you&apos;ll be driving</p>
       </div>
 
       <StepBar current={2} />
