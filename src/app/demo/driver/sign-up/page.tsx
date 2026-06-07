@@ -457,7 +457,7 @@ function Step2CarProfile({ onNext, onBack, loading }: {
 // ─── STEP 3: Availability ─────────────────────────────────────────────────────
 
 interface Step3State {
-  day: string;
+  days: string[];
   start_location_name: string;
   end_location_name: string;
   start_time: string;
@@ -486,7 +486,7 @@ function Step3Availability({ onNext, onBack, loading }: {
   loading: boolean;
 }) {
   const [form, setForm] = useState<Step3State>({
-    day: '', start_location_name: '', end_location_name: '',
+    days: [], start_location_name: '', end_location_name: '',
     start_time: '', end_time: '',
   });
   const [errors, setErrors] = useState<Partial<Record<keyof Step3State, string>>>({});
@@ -495,9 +495,18 @@ function Step3Availability({ onNext, onBack, loading }: {
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
       setForm((f) => ({ ...f, [k]: e.target.value }));
 
+  const toggleDay = (dayValue: string) => {
+    setForm((f) => ({
+      ...f,
+      days: f.days.includes(dayValue)
+        ? f.days.filter((d) => d !== dayValue)
+        : [...f.days, dayValue],
+    }));
+  };
+
   function validate() {
     const e: typeof errors = {};
-    if (!form.day) e.day = 'Please select a day.';
+    if (form.days.length === 0) e.days = 'Please select at least one day.';
     if (!form.start_location_name.trim()) e.start_location_name = 'Start location is required.';
     if (!form.end_location_name.trim()) e.end_location_name = 'End location is required.';
     if (!form.start_time) e.start_time = 'Start time is required.';
@@ -523,16 +532,27 @@ function Step3Availability({ onNext, onBack, loading }: {
       <StepBar current={3} />
       <BackBtn onClick={onBack} />
 
-      {/* Day */}
+      {/* Days of week - Checkboxes */}
       <div>
-        <Label>Day of the week</Label>
-        <select value={form.day} onChange={set('day')} className={selectCls(errors.day)}>
-          <option value="">Select a day</option>
+        <Label>Days of the week</Label>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {DAYS.map((d) => (
-            <option key={d.value} value={d.value}>{d.label}</option>
+            <button
+              key={d.value}
+              type="button"
+              onClick={() => toggleDay(d.value)}
+              className={[
+                'h-[52px] px-3 rounded-lg font-medium text-sm transition-all border-2 flex items-center justify-center',
+                form.days.includes(d.value)
+                  ? `bg-[${PRIMARY}] border-[${PRIMARY}] text-white`
+                  : `bg-white border-[${GRAY_BORDER}] text-[#0B1E3D] hover:border-[${PRIMARY}]`,
+              ].join(' ')}
+            >
+              {d.label}
+            </button>
           ))}
-        </select>
-        <FieldError msg={errors.day} />
+        </div>
+        <FieldError msg={errors.days} />
       </div>
 
       {/* Locations */}
@@ -837,20 +857,23 @@ export default function DemoDriverSignUpPage() {
   async function handleStep3(data: Step3State) {
     setLoading(true);
     try {
-      await call('driver/availability', {
-        method: 'POST',
-        body: {
-          day:                 data.day,
-          start_location_name: data.start_location_name,
-          start_lat:           DEFAULT_START_LAT,
-          start_lng:           DEFAULT_START_LNG,
-          end_location_name:   data.end_location_name,
-          end_lat:             DEFAULT_END_LAT,
-          end_lng:             DEFAULT_END_LNG,
-          start_time:          data.start_time.length === 5 ? `${data.start_time}:00` : data.start_time,
-          end_time:            data.end_time.length === 5   ? `${data.end_time}:00`   : data.end_time,
-        },
-      });
+      // Make API call for each selected day
+      for (const day of data.days) {
+        await call('driver/availability', {
+          method: 'POST',
+          body: {
+            day,
+            start_location_name: data.start_location_name,
+            start_lat:           DEFAULT_START_LAT,
+            start_lng:           DEFAULT_START_LNG,
+            end_location_name:   data.end_location_name,
+            end_lat:             DEFAULT_END_LAT,
+            end_lng:             DEFAULT_END_LNG,
+            start_time:          data.start_time.length === 5 ? `${data.start_time}:00` : data.start_time,
+            end_time:            data.end_time.length === 5   ? `${data.end_time}:00`   : data.end_time,
+          },
+        });
+      }
       setStep(4);
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Failed to save availability. Please try again.');
