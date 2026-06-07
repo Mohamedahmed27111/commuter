@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
+import { useTranslations, useLocale } from 'next-intl';
 import {
   CheckCircle, ArrowLeft, Loader2, User, Car, Clock, Sliders,
   Mail, Phone, MapPin, Eye, EyeOff,
@@ -13,6 +14,7 @@ import authApi, {
   extractToken, extractRole, extractName, extractId,
 } from '@/lib/api/auth';
 import { saveSession } from '@/lib/auth/tokenStorage';
+import LanguageToggle from '@/components/layout/LanguageToggle';
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 
@@ -46,9 +48,14 @@ function FieldError({ msg }: { msg?: string }) {
 
 // ─── Step indicator ───────────────────────────────────────────────────────────
 
-const STEP_LABELS = ['Sign Up', 'Car Info', 'Availability', 'Preferences'] as const;
-
 function StepBar({ current }: { current: 1 | 2 | 3 | 4 }) {
+  const t = useTranslations('demo');
+  const STEP_LABELS = [
+    t('step_labels.sign_up'),
+    t('step_labels.car_info'),
+    t('step_labels.availability'),
+    t('step_labels.preferences'),
+  ] as const;
   return (
     <div className="flex items-center mb-8" role="list" aria-label="Registration progress">
       {STEP_LABELS.map((label, idx) => {
@@ -111,6 +118,7 @@ function PrimaryBtn({ loading, children, ...rest }: React.ButtonHTMLAttributes<H
 }
 
 function BackBtn({ onClick }: { onClick: () => void }) {
+  const t = useTranslations('demo');
   return (
     <button
       type="button"
@@ -118,7 +126,7 @@ function BackBtn({ onClick }: { onClick: () => void }) {
       className="flex items-center gap-1.5 text-sm text-[#5A6A7A] hover:text-[#0B1E3D] transition-colors mb-4"
     >
       <ArrowLeft size={15} />
-      Back
+      {t('common.back')}
     </button>
   );
 }
@@ -138,6 +146,9 @@ const EGYPT_PHONE = /^01[0125][0-9]{8}$/;
 const EMAIL_RE    = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
 
 function Step1SignUp({ onNext, loading }: { onNext: (d: Step1State) => void; loading: boolean }) {
+  const t = useTranslations('demo');
+  const locale = useLocale();
+  const isRtl = locale === 'ar';
   const [form, setForm] = useState<Step1State>({
     name: '', email: '', phone_number: '', whatsapp_number: '',
     whatsapp_same: true, gender: 'male', birthdate: '',
@@ -154,20 +165,20 @@ function Step1SignUp({ onNext, loading }: { onNext: (d: Step1State) => void; loa
 
   function validate() {
     const e: typeof errors = {};
-    if (form.name.trim().length < 3) e.name = 'Full name is required (at least 3 characters).';
-    if (form.email.trim() && !EMAIL_RE.test(form.email)) e.email = 'Enter a valid email address.';
-    if (!EGYPT_PHONE.test(form.phone_number)) e.phone_number = 'Enter a valid Egyptian phone number.';
+    if (form.name.trim().length < 3) e.name = t('step1.full_name_error');
+    if (form.email.trim() && !EMAIL_RE.test(form.email)) e.email = t('step1.email_error');
+    if (!EGYPT_PHONE.test(form.phone_number)) e.phone_number = t('step1.phone_error');
     if (!form.whatsapp_same && !EGYPT_PHONE.test(form.whatsapp_number))
-      e.whatsapp_number = 'Enter a valid WhatsApp number.';
-    if (!form.birthdate) e.birthdate = 'Date of birth is required.';
-    if (!form.province.trim()) e.province = 'Province is required.';
-    if (!form.district.trim()) e.district = 'District is required.';
-    if (!form.sub_district.trim()) e.sub_district = 'Sub-district is required.';
-    if (!form.building.trim()) e.building = 'Building is required.';
-    if (!form.street.trim()) e.street = 'Street is required.';
-    if (form.password.length < 8) e.password = 'Password must be at least 8 characters.';
+      e.whatsapp_number = t('step1.whatsapp_error');
+    if (!form.birthdate) e.birthdate = t('step1.birthdate_error');
+    if (!form.province.trim()) e.province = t('step1.province_error');
+    if (!form.district.trim()) e.district = t('step1.district_error');
+    if (!form.sub_district.trim()) e.sub_district = t('step1.sub_district_error');
+    if (!form.building.trim()) e.building = t('step1.building_error');
+    if (!form.street.trim()) e.street = t('step1.street_error');
+    if (form.password.length < 8) e.password = t('step1.password_error');
     if (form.password !== form.password_confirmation)
-      e.password_confirmation = 'Passwords do not match.';
+      e.password_confirmation = t('step1.confirm_password_error');
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -178,28 +189,28 @@ function Step1SignUp({ onNext, loading }: { onNext: (d: Step1State) => void; loa
   }
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-3">
+    <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-3" dir={isRtl ? 'rtl' : 'ltr'}>
       <div>
-        <h2 className="text-2xl font-bold text-[#0B1E3D]">Create your account</h2>
-        <p className="text-sm text-[#5A6A7A] mt-1">Join as a driver — takes 4 quick steps</p>
+        <h2 className="text-2xl font-bold text-[#0B1E3D]">{t('step1.title')}</h2>
+        <p className="text-sm text-[#5A6A7A] mt-1">{t('step1.subtitle')}</p>
       </div>
 
       <StepBar current={1} />
 
       {/* Name */}
       <div>
-        <Label>Full name</Label>
-        <input value={form.name} onChange={set('name')} placeholder="Ahmed Mohamed" className={fieldCls(errors.name)} />
+        <Label>{t('step1.full_name')}</Label>
+        <input value={form.name} onChange={set('name')} placeholder={t('step1.full_name_placeholder')} className={fieldCls(errors.name)} />
         <FieldError msg={errors.name} />
       </div>
 
       {/* Email */}
       <div>
-        <Label>Email <span className="text-[#9CA3AF] font-normal">(optional)</span></Label>
+        <Label>{t('step1.email')} <span className="text-[#9CA3AF] font-normal">{t('common.optional')}</span></Label>
         <div className="relative">
-          <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
-          <input value={form.email} onChange={set('email')} type="email" placeholder="you@example.com"
-            className={`${fieldCls(errors.email)} pl-10`} />
+          <Mail size={16} className="absolute start-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
+          <input value={form.email} onChange={set('email')} type="email" placeholder={t('step1.email_placeholder')}
+            className={`${fieldCls(errors.email)} ps-10`} />
         </div>
         <FieldError msg={errors.email} />
       </div>
@@ -207,34 +218,34 @@ function Step1SignUp({ onNext, loading }: { onNext: (d: Step1State) => void; loa
       {/* Phone + WhatsApp */}
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <Label>Phone number</Label>
+          <Label>{t('step1.phone')}</Label>
           <div className="relative">
-            <Phone size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
-            <input value={form.phone_number} onChange={set('phone_number')} placeholder="01xxxxxxxxx"
-              className={`${fieldCls(errors.phone_number)} pl-10`} />
+            <Phone size={16} className="absolute start-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
+            <input value={form.phone_number} onChange={set('phone_number')} placeholder={t('step1.phone_placeholder')}
+              className={`${fieldCls(errors.phone_number)} ps-10`} />
           </div>
           <FieldError msg={errors.phone_number} />
         </div>
         <div>
-          <Label>WhatsApp</Label>
+          <Label>{t('step1.whatsapp')}</Label>
           {form.whatsapp_same ? (
             <div
               className="w-full h-[52px] border border-[#D1D5DB] rounded-lg bg-[#F8F9FA] flex items-center px-4 text-sm text-[#9CA3AF] cursor-pointer"
               onClick={() => setForm((f) => ({ ...f, whatsapp_same: false, whatsapp_number: '' }))}
             >
-              Same as phone ✓
+              {t('step1.whatsapp_same')}
             </div>
           ) : (
             <div className="relative">
-              <Phone size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
-              <input value={form.whatsapp_number} onChange={set('whatsapp_number')} placeholder="01xxxxxxxxx"
-                className={`${fieldCls(errors.whatsapp_number)} pl-10`} />
+              <Phone size={16} className="absolute start-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
+              <input value={form.whatsapp_number} onChange={set('whatsapp_number')} placeholder={t('step1.phone_placeholder')}
+                className={`${fieldCls(errors.whatsapp_number)} ps-10`} />
             </div>
           )}
           {!form.whatsapp_same && (
             <button type="button" className="text-xs text-[#00C2A8] mt-1"
               onClick={() => setForm((f) => ({ ...f, whatsapp_same: true, whatsapp_number: f.phone_number }))}>
-              Same as phone
+              {t('step1.whatsapp_same_btn')}
             </button>
           )}
           <FieldError msg={errors.whatsapp_number} />
@@ -244,14 +255,14 @@ function Step1SignUp({ onNext, loading }: { onNext: (d: Step1State) => void; loa
       {/* Gender + Birthdate */}
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <Label>Gender</Label>
+          <Label>{t('step1.gender')}</Label>
           <select value={form.gender} onChange={set('gender')} className={selectCls()}>
-            <option value="male">Male</option>
-            <option value="female">Female</option>
+            <option value="male">{t('step1.gender_male')}</option>
+            <option value="female">{t('step1.gender_female')}</option>
           </select>
         </div>
         <div>
-          <Label>Date of birth</Label>
+          <Label>{t('step1.birthdate')}</Label>
           <input value={form.birthdate} onChange={set('birthdate')} type="date"
             max={new Date(Date.now() - 18 * 365.25 * 86400000).toISOString().split('T')[0]}
             className={fieldCls(errors.birthdate)} />
@@ -262,74 +273,74 @@ function Step1SignUp({ onNext, loading }: { onNext: (d: Step1State) => void; loa
       {/* Address */}
       <div className="pt-0">
         <p className="text-xs font-semibold uppercase tracking-wider text-[#5A6A7A] mb-2 flex items-center gap-1.5">
-          <MapPin size={13} /> Address
+          <MapPin size={13} /> {t('step1.address')}
         </p>
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <Label>Province</Label>
-            <input value={form.province} onChange={set('province')} placeholder="Cairo" className={fieldCls(errors.province)} />
+            <Label>{t('step1.province')}</Label>
+            <input value={form.province} onChange={set('province')} placeholder={t('step1.province_placeholder')} className={fieldCls(errors.province)} />
             <FieldError msg={errors.province} />
           </div>
           <div>
-            <Label>District</Label>
-            <input value={form.district} onChange={set('district')} placeholder="Nasr City" className={fieldCls(errors.district)} />
+            <Label>{t('step1.district')}</Label>
+            <input value={form.district} onChange={set('district')} placeholder={t('step1.district_placeholder')} className={fieldCls(errors.district)} />
             <FieldError msg={errors.district} />
           </div>
           <div>
-            <Label>Sub-district</Label>
-            <input value={form.sub_district} onChange={set('sub_district')} placeholder="Zone 1" className={fieldCls(errors.sub_district)} />
+            <Label>{t('step1.sub_district')}</Label>
+            <input value={form.sub_district} onChange={set('sub_district')} placeholder={t('step1.sub_district_placeholder')} className={fieldCls(errors.sub_district)} />
             <FieldError msg={errors.sub_district} />
           </div>
           <div>
-            <Label>Building</Label>
-            <input value={form.building} onChange={set('building')} placeholder="10" className={fieldCls(errors.building)} />
+            <Label>{t('step1.building')}</Label>
+            <input value={form.building} onChange={set('building')} placeholder={t('step1.building_placeholder')} className={fieldCls(errors.building)} />
             <FieldError msg={errors.building} />
           </div>
           <div className="col-span-2">
-            <Label>Street</Label>
-            <input value={form.street} onChange={set('street')} placeholder="Tayaran Street" className={fieldCls(errors.street)} />
+            <Label>{t('step1.street')}</Label>
+            <input value={form.street} onChange={set('street')} placeholder={t('step1.street_placeholder')} className={fieldCls(errors.street)} />
             <FieldError msg={errors.street} />
           </div>
           <div className="col-span-2">
-            <Label>Landmark <span className="text-[#9CA3AF] font-normal">(optional)</span></Label>
-            <input value={form.landmark} onChange={set('landmark')} placeholder="near mall" className={fieldCls()} />
+            <Label>{t('step1.landmark')} <span className="text-[#9CA3AF] font-normal">{t('common.optional')}</span></Label>
+            <input value={form.landmark} onChange={set('landmark')} placeholder={t('step1.landmark_placeholder')} className={fieldCls()} />
           </div>
         </div>
       </div>
 
       {/* Password */}
       <div className="pt-0">
-        <p className="text-xs font-semibold uppercase tracking-wider text-[#5A6A7A] mb-2">Password</p>
+        <p className="text-xs font-semibold uppercase tracking-wider text-[#5A6A7A] mb-2">{t('step1.password_section')}</p>
         <div className="grid grid-cols-1 gap-2">
           <div>
-            <Label>Password</Label>
+            <Label>{t('step1.password')}</Label>
             <div className="relative">
               <input value={form.password} onChange={set('password')}
-                type={showPw ? 'text' : 'password'} placeholder="Min. 8 characters"
-                className={`${fieldCls(errors.password)} pr-10`} />
+                type={showPw ? 'text' : 'password'} placeholder={t('step1.password_placeholder')}
+                className={`${fieldCls(errors.password)} pe-10`} />
               <button type="button" onClick={() => setShowPw((v) => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]">
+                className="absolute end-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]">
                 {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
             <FieldError msg={errors.password} />
           </div>
           <div>
-            <Label>Confirm password</Label>
+            <Label>{t('step1.confirm_password')}</Label>
             <input value={form.password_confirmation} onChange={set('password_confirmation')}
-              type={showPw ? 'text' : 'password'} placeholder="Repeat your password"
+              type={showPw ? 'text' : 'password'} placeholder={t('step1.confirm_password_placeholder')}
               className={fieldCls(errors.password_confirmation)} />
             <FieldError msg={errors.password_confirmation} />
           </div>
         </div>
       </div>
 
-      <PrimaryBtn loading={loading}>Continue to Car Info →</PrimaryBtn>
+      <PrimaryBtn loading={loading}>{t('step1.continue_btn')}</PrimaryBtn>
 
       <p className="text-center text-sm text-[#5A6A7A]">
-        Already have an account?{' '}
+        {t('step1.already_account')}{' '}
         <Link href="/driver/sign-in" className="text-[#00C2A8] font-medium hover:underline">
-          Sign in
+          {t('step1.sign_in_link')}
         </Link>
       </p>
     </form>
@@ -360,6 +371,9 @@ function Step2CarProfile({ onNext, onBack, loading }: {
   onBack: () => void;
   loading: boolean;
 }) {
+  const t = useTranslations('demo');
+  const locale = useLocale();
+  const isRtl = locale === 'ar';
   const [form, setForm] = useState<Step2State>({
     car_type: 'private', car_brand: '', car_model: '', car_year: '', car_capacity: '',
   });
@@ -371,11 +385,11 @@ function Step2CarProfile({ onNext, onBack, loading }: {
 
   function validate() {
     const e: typeof errors = {};
-    if (!form.car_brand.trim()) e.car_brand = 'Car brand is required.';
-    if (!form.car_model.trim()) e.car_model = 'Car model is required.';
-    if (!form.car_year) e.car_year = 'Car year is required.';
+    if (!form.car_brand.trim()) e.car_brand = t('step2.car_brand_error');
+    if (!form.car_model.trim()) e.car_model = t('step2.car_model_error');
+    if (!form.car_year) e.car_year = t('step2.car_year_error');
     if (!form.car_capacity || isNaN(Number(form.car_capacity)) || Number(form.car_capacity) < 1)
-      e.car_capacity = 'Passenger capacity is required.';
+      e.car_capacity = t('step2.capacity_error');
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -385,11 +399,17 @@ function Step2CarProfile({ onNext, onBack, loading }: {
     if (validate()) onNext(form);
   }
 
+  const CAR_TYPES: { value: 'private' | 'taxi' | 'van'; label: string; emoji: string }[] = [
+    { value: 'private', label: t('step2.type_private'), emoji: '🚗' },
+    { value: 'taxi',    label: t('step2.type_taxi'),    emoji: '🚕' },
+    { value: 'van',     label: t('step2.type_van'),     emoji: '🚐' },
+  ];
+
   return (
-    <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-3">
+    <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-3" dir={isRtl ? 'rtl' : 'ltr'}>
       <div>
-        <h2 className="text-2xl font-bold text-[#0B1E3D]">Your car details</h2>
-        <p className="text-sm text-[#5A6A7A] mt-1">Tell us about the car you&apos;ll be driving</p>
+        <h2 className="text-2xl font-bold text-[#0B1E3D]">{t('step2.title')}</h2>
+        <p className="text-sm text-[#5A6A7A] mt-1">{t('step2.subtitle')}</p>
       </div>
 
       <StepBar current={2} />
@@ -397,21 +417,21 @@ function Step2CarProfile({ onNext, onBack, loading }: {
 
       {/* Car Type */}
       <div>
-        <Label>Car type</Label>
+        <Label>{t('step2.car_type')}</Label>
         <div className="grid grid-cols-3 gap-2">
-          {(['private', 'taxi', 'van'] as const).map((t) => (
+          {CAR_TYPES.map(({ value, label, emoji }) => (
             <button
-              key={t}
+              key={value}
               type="button"
-              onClick={() => setForm((f) => ({ ...f, car_type: t, car_capacity: '' }))}
+              onClick={() => setForm((f) => ({ ...f, car_type: value, car_capacity: '' }))}
               className={[
                 'h-[52px] rounded-lg border-2 font-semibold text-sm capitalize transition-all',
-                form.car_type === t
+                form.car_type === value
                   ? 'border-[#00C2A8] bg-[#00C2A8]/10 text-[#0B1E3D]'
                   : 'border-[#D1D5DB] text-[#5A6A7A] hover:border-[#00C2A8]/50',
               ].join(' ')}
             >
-              {t === 'private' ? '🚗 Private' : t === 'taxi' ? '🚕 Taxi' : '🚐 Van'}
+              {emoji} {label}
             </button>
           ))}
         </div>
@@ -420,13 +440,13 @@ function Step2CarProfile({ onNext, onBack, loading }: {
       {/* Brand + Model */}
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <Label>Car brand</Label>
-          <input value={form.car_brand} onChange={set('car_brand')} placeholder="Toyota" className={fieldCls(errors.car_brand)} />
+          <Label>{t('step2.car_brand')}</Label>
+          <input value={form.car_brand} onChange={set('car_brand')} placeholder={t('step2.car_brand_placeholder')} className={fieldCls(errors.car_brand)} />
           <FieldError msg={errors.car_brand} />
         </div>
         <div>
-          <Label>Car model</Label>
-          <input value={form.car_model} onChange={set('car_model')} placeholder="Corolla" className={fieldCls(errors.car_model)} />
+          <Label>{t('step2.car_model')}</Label>
+          <input value={form.car_model} onChange={set('car_model')} placeholder={t('step2.car_model_placeholder')} className={fieldCls(errors.car_model)} />
           <FieldError msg={errors.car_model} />
         </div>
       </div>
@@ -434,9 +454,9 @@ function Step2CarProfile({ onNext, onBack, loading }: {
       {/* Year + Capacity */}
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <Label>Car year</Label>
+          <Label>{t('step2.car_year')}</Label>
           <select value={form.car_year} onChange={set('car_year')} className={selectCls(errors.car_year)}>
-            <option value="">Select year</option>
+            <option value="">{t('step2.car_year_placeholder')}</option>
             {YEARS.map((y) => (
               <option key={y} value={y}>{y}</option>
             ))}
@@ -444,18 +464,18 @@ function Step2CarProfile({ onNext, onBack, loading }: {
           <FieldError msg={errors.car_year} />
         </div>
         <div>
-          <Label>Passenger capacity</Label>
+          <Label>{t('step2.capacity')}</Label>
           <select value={form.car_capacity} onChange={set('car_capacity')} className={selectCls(errors.car_capacity)}>
-            <option value="">Select</option>
+            <option value="">{t('step2.capacity_placeholder')}</option>
             {SEATS_BY_TYPE[form.car_type].map((n) => (
-              <option key={n} value={n}>{n} seat{n > 1 ? 's' : ''}</option>
+              <option key={n} value={n}>{n} {n > 1 ? (isRtl ? 'مقاعد' : 'seats') : (isRtl ? 'مقعد' : 'seat')}</option>
             ))}
           </select>
           <FieldError msg={errors.car_capacity} />
         </div>
       </div>
 
-      <PrimaryBtn loading={loading}>Continue to Availability →</PrimaryBtn>
+      <PrimaryBtn loading={loading}>{t('step2.continue_btn')}</PrimaryBtn>
     </form>
   );
 }
@@ -470,16 +490,6 @@ interface Step3State {
   end_time: string;
 }
 
-const DAYS = [
-  { value: 'sun', label: 'Sunday' },
-  { value: 'mon', label: 'Monday' },
-  { value: 'tue', label: 'Tuesday' },
-  { value: 'wed', label: 'Wednesday' },
-  { value: 'thu', label: 'Thursday' },
-  { value: 'fri', label: 'Friday' },
-  { value: 'sat', label: 'Saturday' },
-];
-
 // Default coordinates — Cairo area
 const DEFAULT_START_LAT = 30.0626;
 const DEFAULT_START_LNG = 31.3219;
@@ -491,6 +501,20 @@ function Step3Availability({ onNext, onBack, loading }: {
   onBack: () => void;
   loading: boolean;
 }) {
+  const t = useTranslations('demo');
+  const locale = useLocale();
+  const isRtl = locale === 'ar';
+
+  const DAYS = [
+    { value: 'sun', label: t('step3.sun') },
+    { value: 'mon', label: t('step3.mon') },
+    { value: 'tue', label: t('step3.tue') },
+    { value: 'wed', label: t('step3.wed') },
+    { value: 'thu', label: t('step3.thu') },
+    { value: 'fri', label: t('step3.fri') },
+    { value: 'sat', label: t('step3.sat') },
+  ];
+
   const [form, setForm] = useState<Step3State>({
     days: [], start_location_name: '', end_location_name: '',
     start_time: '', end_time: '',
@@ -512,13 +536,13 @@ function Step3Availability({ onNext, onBack, loading }: {
 
   function validate() {
     const e: typeof errors = {};
-    if (form.days.length === 0) e.days = 'Please select at least one day.';
-    if (!form.start_location_name.trim()) e.start_location_name = 'Start location is required.';
-    if (!form.end_location_name.trim()) e.end_location_name = 'End location is required.';
-    if (!form.start_time) e.start_time = 'Start time is required.';
-    if (!form.end_time) e.end_time = 'End time is required.';
+    if (form.days.length === 0) e.days = t('step3.days_error');
+    if (!form.start_location_name.trim()) e.start_location_name = t('step3.start_location_error');
+    if (!form.end_location_name.trim()) e.end_location_name = t('step3.end_location_error');
+    if (!form.start_time) e.start_time = t('step3.start_time_error');
+    if (!form.end_time) e.end_time = t('step3.end_time_error');
     if (form.start_time && form.end_time && form.start_time >= form.end_time)
-      e.end_time = 'End time must be after start time.';
+      e.end_time = t('step3.time_order_error');
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -529,18 +553,18 @@ function Step3Availability({ onNext, onBack, loading }: {
   }
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-3">
+    <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-3" dir={isRtl ? 'rtl' : 'ltr'}>
       <div>
-        <h2 className="text-2xl font-bold text-[#0B1E3D]">Your availability</h2>
-        <p className="text-sm text-[#5A6A7A] mt-1">When and where do you commute? You can add more days later.</p>
+        <h2 className="text-2xl font-bold text-[#0B1E3D]">{t('step3.title')}</h2>
+        <p className="text-sm text-[#5A6A7A] mt-1">{t('step3.subtitle')}</p>
       </div>
 
       <StepBar current={3} />
       <BackBtn onClick={onBack} />
 
-      {/* Days of week - Checkboxes */}
+      {/* Days of week */}
       <div>
-        <Label>Days of the week</Label>
+        <Label>{t('step3.days_label')}</Label>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {DAYS.map((d) => (
             <button
@@ -563,28 +587,28 @@ function Step3Availability({ onNext, onBack, loading }: {
 
       {/* Locations */}
       <div>
-        <Label>Start location name</Label>
+        <Label>{t('step3.start_location')}</Label>
         <div className="relative">
-          <MapPin size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#00C2A8]" />
+          <MapPin size={16} className="absolute start-3 top-1/2 -translate-y-1/2 text-[#00C2A8]" />
           <input
             value={form.start_location_name}
             onChange={set('start_location_name')}
-            placeholder="e.g. Nasr City — Block 5"
-            className={`${fieldCls(errors.start_location_name)} pl-10`}
+            placeholder={t('step3.start_location_placeholder')}
+            className={`${fieldCls(errors.start_location_name)} ps-10`}
           />
         </div>
         <FieldError msg={errors.start_location_name} />
       </div>
 
       <div>
-        <Label>End location name</Label>
+        <Label>{t('step3.end_location')}</Label>
         <div className="relative">
-          <MapPin size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#E74C3C]" />
+          <MapPin size={16} className="absolute start-3 top-1/2 -translate-y-1/2 text-[#E74C3C]" />
           <input
             value={form.end_location_name}
             onChange={set('end_location_name')}
-            placeholder="e.g. Smart Village"
-            className={`${fieldCls(errors.end_location_name)} pl-10`}
+            placeholder={t('step3.end_location_placeholder')}
+            className={`${fieldCls(errors.end_location_name)} ps-10`}
           />
         </div>
         <FieldError msg={errors.end_location_name} />
@@ -593,13 +617,13 @@ function Step3Availability({ onNext, onBack, loading }: {
       {/* Times */}
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <Label>Start time</Label>
+          <Label>{t('step3.start_time')}</Label>
           <input value={form.start_time} onChange={set('start_time')} type="time"
             className={fieldCls(errors.start_time)} />
           <FieldError msg={errors.start_time} />
         </div>
         <div>
-          <Label>End time</Label>
+          <Label>{t('step3.end_time')}</Label>
           <input value={form.end_time} onChange={set('end_time')} type="time"
             className={fieldCls(errors.end_time)} />
           <FieldError msg={errors.end_time} />
@@ -608,10 +632,10 @@ function Step3Availability({ onNext, onBack, loading }: {
 
       <div className="rounded-xl bg-[#F0FDFA] border border-[#00C2A8]/30 px-4 py-3 text-sm text-[#0B1E3D] flex gap-2">
         <span className="text-[#00C2A8] flex-shrink-0 mt-0.5">ℹ</span>
-        <span>Location coordinates are set automatically. You can update them from your profile later.</span>
+        <span>{t('step3.coords_note')}</span>
       </div>
 
-      <PrimaryBtn loading={loading}>Continue to Preferences →</PrimaryBtn>
+      <PrimaryBtn loading={loading}>{t('step3.continue_btn')}</PrimaryBtn>
     </form>
   );
 }
@@ -629,6 +653,9 @@ function Step4Preferences({ onNext, onBack, loading }: {
   onBack: () => void;
   loading: boolean;
 }) {
+  const t = useTranslations('demo');
+  const locale = useLocale();
+  const isRtl = locale === 'ar';
   const [form, setForm] = useState<Step4State>({
     price_per_km: '', waiting_price_per_hour: '', passenger_type: 'mixed',
   });
@@ -641,9 +668,9 @@ function Step4Preferences({ onNext, onBack, loading }: {
   function validate() {
     const e: typeof errors = {};
     if (!form.price_per_km || isNaN(Number(form.price_per_km)) || Number(form.price_per_km) <= 0)
-      e.price_per_km = 'Enter a valid price per km.';
+      e.price_per_km = t('step4.price_per_km_error');
     if (!form.waiting_price_per_hour || isNaN(Number(form.waiting_price_per_hour)) || Number(form.waiting_price_per_hour) < 0)
-      e.waiting_price_per_hour = 'Enter a valid waiting price.';
+      e.waiting_price_per_hour = t('step4.waiting_price_error');
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -653,11 +680,17 @@ function Step4Preferences({ onNext, onBack, loading }: {
     if (validate()) onNext(form);
   }
 
+  const PASSENGER_TYPES: { value: 'male' | 'female' | 'mixed'; label: string; emoji: string }[] = [
+    { value: 'male',   label: t('step4.male'),   emoji: '👨' },
+    { value: 'female', label: t('step4.female'), emoji: '👩' },
+    { value: 'mixed',  label: t('step4.mixed'),  emoji: '👥' },
+  ];
+
   return (
-    <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-3">
+    <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-3" dir={isRtl ? 'rtl' : 'ltr'}>
       <div>
-        <h2 className="text-2xl font-bold text-[#0B1E3D]">Your preferences</h2>
-        <p className="text-sm text-[#5A6A7A] mt-1">Set your pricing and passenger preferences</p>
+        <h2 className="text-2xl font-bold text-[#0B1E3D]">{t('step4.title')}</h2>
+        <p className="text-sm text-[#5A6A7A] mt-1">{t('step4.subtitle')}</p>
       </div>
 
       <StepBar current={4} />
@@ -666,22 +699,22 @@ function Step4Preferences({ onNext, onBack, loading }: {
       {/* Pricing */}
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <Label>Price per km (EGP)</Label>
+          <Label>{t('step4.price_per_km')}</Label>
           <div className="relative">
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[#9CA3AF] font-medium">EGP</span>
+            <span className="absolute end-3 top-1/2 -translate-y-1/2 text-xs text-[#9CA3AF] font-medium">EGP</span>
             <input value={form.price_per_km} onChange={set('price_per_km')} type="number"
-              min="0" step="0.5" placeholder="e.g. 5"
-              className={`${fieldCls(errors.price_per_km)} pr-12`} />
+              min="0" step="0.5" placeholder={t('step4.price_per_km_placeholder')}
+              className={`${fieldCls(errors.price_per_km)} pe-12`} />
           </div>
           <FieldError msg={errors.price_per_km} />
         </div>
         <div>
-          <Label>Waiting price / hr (EGP)</Label>
+          <Label>{t('step4.waiting_price')}</Label>
           <div className="relative">
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[#9CA3AF] font-medium">EGP</span>
+            <span className="absolute end-3 top-1/2 -translate-y-1/2 text-xs text-[#9CA3AF] font-medium">EGP</span>
             <input value={form.waiting_price_per_hour} onChange={set('waiting_price_per_hour')} type="number"
-              min="0" step="1" placeholder="e.g. 20"
-              className={`${fieldCls(errors.waiting_price_per_hour)} pr-12`} />
+              min="0" step="1" placeholder={t('step4.waiting_price_placeholder')}
+              className={`${fieldCls(errors.waiting_price_per_hour)} pe-12`} />
           </div>
           <FieldError msg={errors.waiting_price_per_hour} />
         </div>
@@ -689,55 +722,55 @@ function Step4Preferences({ onNext, onBack, loading }: {
 
       {/* Passenger type */}
       <div>
-        <Label>Accepted passengers</Label>
+        <Label>{t('step4.passengers')}</Label>
         <div className="grid grid-cols-3 gap-2">
-          {(['male', 'female', 'mixed'] as const).map((t) => (
+          {PASSENGER_TYPES.map(({ value, label, emoji }) => (
             <button
-              key={t}
+              key={value}
               type="button"
-              onClick={() => setForm((f) => ({ ...f, passenger_type: t }))}
+              onClick={() => setForm((f) => ({ ...f, passenger_type: value }))}
               className={[
                 'h-[52px] rounded-lg border-2 font-semibold text-sm capitalize transition-all',
-                form.passenger_type === t
+                form.passenger_type === value
                   ? 'border-[#00C2A8] bg-[#00C2A8]/10 text-[#0B1E3D]'
                   : 'border-[#D1D5DB] text-[#5A6A7A] hover:border-[#00C2A8]/50',
               ].join(' ')}
             >
-              {t === 'male' ? '👨 Male' : t === 'female' ? '👩 Female' : '👥 Mixed'}
+              {emoji} {label}
             </button>
           ))}
         </div>
       </div>
 
-      <PrimaryBtn loading={loading}>Complete Registration 🎉</PrimaryBtn>
+      <PrimaryBtn loading={loading}>{t('step4.complete_btn')}</PrimaryBtn>
     </form>
   );
 }
 
 // ─── Left panel ───────────────────────────────────────────────────────────────
 
-const LEFT_ITEMS = [
-  { icon: <User size={16} />,    text: 'Create your driver account' },
-  { icon: <Car size={16} />,     text: 'Add your car details' },
-  { icon: <Clock size={16} />,   text: 'Set your weekly availability' },
-  { icon: <Sliders size={16} />, text: 'Configure your pricing' },
-];
-
 function LeftPanel({ currentStep }: { currentStep: number }) {
+  const t = useTranslations('demo');
+  const LEFT_ITEMS = [
+    { icon: <User size={16} />,    text: t('left_panel.step1') },
+    { icon: <Car size={16} />,     text: t('left_panel.step2') },
+    { icon: <Clock size={16} />,   text: t('left_panel.step3') },
+    { icon: <Sliders size={16} />, text: t('left_panel.step4') },
+  ];
   return (
     <div className="text-white">
       <div className="mb-8">
         <h2 className="text-4xl font-bold leading-tight mb-3">
-          Drive smarter.<br />
-          <span style={{ color: '#00C2A8' }}>Earn better.</span>
+          {t('left_panel.headline1')}<br />
+          <span style={{ color: '#00C2A8' }}>{t('left_panel.headline2')}</span>
         </h2>
         <p className="text-white/65 text-[15px] leading-relaxed">
-          Join Egypt&apos;s leading ride-pooling platform and grow your income on your schedule.
+          {t('left_panel.desc')}
         </p>
       </div>
 
       <div className="space-y-3">
-        <p className="text-sm font-medium text-white/80 mb-3">Registration steps:</p>
+        <p className="text-sm font-medium text-white/80 mb-3">{t('left_panel.steps_label')}</p>
         {LEFT_ITEMS.map((item, i) => {
           const n = i + 1;
           const done = n < currentStep;
@@ -792,6 +825,9 @@ function Logo() {
 
 export default function DemoDriverSignUpPage() {
   const router = useRouter();
+  const t = useTranslations('demo');
+  const locale = useLocale();
+  const isRtl = locale === 'ar';
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [loading, setLoading] = useState(false);
 
@@ -827,7 +863,7 @@ export default function DemoDriverSignUpPage() {
       }
       setStep(2);
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Sign up failed. Please try again.');
+      toast.error(err instanceof Error ? err.message : t('step1.signup_failed'));
     } finally {
       setLoading(false);
     }
@@ -853,7 +889,7 @@ export default function DemoDriverSignUpPage() {
       await call('driver/profile', { method: 'POST', body: fd });
       setStep(3);
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Failed to save car details. Please try again.');
+      toast.error(err instanceof Error ? err.message : t('step2.save_failed'));
     } finally {
       setLoading(false);
     }
@@ -882,7 +918,7 @@ export default function DemoDriverSignUpPage() {
       }
       setStep(4);
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Failed to save availability. Please try again.');
+      toast.error(err instanceof Error ? err.message : t('step3.save_failed'));
     } finally {
       setLoading(false);
     }
@@ -902,14 +938,14 @@ export default function DemoDriverSignUpPage() {
       });
       router.push('/demo/driver/success');
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Failed to save preferences. Please try again.');
+      toast.error(err instanceof Error ? err.message : t('step4.save_failed'));
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="auth-layout" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif' }}>
+    <div className="auth-layout" dir={isRtl ? 'rtl' : 'ltr'} style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif' }}>
       {/* ── Left panel (desktop) ── */}
       <div
         className="auth-left-panel"
@@ -919,12 +955,15 @@ export default function DemoDriverSignUpPage() {
           flexDirection: 'column', flexShrink: 0,
         }}
       >
-        <Logo />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Logo />
+          <LanguageToggle inverted />
+        </div>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', paddingBottom: '48px' }}>
           <LeftPanel currentStep={step} />
         </div>
         <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)', textAlign: 'center' }}>
-          Demo portal — commuter.site
+          {t('left_panel.footer')}
         </p>
       </div>
 

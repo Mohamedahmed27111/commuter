@@ -2,17 +2,24 @@
 
 import Link from 'next/link';
 import { CheckCircle, Car, Clock, Sliders } from 'lucide-react';
-
-const STEPS_DONE = [
-  { icon: <CheckCircle size={18} />, label: 'Account created' },
-  { icon: <Car size={18} />,         label: 'Car details saved' },
-  { icon: <Clock size={18} />,       label: 'Availability set' },
-  { icon: <Sliders size={18} />,     label: 'Preferences configured' },
-];
+import { useTranslations, useLocale } from 'next-intl';
+import LanguageToggle from '@/components/layout/LanguageToggle';
 
 export default function DemoDriverSuccessPage() {
+  const t = useTranslations('demo');
+  const locale = useLocale();
+  const isRtl = locale === 'ar';
+
+  const STEPS_DONE = [
+    { icon: <CheckCircle size={18} />, label: t('success.step1_done') },
+    { icon: <Car size={18} />,         label: t('success.step2_done') },
+    { icon: <Clock size={18} />,       label: t('success.step3_done') },
+    { icon: <Sliders size={18} />,     label: t('success.step4_done') },
+  ];
+
   return (
     <div
+      dir={isRtl ? 'rtl' : 'ltr'}
       style={{
         minHeight: '100vh',
         background: '#F8F9FA',
@@ -34,6 +41,11 @@ export default function DemoDriverSuccessPage() {
           textAlign: 'center',
         }}
       >
+        {/* Language toggle */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+          <LanguageToggle />
+        </div>
+
         {/* Icon */}
         <div
           style={{
@@ -48,17 +60,17 @@ export default function DemoDriverSuccessPage() {
         </div>
 
         <h1 style={{ fontSize: 28, fontWeight: 800, color: '#0B1E3D', marginBottom: 8 }}>
-          You&apos;re all set! 🎉
+          {t('success.title')}
         </h1>
         <p style={{ fontSize: 15, color: '#5A6A7A', lineHeight: 1.6, marginBottom: 32 }}>
-          Your driver profile is complete. Our team will review your details and reach out soon.
+          {t('success.subtitle')}
         </p>
 
         {/* Steps completed */}
         <div
           style={{
             background: '#F8F9FA', borderRadius: 12, padding: '16px 20px',
-            marginBottom: 32, textAlign: 'left',
+            marginBottom: 32, textAlign: isRtl ? 'right' : 'left',
           }}
         >
           {STEPS_DONE.map((s, i) => (
@@ -86,13 +98,13 @@ export default function DemoDriverSuccessPage() {
             transition: 'opacity 0.15s',
           }}
         >
-          Sign in to your account →
+          {t('success.sign_in_btn')}
         </Link>
 
         <p style={{ marginTop: 16, fontSize: 13, color: '#9CA3AF' }}>
-          Want to register another demo account?{' '}
+          {t('success.start_over')}{' '}
           <Link href="/demo/driver/sign-up" style={{ color: '#00C2A8', fontWeight: 600 }}>
-            Start over
+            {t('success.start_over_link')}
           </Link>
         </p>
       </div>

@@ -583,5 +583,71 @@
     "confirmed": "Confirmed",
     "active": "Active",
     "completed": "Completed"
+  },
+
+  "demo": {
+    "step_labels": { "sign_up": "Sign Up", "car_info": "Car Info", "availability": "Availability", "preferences": "Preferences" },
+    "common": { "back": "Back", "step_progress": "Registration progress", "optional": "(optional)" },
+    "step1": {
+      "title": "Create your account",
+      "subtitle": "Join as a driver — takes 4 quick steps",
+      "full_name": "Full name", "full_name_placeholder": "Ahmed Mohamed", "full_name_error": "Full name is required (at least 3 characters).",
+      "email": "Email", "email_placeholder": "you@example.com", "email_error": "Enter a valid email address.",
+      "phone": "Phone number", "phone_placeholder": "01xxxxxxxxx", "phone_error": "Enter a valid Egyptian phone number.",
+      "whatsapp": "WhatsApp", "whatsapp_same": "Same as phone ✓", "whatsapp_same_btn": "Same as phone", "whatsapp_error": "Enter a valid WhatsApp number.",
+      "gender": "Gender", "gender_male": "Male", "gender_female": "Female",
+      "birthdate": "Date of birth", "birthdate_error": "Date of birth is required.",
+      "address": "Address",
+      "province": "Province", "province_placeholder": "Cairo", "province_error": "Province is required.",
+      "district": "District", "district_placeholder": "Nasr City", "district_error": "District is required.",
+      "sub_district": "Sub-district", "sub_district_placeholder": "Zone 1", "sub_district_error": "Sub-district is required.",
+      "building": "Building", "building_placeholder": "10", "building_error": "Building is required.",
+      "street": "Street", "street_placeholder": "Tayaran Street", "street_error": "Street is required.",
+      "landmark": "Landmark", "landmark_placeholder": "near mall",
+      "password_section": "Password", "password": "Password", "password_placeholder": "Min. 8 characters", "password_error": "Password must be at least 8 characters.",
+      "confirm_password": "Confirm password", "confirm_password_placeholder": "Repeat your password", "confirm_password_error": "Passwords do not match.",
+      "continue_btn": "Continue to Car Info →", "already_account": "Already have an account?", "sign_in_link": "Sign in", "signup_failed": "Sign up failed. Please try again."
+    },
+    "step2": {
+      "title": "Your car details", "subtitle": "Tell us about the car you'll be driving",
+      "car_type": "Car type", "type_private": "Private", "type_taxi": "Taxi", "type_van": "Van",
+      "car_brand": "Car brand", "car_brand_placeholder": "Toyota", "car_brand_error": "Car brand is required.",
+      "car_model": "Car model", "car_model_placeholder": "Corolla", "car_model_error": "Car model is required.",
+      "car_year": "Car year", "car_year_placeholder": "Select year", "car_year_error": "Car year is required.",
+      "capacity": "Passenger capacity", "capacity_placeholder": "Select", "capacity_error": "Passenger capacity is required.",
+      "continue_btn": "Continue to Availability →", "save_failed": "Failed to save car details. Please try again."
+    },
+    "step3": {
+      "title": "Your availability", "subtitle": "When and where do you commute? You can add more days later.",
+      "days_label": "Days of the week", "days_error": "Please select at least one day.",
+      "sun": "Sunday", "mon": "Monday", "tue": "Tuesday", "wed": "Wednesday", "thu": "Thursday", "fri": "Friday", "sat": "Saturday",
+      "start_location": "Start location name", "start_location_placeholder": "e.g. Nasr City — Block 5", "start_location_error": "Start location is required.",
+      "end_location": "End location name", "end_location_placeholder": "e.g. Smart Village", "end_location_error": "End location is required.",
+      "start_time": "Start time", "start_time_error": "Start time is required.",
+      "end_time": "End time", "end_time_error": "End time is required.", "time_order_error": "End time must be after start time.",
+      "coords_note": "Location coordinates are set automatically. You can update them from your profile later.",
+      "continue_btn": "Continue to Preferences →", "save_failed": "Failed to save availability. Please try again."
+    },
+    "step4": {
+      "title": "Your preferences", "subtitle": "Set your pricing and passenger preferences",
+      "price_per_km": "Price per km (EGP)", "price_per_km_placeholder": "e.g. 5", "price_per_km_error": "Enter a valid price per km.",
+      "waiting_price": "Waiting price / hr (EGP)", "waiting_price_placeholder": "e.g. 20", "waiting_price_error": "Enter a valid waiting price.",
+      "passengers": "Accepted passengers", "male": "Male", "female": "Female", "mixed": "Mixed",
+      "complete_btn": "Complete Registration 🎉", "save_failed": "Failed to save preferences. Please try again."
+    },
+    "left_panel": {
+      "headline1": "Drive smarter.", "headline2": "Earn better.",
+      "desc": "Join Egypt's leading ride-pooling platform and grow your income on your schedule.",
+      "steps_label": "Registration steps:",
+      "step1": "Create your driver account", "step2": "Add your car details", "step3": "Set your weekly availability", "step4": "Configure your pricing",
+      "footer": "Demo portal — commuter.site"
+    },
+    "success": {
+      "title": "You're all set! 🎉",
+      "subtitle": "Your driver profile is complete. Our team will review your details and reach out soon.",
+      "step1_done": "Account created", "step2_done": "Car details saved", "step3_done": "Availability set", "step4_done": "Preferences configured",
+      "sign_in_btn": "Sign in to your account →",
+      "start_over": "Want to register another demo account?", "start_over_link": "Start over"
+    }
   }
 }

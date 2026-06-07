@@ -1,4 +1,4 @@
-{
+﻿{
   "common": {
     "app_name": "commuter",
     "sign_in": "تسجيل الدخول",
@@ -580,5 +580,72 @@
     "confirmed": "مؤكدة",
     "active": "نشطة",
     "completed": "مكتملة"
+  }
+,
+
+  "demo": {
+    "step_labels": { "sign_up": "إنشاء حساب", "car_info": "بيانات السيارة", "availability": "التوفر", "preferences": "التفضيلات" },
+    "common": { "back": "رجوع", "step_progress": "خطوات التسجيل", "optional": "(اختياري)" },
+    "step1": {
+      "title": "إنشاء حسابك",
+      "subtitle": "انضم كسائق — 4 خطوات سريعة",
+      "full_name": "الاسم الكامل", "full_name_placeholder": "أحمد محمد", "full_name_error": "الاسم الكامل مطلوب (3 أحرف على الأقل).",
+      "email": "البريد الإلكتروني", "email_placeholder": "example@example.com", "email_error": "أدخل بريدًا إلكترونيًا صحيحًا.",
+      "phone": "رقم الهاتف", "phone_placeholder": "01xxxxxxxxx", "phone_error": "أدخل رقم هاتف مصري صحيح.",
+      "whatsapp": "واتساب", "whatsapp_same": "نفس رقم الهاتف ✓", "whatsapp_same_btn": "نفس رقم الهاتف", "whatsapp_error": "أدخل رقم واتساب صحيح.",
+      "gender": "الجنس", "gender_male": "ذكر", "gender_female": "أنثى",
+      "birthdate": "تاريخ الميلاد", "birthdate_error": "تاريخ الميلاد مطلوب.",
+      "address": "العنوان",
+      "province": "المحافظة", "province_placeholder": "القاهرة", "province_error": "المحافظة مطلوبة.",
+      "district": "المنطقة", "district_placeholder": "مدينة نصر", "district_error": "المنطقة مطلوبة.",
+      "sub_district": "الحي الفرعي", "sub_district_placeholder": "منطقة 1", "sub_district_error": "الحي الفرعي مطلوب.",
+      "building": "المبنى", "building_placeholder": "10", "building_error": "المبنى مطلوب.",
+      "street": "الشارع", "street_placeholder": "شارع الطيران", "street_error": "الشارع مطلوب.",
+      "landmark": "علامة مميزة", "landmark_placeholder": "بجوار المول",
+      "password_section": "كلمة المرور", "password": "كلمة المرور", "password_placeholder": "8 أحرف على الأقل", "password_error": "كلمة المرور يجب أن تكون 8 أحرف على الأقل.",
+      "confirm_password": "تأكيد كلمة المرور", "confirm_password_placeholder": "أعد كتابة كلمة المرور", "confirm_password_error": "كلمات المرور غير متطابقة.",
+      "continue_btn": "متابعة لبيانات السيارة ←", "already_account": "لديك حساب بالفعل؟", "sign_in_link": "تسجيل الدخول", "signup_failed": "فشل إنشاء الحساب. حاول مرة أخرى."
+    },
+    "step2": {
+      "title": "بيانات سيارتك", "subtitle": "أخبرنا عن السيارة التي ستقود بها",
+      "car_type": "نوع السيارة", "type_private": "خاصة", "type_taxi": "تاكسي", "type_van": "ميكروباص",
+      "car_brand": "ماركة السيارة", "car_brand_placeholder": "تويوتا", "car_brand_error": "ماركة السيارة مطلوبة.",
+      "car_model": "موديل السيارة", "car_model_placeholder": "كورولا", "car_model_error": "موديل السيارة مطلوب.",
+      "car_year": "سنة الصنع", "car_year_placeholder": "اختر السنة", "car_year_error": "سنة الصنع مطلوبة.",
+      "capacity": "عدد الركاب", "capacity_placeholder": "اختر", "capacity_error": "عدد الركاب مطلوب.",
+      "continue_btn": "متابعة للتوفر ←", "save_failed": "فشل حفظ بيانات السيارة. حاول مرة أخرى."
+    },
+    "step3": {
+      "title": "أوقات توفرك", "subtitle": "متى وأين تنتقل؟ يمكنك إضافة المزيد لاحقاً.",
+      "days_label": "أيام الأسبوع", "days_error": "يرجى اختيار يوم واحد على الأقل.",
+      "sun": "الأحد", "mon": "الاثنين", "tue": "الثلاثاء", "wed": "الأربعاء", "thu": "الخميس", "fri": "الجمعة", "sat": "السبت",
+      "start_location": "اسم موقع الانطلاق", "start_location_placeholder": "مثال: مدينة نصر — بلوك 5", "start_location_error": "موقع الانطلاق مطلوب.",
+      "end_location": "اسم موقع الوصول", "end_location_placeholder": "مثال: سمارت فيليدج", "end_location_error": "موقع الوصول مطلوب.",
+      "start_time": "وقت البدء", "start_time_error": "وقت البدء مطلوب.",
+      "end_time": "وقت الانتهاء", "end_time_error": "وقت الانتهاء مطلوب.", "time_order_error": "يجب أن يكون وقت الانتهاء بعد وقت البدء.",
+      "coords_note": "إحداثيات الموقع تُضبط تلقائياً. يمكنك تحديثها من ملفك الشخصي لاحقاً.",
+      "continue_btn": "متابعة للتفضيلات ←", "save_failed": "فشل حفظ أوقات التوفر. حاول مرة أخرى."
+    },
+    "step4": {
+      "title": "تفضيلاتك", "subtitle": "حدد أسعارك وتفضيلات الركاب",
+      "price_per_km": "السعر لكل كم (جنيه)", "price_per_km_placeholder": "مثال: 5", "price_per_km_error": "أدخل سعراً صحيحاً لكل كم.",
+      "waiting_price": "سعر الانتظار / ساعة (جنيه)", "waiting_price_placeholder": "مثال: 20", "waiting_price_error": "أدخل سعر انتظار صحيح.",
+      "passengers": "الركاب المقبولون", "male": "رجال", "female": "نساء", "mixed": "مختلط",
+      "complete_btn": "إتمام التسجيل 🎉", "save_failed": "فشل حفظ التفضيلات. حاول مرة أخرى."
+    },
+    "left_panel": {
+      "headline1": "قُد بذكاء.", "headline2": "اكسب أكثر.",
+      "desc": "انضم إلى المنصة الرائدة لمشاركة الركوب في مصر واستثمر وقتك.",
+      "steps_label": "خطوات التسجيل:",
+      "step1": "إنشاء حساب السائق", "step2": "إضافة بيانات السيارة", "step3": "تحديد أوقات التوفر", "step4": "ضبط الأسعار والتفضيلات",
+      "footer": "البوابة التجريبية — commuter.site"
+    },
+    "success": {
+      "title": "تم بنجاح! 🎉",
+      "subtitle": "ملفك الشخصي كسائق مكتمل. سيتواصل معك فريقنا قريباً.",
+      "step1_done": "تم إنشاء الحساب", "step2_done": "تم حفظ بيانات السيارة", "step3_done": "تم تحديد أوقات التوفر", "step4_done": "تم ضبط التفضيلات",
+      "sign_in_btn": "تسجيل الدخول لحسابك ←",
+      "start_over": "هل تريد تسجيل حساب تجريبي آخر؟", "start_over_link": "ابدأ من جديد"
+    }
   }
 }
