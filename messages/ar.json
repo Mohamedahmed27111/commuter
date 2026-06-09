@@ -1370,7 +1370,6 @@
       "address": "العنوان",
       "province": "المحافظة", "province_placeholder": "القاهرة", "province_error": "المحافظة مطلوبة.",
       "district": "المنطقة", "district_placeholder": "مدينة نصر", "district_error": "المنطقة مطلوبة.",
-      "landmark": "علامة مميزة", "landmark_placeholder": "بجوار المول",
       "password_section": "كلمة المرور", "password": "كلمة المرور", "password_placeholder": "8 أحرف على الأقل", "password_error": "كلمة المرور يجب أن تكون 8 أحرف على الأقل.",
       "confirm_password": "تأكيد كلمة المرور", "confirm_password_placeholder": "أعد كتابة كلمة المرور", "confirm_password_error": "كلمات المرور غير متطابقة.",
       "continue_btn": "متابعة لبيانات السيارة ←", "already_account": "لديك حساب بالفعل؟", "sign_in_link": "تسجيل الدخول", "signup_failed": "فشل إنشاء الحساب. حاول مرة أخرى."

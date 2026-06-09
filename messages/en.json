@@ -1372,7 +1372,6 @@
       "address": "Address",
       "province": "Province", "province_placeholder": "Cairo", "province_error": "Province is required.",
       "district": "District", "district_placeholder": "Nasr City", "district_error": "District is required.",
-      "landmark": "Landmark", "landmark_placeholder": "near mall",
       "password_section": "Password", "password": "Password", "password_placeholder": "Min. 8 characters", "password_error": "Password must be at least 8 characters.",
       "confirm_password": "Confirm password", "confirm_password_placeholder": "Repeat your password", "confirm_password_error": "Passwords do not match.",
       "continue_btn": "Continue to Car Info →", "already_account": "Already have an account?", "sign_in_link": "Sign in", "signup_failed": "Sign up failed. Please try again."

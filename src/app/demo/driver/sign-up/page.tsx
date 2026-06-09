@@ -138,7 +138,6 @@ interface Step1State {
   whatsapp_number: string; whatsapp_same: boolean;
   gender: 'male' | 'female';
   province: string; district: string;
-  landmark: string;
   password: string; password_confirmation: string;
 }
 
@@ -153,7 +152,6 @@ function Step1SignUp({ onNext, loading }: { onNext: (d: Step1State) => void; loa
     name: '', email: '', phone_number: '', whatsapp_number: '',
     whatsapp_same: true, gender: 'male',
     province: '', district: '',
-    landmark: '',
     password: '', password_confirmation: '',
   });
   const [errors, setErrors] = useState<Partial<Record<keyof Step1State, string>>>({});
@@ -273,10 +271,7 @@ function Step1SignUp({ onNext, loading }: { onNext: (d: Step1State) => void; loa
             <input value={form.district} onChange={set('district')} placeholder={t('step1.district_placeholder')} className={fieldCls(errors.district)} />
             <FieldError msg={errors.district} />
           </div>
-          <div className="col-span-2">
-            <Label>{t('step1.landmark')} <span className="text-[#9CA3AF] font-normal">{t('common.optional')}</span></Label>
-            <input value={form.landmark} onChange={set('landmark')} placeholder={t('step1.landmark_placeholder')} className={fieldCls()} />
-          </div>
+
         </div>
       </div>
 
@@ -816,7 +811,6 @@ export default function DemoDriverSignUpPage() {
         province:              data.province.trim(),
         gender:                data.gender,
         district:              data.district.trim(),
-        landmark:              data.landmark.trim(),
         birthdate:             '2000-01-01', // demo default
         password:              data.password,
         password_confirmation: data.password_confirmation,
