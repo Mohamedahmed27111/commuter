@@ -136,9 +136,9 @@ function BackBtn({ onClick }: { onClick: () => void }) {
 interface Step1State {
   name: string; email: string; phone_number: string;
   whatsapp_number: string; whatsapp_same: boolean;
-  gender: 'male' | 'female'; birthdate: string;
-  province: string; district: string; sub_district: string;
-  building: string; street: string; landmark: string;
+  gender: 'male' | 'female';
+  province: string; district: string;
+  landmark: string;
   password: string; password_confirmation: string;
 }
 
@@ -151,9 +151,9 @@ function Step1SignUp({ onNext, loading }: { onNext: (d: Step1State) => void; loa
   const isRtl = locale === 'ar';
   const [form, setForm] = useState<Step1State>({
     name: '', email: '', phone_number: '', whatsapp_number: '',
-    whatsapp_same: true, gender: 'male', birthdate: '',
-    province: '', district: '', sub_district: '',
-    building: '', street: '', landmark: '',
+    whatsapp_same: true, gender: 'male',
+    province: '', district: '',
+    landmark: '',
     password: '', password_confirmation: '',
   });
   const [errors, setErrors] = useState<Partial<Record<keyof Step1State, string>>>({});
@@ -170,12 +170,8 @@ function Step1SignUp({ onNext, loading }: { onNext: (d: Step1State) => void; loa
     if (!EGYPT_PHONE.test(form.phone_number)) e.phone_number = t('step1.phone_error');
     if (!form.whatsapp_same && !EGYPT_PHONE.test(form.whatsapp_number))
       e.whatsapp_number = t('step1.whatsapp_error');
-    if (!form.birthdate) e.birthdate = t('step1.birthdate_error');
     if (!form.province.trim()) e.province = t('step1.province_error');
     if (!form.district.trim()) e.district = t('step1.district_error');
-    if (!form.sub_district.trim()) e.sub_district = t('step1.sub_district_error');
-    if (!form.building.trim()) e.building = t('step1.building_error');
-    if (!form.street.trim()) e.street = t('step1.street_error');
     if (form.password.length < 8) e.password = t('step1.password_error');
     if (form.password !== form.password_confirmation)
       e.password_confirmation = t('step1.confirm_password_error');
@@ -252,22 +248,13 @@ function Step1SignUp({ onNext, loading }: { onNext: (d: Step1State) => void; loa
         </div>
       </div>
 
-      {/* Gender + Birthdate */}
-      <div className="grid grid-cols-2 gap-2">
-        <div>
-          <Label>{t('step1.gender')}</Label>
-          <select value={form.gender} onChange={set('gender')} className={selectCls()}>
-            <option value="male">{t('step1.gender_male')}</option>
-            <option value="female">{t('step1.gender_female')}</option>
-          </select>
-        </div>
-        <div>
-          <Label>{t('step1.birthdate')}</Label>
-          <input value={form.birthdate} onChange={set('birthdate')} type="date"
-            max={new Date(Date.now() - 18 * 365.25 * 86400000).toISOString().split('T')[0]}
-            className={fieldCls(errors.birthdate)} />
-          <FieldError msg={errors.birthdate} />
-        </div>
+      {/* Gender */}
+      <div>
+        <Label>{t('step1.gender')}</Label>
+        <select value={form.gender} onChange={set('gender')} className={selectCls()}>
+          <option value="male">{t('step1.gender_male')}</option>
+          <option value="female">{t('step1.gender_female')}</option>
+        </select>
       </div>
 
       {/* Address */}
@@ -285,21 +272,6 @@ function Step1SignUp({ onNext, loading }: { onNext: (d: Step1State) => void; loa
             <Label>{t('step1.district')}</Label>
             <input value={form.district} onChange={set('district')} placeholder={t('step1.district_placeholder')} className={fieldCls(errors.district)} />
             <FieldError msg={errors.district} />
-          </div>
-          <div>
-            <Label>{t('step1.sub_district')}</Label>
-            <input value={form.sub_district} onChange={set('sub_district')} placeholder={t('step1.sub_district_placeholder')} className={fieldCls(errors.sub_district)} />
-            <FieldError msg={errors.sub_district} />
-          </div>
-          <div>
-            <Label>{t('step1.building')}</Label>
-            <input value={form.building} onChange={set('building')} placeholder={t('step1.building_placeholder')} className={fieldCls(errors.building)} />
-            <FieldError msg={errors.building} />
-          </div>
-          <div className="col-span-2">
-            <Label>{t('step1.street')}</Label>
-            <input value={form.street} onChange={set('street')} placeholder={t('step1.street_placeholder')} className={fieldCls(errors.street)} />
-            <FieldError msg={errors.street} />
           </div>
           <div className="col-span-2">
             <Label>{t('step1.landmark')} <span className="text-[#9CA3AF] font-normal">{t('common.optional')}</span></Label>
@@ -843,12 +815,9 @@ export default function DemoDriverSignUpPage() {
         whatsapp_number:       data.whatsapp_same ? data.phone_number : data.whatsapp_number,
         province:              data.province.trim(),
         gender:                data.gender,
-        birthdate:             data.birthdate,
         district:              data.district.trim(),
-        sub_district:          data.sub_district.trim(),
-        building:              data.building.trim(),
-        street:                data.street.trim(),
         landmark:              data.landmark.trim(),
+        birthdate:             '2000-01-01', // demo default
         password:              data.password,
         password_confirmation: data.password_confirmation,
       });
