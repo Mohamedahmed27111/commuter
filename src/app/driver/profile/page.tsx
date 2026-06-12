@@ -18,27 +18,10 @@ import {
   Phone, MapPin, Calendar, LogOut, CheckCircle2,
   Clock, FolderOpen, ChevronDown, ChevronUp, KeyRound, Wallet,
 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { format } from 'date-fns';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
-function fmtDateTime(iso: string | null | undefined) {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return '—';
-  return format(d, "dd/MM/yyyy · hh:mm aa");
-}
-
-const DOCUMENTS: { label: string; fieldName: keyof DriverDocuments }[] = [
-  { label: 'National ID – front',        fieldName: 'nationalIdFront' },
-  { label: 'National ID – back',         fieldName: 'nationalIdBack' },
-  { label: 'Driving license',            fieldName: 'drivingLicense' },
-  { label: 'Car license – front',        fieldName: 'carLicenseFront' },
-  { label: 'Car license – back',         fieldName: 'carLicenseBack' },
-  { label: 'Criminal Record Certificate',fieldName: 'criminalRecord' },
-];
-
-// ─── Shared helpers ───────────────────────────────────────────────────────────
 
 interface ProfileData {
   displayName: string;
@@ -54,7 +37,14 @@ interface ProfileData {
   onLogout: () => void;
 }
 
-function Avatar({ photoUrl, name, size = 64, fontSize = 22 }: { photoUrl: string | null; name: string; size?: number; fontSize?: number }) {
+function fmtDateTime(iso: string | null | undefined) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '—';
+  return format(d, "dd/MM/yyyy · hh:mm aa");
+}
+
+function Avatar({ photoUrl, name, size = 64, fontSize = 22, altLabel }: { photoUrl: string | null; name: string; size?: number; fontSize?: number; altLabel?: string }) {
   return (
     <div style={{
       width: size, height: size, borderRadius: '50%', flexShrink: 0,
@@ -63,7 +53,7 @@ function Avatar({ photoUrl, name, size = 64, fontSize = 22 }: { photoUrl: string
     }}>
       {photoUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={photoUrl} alt={`Photo of ${name}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        <img src={photoUrl} alt={altLabel ?? name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
       ) : (
         <span style={{ fontSize, fontWeight: 700, color: '#00C2A8' }}>{name.charAt(0).toUpperCase()}</span>
       )}
@@ -71,10 +61,12 @@ function Avatar({ photoUrl, name, size = 64, fontSize = 22 }: { photoUrl: string
   );
 }
 
-function ClickableAvatar({ photoUrl, name, size = 64, fontSize = 22, onUpload, wrapperStyle }: {
+function ClickableAvatar({ photoUrl, name, size = 64, fontSize = 22, onUpload, wrapperStyle, photoTitle, altLabel }: {
   photoUrl: string | null; name: string; size?: number; fontSize?: number;
   onUpload: (file: File) => void;
   wrapperStyle?: React.CSSProperties;
+  photoTitle?: string;
+  altLabel?: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [hov, setHov] = useState(false);
@@ -84,9 +76,9 @@ function ClickableAvatar({ photoUrl, name, size = 64, fontSize = 22, onUpload, w
       onClick={() => inputRef.current?.click()}
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
-      title="Change profile photo"
+      title={photoTitle}
     >
-      <Avatar photoUrl={photoUrl} name={name} size={size} fontSize={fontSize} />
+      <Avatar photoUrl={photoUrl} name={name} size={size} fontSize={fontSize} altLabel={altLabel} />
       <div style={{
         position: 'absolute', inset: 0, borderRadius: '50%',
         background: 'rgba(0,0,0,0.42)',
@@ -106,7 +98,19 @@ function ClickableAvatar({ photoUrl, name, size = 64, fontSize = 22, onUpload, w
 // ─── MOBILE VIEW ─────────────────────────────────────────────────────────────
 
 function MobileProfile({ displayName, email, phone, address, profileData, docUrls, onUpload, onEdit, onChangePassword, onWallet, onLogout }: ProfileData) {
+  const t = useTranslations('profile_driver');
+  const tc = useTranslations('common');
+  const tPw = useTranslations('change_password');
   const [docsOpen, setDocsOpen] = useState(false);
+
+  const DOCUMENTS: { label: string; fieldName: keyof DriverDocuments }[] = [
+    { label: t('doc_national_front'), fieldName: 'nationalIdFront' },
+    { label: t('doc_national_back'),  fieldName: 'nationalIdBack' },
+    { label: t('doc_driving_license'), fieldName: 'drivingLicense' },
+    { label: t('doc_car_front'),      fieldName: 'carLicenseFront' },
+    { label: t('doc_car_back'),       fieldName: 'carLicenseBack' },
+    { label: t('doc_criminal'),       fieldName: 'criminalRecord' },
+  ];
 
   const isVerified = profileData?.is_verified ?? false;
   const vehicle = [profileData?.car_brand, profileData?.car_model, profileData?.car_year]
@@ -121,11 +125,10 @@ function MobileProfile({ displayName, email, phone, address, profileData, docUrl
     <div style={{ padding: '20px 16px 40px', fontFamily: 'Inter, system-ui, sans-serif', background: '#fff', minHeight: '100vh' }}>
 
       {/* Header */}
-      <h1 style={{ fontSize: 28, fontWeight: 800, color: '#0B1E3D', margin: '0 0 4px' }}>Profile</h1>
-      <p style={{ fontSize: 13, color: '#94A3B8', margin: '0 0 20px' }}>Your account and driver details</p>
+      <h1 style={{ fontSize: 28, fontWeight: 800, color: '#0B1E3D', margin: '0 0 4px' }}>{t('page_title')}</h1>
+      <p style={{ fontSize: 13, color: '#94A3B8', margin: '0 0 20px' }}>{t('page_subtitle')}</p>
 
-      {/* ── Account status ── */}
-      <p style={{ fontSize: 15, fontWeight: 700, color: '#0B1E3D', margin: '0 0 10px' }}>Account status</p>
+      <p style={{ fontSize: 15, fontWeight: 700, color: '#0B1E3D', margin: '0 0 10px' }}>{t('account_status')}</p>
       <div style={CARD}>
         {/* Status headline */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingBottom: 14 }}>
@@ -134,7 +137,7 @@ function MobileProfile({ displayName, email, phone, address, profileData, docUrl
             : <Clock size={20} color="#F97316" />
           }
           <span style={{ fontSize: 15, fontWeight: 700, color: isVerified ? '#16A34A' : '#F97316' }}>
-            {isVerified ? 'Verified' : 'Pending verification'}
+            {isVerified ? t('verified') : t('pending_verification')}
           </span>
         </div>
         <div style={{ height: 1, background: '#C8E6E2', marginBottom: 14 }} />
@@ -142,9 +145,9 @@ function MobileProfile({ displayName, email, phone, address, profileData, docUrl
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 14 }}>
           <FolderOpen size={18} color="#00C2A8" style={{ marginTop: 2, flexShrink: 0 }} />
           <div>
-            <div style={{ fontSize: 12, color: '#6B7280', fontWeight: 500 }}>Driver profile</div>
+            <div style={{ fontSize: 12, color: '#6B7280', fontWeight: 500 }}>{t('driver_profile')}</div>
             <div style={{ fontSize: 14, fontWeight: 600, color: '#0B1E3D' }}>
-              {profileData ? 'Profile submitted' : 'Not submitted'}
+              {profileData ? t('profile_submitted') : t('profile_not_submitted')}
             </div>
           </div>
         </div>
@@ -152,9 +155,9 @@ function MobileProfile({ displayName, email, phone, address, profileData, docUrl
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
           <Shield size={18} color="#00C2A8" style={{ marginTop: 2, flexShrink: 0 }} />
           <div>
-            <div style={{ fontSize: 12, color: '#6B7280', fontWeight: 500 }}>Verification</div>
+            <div style={{ fontSize: 12, color: '#6B7280', fontWeight: 500 }}>{t('verification')}</div>
             <div style={{ fontSize: 14, fontWeight: 600, color: isVerified ? '#16A34A' : '#F97316' }}>
-              {isVerified ? 'Verified' : 'Pending verification'}
+              {isVerified ? t('verified') : t('pending_verification')}
             </div>
           </div>
         </div>
@@ -164,7 +167,7 @@ function MobileProfile({ displayName, email, phone, address, profileData, docUrl
       <div style={CARD}>
         {/* Avatar + name + email + edit */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
-          <ClickableAvatar photoUrl={docUrls.profilePhoto} name={displayName} size={80} fontSize={28} onUpload={(file) => onUpload('profilePhoto', file)} />
+          <ClickableAvatar photoUrl={docUrls.profilePhoto} name={displayName} size={80} fontSize={28} onUpload={(file) => onUpload('profilePhoto', file)} photoTitle={t('change_photo')} altLabel={t('photo_of', { name: displayName })} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 16, fontWeight: 700, color: '#0B1E3D', lineHeight: 1.2 }}>{displayName}</div>
             <div style={{ fontSize: 12, color: '#6B7280', marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{email}</div>
@@ -183,9 +186,9 @@ function MobileProfile({ displayName, email, phone, address, profileData, docUrl
         <div style={{ height: 1, background: '#C8E6E2', marginBottom: 14 }} />
         {/* Contact rows */}
         {[
-          { Icon: Phone,    label: 'Mobile',       value: phone },
-          { Icon: MapPin,   label: 'Address',      value: address },
-          { Icon: Calendar, label: 'Member since', value: fmtDateTime(profileData?.created_at) },
+          { Icon: Phone,    label: t('mobile'),       value: phone },
+          { Icon: MapPin,   label: t('address'),      value: address },
+          { Icon: Calendar, label: t('member_since_label'), value: fmtDateTime(profileData?.created_at) },
         ].map(({ Icon, label, value }, i) => (
           <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: i < 2 ? 14 : 0 }}>
             <Icon size={18} color="#00C2A8" style={{ marginTop: 3, flexShrink: 0 }} strokeWidth={1.8} />
@@ -200,20 +203,20 @@ function MobileProfile({ displayName, email, phone, address, profileData, docUrl
       {/* ── Driver profile card ── */}
       {profileData && (
         <>
-          <p style={{ fontSize: 15, fontWeight: 700, color: '#0B1E3D', margin: '0 0 10px' }}>Driver profile</p>
+          <p style={{ fontSize: 15, fontWeight: 700, color: '#0B1E3D', margin: '0 0 10px' }}>{t('driver_profile')}</p>
           <div style={CARD}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 16px' }}>
               {[
-                { label: 'National ID',           value: profileData.national_id        ?? '—' },
-                { label: 'License expiry',        value: profileData.license_expiry     ?? '—' },
-                { label: 'Car type',              value: profileData.car_type           ?? '—' },
-                { label: 'Vehicle',               value: vehicle },
-                { label: 'License plate',         value: profileData.license_plate      ?? '—' },
-                { label: 'Car capacity',          value: profileData.car_capacity       != null ? String(profileData.car_capacity) : '—' },
-                { label: 'Price per km',          value: profileData.price_per_km       != null ? `${profileData.price_per_km} EGP/km` : '—' },
-                { label: 'Waiting price / hour',  value: profileData.waiting_price_per_hour != null ? `${profileData.waiting_price_per_hour} EGP/hr` : '—' },
-                { label: 'Passenger type',        value: profileData.passenger_type === 'male' ? 'Male only' : profileData.passenger_type === 'female' ? 'Female only' : profileData.passenger_type === 'mixed' ? 'Mixed' : '—' },
-                { label: 'Profile since',         value: fmtDateTime(profileData.created_at) },
+                { label: t('national_id'),           value: profileData.national_id        ?? '—' },
+                { label: t('license_expiry'),        value: profileData.license_expiry     ?? '—' },
+                { label: t('car_type'),              value: profileData.car_type           ?? '—' },
+                { label: t('vehicle'),               value: vehicle },
+                { label: t('license_plate'),         value: profileData.license_plate      ?? '—' },
+                { label: t('car_capacity'),          value: profileData.car_capacity       != null ? String(profileData.car_capacity) : '—' },
+                { label: t('price_per_km'),          value: profileData.price_per_km       != null ? `${profileData.price_per_km} EGP/km` : '—' },
+                { label: t('waiting_price'),         value: profileData.waiting_price_per_hour != null ? `${profileData.waiting_price_per_hour} EGP/hr` : '—' },
+                { label: t('passenger_type'),        value: profileData.passenger_type === 'male' ? t('passenger_male') : profileData.passenger_type === 'female' ? t('passenger_female') : profileData.passenger_type === 'mixed' ? t('passenger_mixed') : '—' },
+                { label: t('profile_since'),         value: fmtDateTime(profileData.created_at) },
               ].map(({ label, value }, i) => (
                 <div key={i}>
                   <div style={{ fontSize: 11, color: '#6B7280', fontWeight: 600, marginBottom: 2, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</div>
@@ -236,7 +239,7 @@ function MobileProfile({ displayName, email, phone, address, profileData, docUrl
         }}
       >
         <FileText size={18} color="#00C2A8" strokeWidth={1.8} />
-        <span style={{ flex: 1, fontSize: 15, fontWeight: 700, color: '#0B1E3D' }}>Documents</span>
+        <span style={{ flex: 1, fontSize: 15, fontWeight: 700, color: '#0B1E3D' }}>{t('documents')}</span>
         {docsOpen ? <ChevronUp size={18} color="#94A3B8" /> : <ChevronDown size={18} color="#94A3B8" />}
       </button>
       {docsOpen && (
@@ -259,10 +262,9 @@ function MobileProfile({ displayName, email, phone, address, profileData, docUrl
         }}
       >
         <Wallet size={17} color="#00C2A8" />
-        Wallet
+        {t('wallet')}
       </button>
 
-      {/* ── Change password ── */}
       <button
         onClick={onChangePassword}
         style={{
@@ -274,10 +276,9 @@ function MobileProfile({ displayName, email, phone, address, profileData, docUrl
         }}
       >
         <KeyRound size={17} color="#00C2A8" />
-        Change password
+        {tPw('title')}
       </button>
 
-      {/* ── Log out ── */}
       <button
         onClick={onLogout}
         style={{
@@ -289,7 +290,7 @@ function MobileProfile({ displayName, email, phone, address, profileData, docUrl
         }}
       >
         <LogOut size={18} color="#EF4444" />
-        Log out
+        {tc('sign_out')}
       </button>
     </div>
   );
@@ -298,9 +299,21 @@ function MobileProfile({ displayName, email, phone, address, profileData, docUrl
 // ─── DESKTOP VIEW ─────────────────────────────────────────────────────────────
 
 function DesktopProfile({ displayName, email, phone, address, profileData, docUrls, onUpload, onEdit, onChangePassword, onWallet, onLogout }: ProfileData) {
+  const t = useTranslations('profile_driver');
+  const tc = useTranslations('common');
+  const tPw = useTranslations('change_password');
   const isVerified = profileData?.is_verified ?? false;
   const vehicle = [profileData?.car_brand, profileData?.car_model, profileData?.car_year]
     .filter(Boolean).join(' ') + (profileData?.car_color ? ` · ${profileData.car_color}` : '') || '—';
+
+  const DOCUMENTS: { label: string; fieldName: keyof DriverDocuments }[] = [
+    { label: t('doc_national_front'), fieldName: 'nationalIdFront' },
+    { label: t('doc_national_back'),  fieldName: 'nationalIdBack' },
+    { label: t('doc_driving_license'), fieldName: 'drivingLicense' },
+    { label: t('doc_car_front'),      fieldName: 'carLicenseFront' },
+    { label: t('doc_car_back'),       fieldName: 'carLicenseBack' },
+    { label: t('doc_criminal'),       fieldName: 'criminalRecord' },
+  ];
 
   function Section({ title, children }: { title: string; children: React.ReactNode }) {
     return (
@@ -342,6 +355,8 @@ function DesktopProfile({ displayName, email, phone, address, profileData, docUr
             fontSize={36}
             onUpload={(file) => onUpload('profilePhoto', file)}
             wrapperStyle={{ border: '3px solid rgba(255,255,255,0.15)', boxShadow: '0 8px 24px rgba(0,194,168,0.3)' }}
+            photoTitle={t('change_photo')}
+            altLabel={t('photo_of', { name: displayName })}
           />
 
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -350,7 +365,7 @@ function DesktopProfile({ displayName, email, phone, address, profileData, docUr
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, marginTop: 12, padding: '5px 13px', borderRadius: 20, background: isVerified ? 'rgba(34,197,94,0.14)' : 'rgba(249,115,22,0.14)', border: `1px solid ${isVerified ? 'rgba(34,197,94,0.3)' : 'rgba(249,115,22,0.3)'}` }}>
               <div style={{ width: 7, height: 7, borderRadius: '50%', background: isVerified ? '#22C55E' : '#F97316', boxShadow: `0 0 6px ${isVerified ? '#22C55E' : '#F97316'}` }} />
               <span style={{ fontSize: 12, color: isVerified ? '#22C55E' : '#F97316', fontWeight: 700 }}>
-                {isVerified ? 'Verified driver' : 'Pending verification'}
+                {isVerified ? t('verified_driver') : t('pending_verification')}
               </span>
             </div>
           </div>
@@ -364,7 +379,7 @@ function DesktopProfile({ displayName, email, phone, address, profileData, docUr
               color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
             }}
           >
-            <Pencil size={15} color="#fff" /> Edit Profile
+            <Pencil size={15} color="#fff" /> {t('edit_btn')}
           </button>
         </div>
 
@@ -374,7 +389,7 @@ function DesktopProfile({ displayName, email, phone, address, profileData, docUr
           {[
             { Icon: Phone,    value: phone },
             { Icon: MapPin,   value: address },
-            { Icon: Calendar, value: profileData ? `Member since ${format(new Date(profileData.created_at), 'dd MMM yyyy')}` : '—' },
+            { Icon: Calendar, value: profileData ? `${t('member_since_label')} ${format(new Date(profileData.created_at), 'dd MMM yyyy')}` : '—' },
           ].map(({ Icon, value }, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <Icon size={14} color="rgba(255,255,255,0.35)" strokeWidth={1.8} />
@@ -386,13 +401,13 @@ function DesktopProfile({ displayName, email, phone, address, profileData, docUr
 
       {/* ── ROW 1: Personal info + Status ── */}
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16, alignItems: 'start', marginBottom: 16 }}>
-        <Section title="Personal Information">
+        <Section title={t('personal_information')}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 28, rowGap: 16 }}>
-            <InfoRow label="Full name"    value={displayName} />
-            <InfoRow label="Phone number" value={phone} />
-            <InfoRow label="Email"        value={email} />
-            <InfoRow label="National ID"  value={profileData?.national_id ?? '—'} />
-            <div style={{ gridColumn: '1 / -1' }}><InfoRow label="Home address" value={address} /></div>
+            <InfoRow label={t('full_name')}    value={displayName} />
+            <InfoRow label={t('phone')} value={phone} />
+            <InfoRow label={t('email')}        value={email} />
+            <InfoRow label={t('national_id')}  value={profileData?.national_id ?? '—'} />
+            <div style={{ gridColumn: '1 / -1' }}><InfoRow label={t('address')} value={address} /></div>
           </div>
         </Section>
 
@@ -401,14 +416,14 @@ function DesktopProfile({ displayName, email, phone, address, profileData, docUr
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
             {isVerified ? <CheckCircle2 size={20} color="#22C55E" /> : <Clock size={20} color="#F97316" />}
             <span style={{ fontSize: 14, fontWeight: 700, color: isVerified ? '#16A34A' : '#EA580C' }}>
-              {isVerified ? 'Account Verified' : 'Pending Verification'}
+              {isVerified ? t('account_verified') : t('pending_verification')}
             </span>
           </div>
           <div style={{ height: 1, background: isVerified ? '#BBF7D0' : '#FED7AA', marginBottom: 14 }} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {[
-              { Icon: FolderOpen, label: 'Driver profile', value: profileData ? 'Profile submitted' : 'Not submitted' },
-              { Icon: Shield,     label: 'Verification',   value: isVerified ? 'Verified' : 'Pending verification', color: isVerified ? '#16A34A' : '#EA580C' },
+              { Icon: FolderOpen, label: t('driver_profile'), value: profileData ? t('profile_submitted') : t('profile_not_submitted') },
+              { Icon: Shield,     label: t('verification'),   value: isVerified ? t('verified') : t('pending_verification'), color: isVerified ? '#16A34A' : '#EA580C' },
             ].map(({ Icon, label, value, color }, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <Icon size={15} color="#00C2A8" strokeWidth={1.8} />
@@ -422,17 +437,17 @@ function DesktopProfile({ displayName, email, phone, address, profileData, docUr
 
       {/* ── ROW 2: Driver Details – full width, 3-col grid ── */}
       <div style={{ marginBottom: 16 }}>
-        <Section title="Driver Details">
+        <Section title={t('driver_details')}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', columnGap: 32, rowGap: 16 }}>
-            <InfoRow label="Car type"              value={profileData?.car_type       ?? '—'} />
-            <InfoRow label="Vehicle"               value={vehicle} />
-            <InfoRow label="License plate"         value={profileData?.license_plate  ?? '—'} />
-            <InfoRow label="License expiry"        value={profileData?.license_expiry ?? '—'} />
-            <InfoRow label="Car capacity"          value={profileData?.car_capacity   != null ? String(profileData.car_capacity) : '—'} />
-            <InfoRow label="Price per km"          value={profileData?.price_per_km   != null ? `${profileData.price_per_km} EGP/km` : '—'} />
-            <InfoRow label="Waiting price / hour"  value={profileData?.waiting_price_per_hour != null ? `${profileData.waiting_price_per_hour} EGP/hr` : '—'} />
-            <InfoRow label="Passenger type"        value={profileData?.passenger_type === 'male' ? 'Male only' : profileData?.passenger_type === 'female' ? 'Female only' : profileData?.passenger_type === 'mixed' ? 'Mixed' : '—'} />
-            <InfoRow label="Profile since"         value={fmtDateTime(profileData?.created_at)} />
+            <InfoRow label={t('car_type')}              value={profileData?.car_type       ?? '—'} />
+            <InfoRow label={t('vehicle')}               value={vehicle} />
+            <InfoRow label={t('license_plate')}         value={profileData?.license_plate  ?? '—'} />
+            <InfoRow label={t('license_expiry')}        value={profileData?.license_expiry ?? '—'} />
+            <InfoRow label={t('car_capacity')}          value={profileData?.car_capacity   != null ? String(profileData.car_capacity) : '—'} />
+            <InfoRow label={t('price_per_km')}          value={profileData?.price_per_km   != null ? `${profileData.price_per_km} EGP/km` : '—'} />
+            <InfoRow label={t('waiting_price')}         value={profileData?.waiting_price_per_hour != null ? `${profileData.waiting_price_per_hour} EGP/hr` : '—'} />
+            <InfoRow label={t('passenger_type')}        value={profileData?.passenger_type === 'male' ? t('passenger_male') : profileData?.passenger_type === 'female' ? t('passenger_female') : profileData?.passenger_type === 'mixed' ? t('passenger_mixed') : '—'} />
+            <InfoRow label={t('profile_since')}         value={fmtDateTime(profileData?.created_at)} />
           </div>
         </Section>
       </div>
@@ -440,7 +455,7 @@ function DesktopProfile({ displayName, email, phone, address, profileData, docUr
       {/* ── DOCUMENTS ── */}
       <div style={{ background: '#fff', border: '1.5px solid #F1F5F9', borderRadius: 20, overflow: 'hidden', boxShadow: '0 2px 12px rgba(11,30,61,0.05)', marginBottom: 16 }}>
         <div style={{ padding: '16px 24px', borderBottom: '1px solid #F1F5F9' }}>
-          <span style={{ fontSize: 11, fontWeight: 700, color: '#94A3B8', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Documents</span>
+          <span style={{ fontSize: 11, fontWeight: 700, color: '#94A3B8', letterSpacing: '0.08em', textTransform: 'uppercase' }}>{t('documents')}</span>
         </div>
         <div style={{ padding: '24px', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
           {DOCUMENTS.map(({ label, fieldName }) => (
@@ -464,7 +479,7 @@ function DesktopProfile({ displayName, email, phone, address, profileData, docUr
           onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#DFF1EE'; }}
           onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#EFF7F5'; }}
         >
-          <Wallet size={17} color="#00C2A8" /> Wallet
+          <Wallet size={17} color="#00C2A8" /> {t('wallet')}
         </button>
         <button
           onClick={onChangePassword}
@@ -479,7 +494,7 @@ function DesktopProfile({ displayName, email, phone, address, profileData, docUr
           onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#DFF1EE'; }}
           onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#EFF7F5'; }}
         >
-          <KeyRound size={17} color="#00C2A8" /> Change password
+          <KeyRound size={17} color="#00C2A8" /> {tPw('title')}
         </button>
         <button
           onClick={onLogout}
@@ -493,7 +508,7 @@ function DesktopProfile({ displayName, email, phone, address, profileData, docUr
           onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#FEE2E2'; }}
           onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#FFF5F5'; }}
         >
-          <LogOut size={17} color="#EF4444" /> Sign out
+          <LogOut size={17} color="#EF4444" /> {tc('sign_out')}
         </button>
       </div>
     </div>
@@ -503,6 +518,7 @@ function DesktopProfile({ displayName, email, phone, address, profileData, docUr
 // ─── MAIN PAGE ────────────────────────────────────────────────────────────────
 
 export default function ProfilePage() {
+  const t = useTranslations('profile_driver');
   const router = useRouter();
   const { logout, name: authName, updateName, updateProfilePhoto } = useAuth();
   const isDesktop = useMediaQuery('(min-width: 768px)');
@@ -586,9 +602,9 @@ export default function ProfilePage() {
       const localUrl = URL.createObjectURL(file);
       setDocUrls((prev) => ({ ...prev, [fieldName]: localUrl }));
       if (fieldName === 'profilePhoto') updateProfilePhoto(localUrl);
-      toast.success('Document uploaded successfully');
+      toast.success(t('doc_upload_success'));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Upload failed. Please try again.');
+      toast.error(err instanceof Error ? err.message : t('doc_upload_failed'));
     }
   }, [updateProfilePhoto]);
 

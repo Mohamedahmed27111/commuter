@@ -48,7 +48,6 @@ export default function BottomNav() {
 
   return (
     <nav
-      dir="ltr"
       className="flex md:hidden"
       style={{
         position: 'fixed',
@@ -104,7 +103,7 @@ export default function BottomNav() {
                   style={{
                     position: 'absolute',
                     top: -4,
-                    right: -6,
+                    insetInlineEnd: -6,
                     background: '#E74C3C',
                     color: '#fff',
                     fontSize: 10,

@@ -95,7 +95,7 @@ export default function PrivateTimeSlotCard({
       {/* Header */}
       <div className="flex items-center justify-between">
         <span className="text-sm font-semibold text-[#0B1E3D]">
-          Time slot {slotNumber}
+          {tsl('label', { n: slotNumber })}
         </span>
         {canRemove && (
           <button

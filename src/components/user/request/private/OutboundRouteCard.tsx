@@ -21,8 +21,8 @@ interface Props {
 }
 
 function Row({
-  index, title, hint, value, action,
-}: { index: number; title: string; hint: string; value: string | null; action: React.ReactNode }) {
+  index, title, hint, value, action, notSetLabel,
+}: { index: number; title: string; hint: string; value: string | null; action: React.ReactNode; notSetLabel: string }) {
   return (
     <div className="flex items-start gap-3 rounded-xl border border-[#E2E8F0] bg-white p-3">
       <span className="w-7 h-7 rounded-full bg-[#F1F3F4] text-[#0B1E3D] flex items-center justify-center text-xs font-bold flex-shrink-0">
@@ -38,7 +38,7 @@ function Row({
               </span>
               <span className="leading-snug">{value}</span>
             </p>
-          : <p className="text-xs italic text-[#9AA0A6]">Not set</p>}
+          : <p className="text-xs italic text-[#9AA0A6]">{notSetLabel}</p>}
       </div>
       {action}
     </div>
@@ -62,23 +62,25 @@ export default function OutboundRouteCard({
     <div className="border border-[#E2E8F0] rounded-2xl bg-white p-3 space-y-3">
       <div className="flex items-center gap-2">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00C2A8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-        <span className="text-sm font-semibold text-[#0B1E3D]">Route</span>
+        <span className="text-sm font-semibold text-[#0B1E3D]">{to('route_title')}</span>
       </div>
 
       <Row
         index={idx++}
         title={to('from')}
-        hint="Trip start area"
+        hint={to('from_hint')}
         value={origin?.address ?? null}
         action={null}
+        notSetLabel={to('not_set')}
       />
 
       {routeStop && (
         <Row
           index={idx++}
-          title="Stop"
-          hint="Intermediate stop along route"
+          title={to('stop')}
+          hint={to('stop_hint')}
           value={routeStop.address}
+          notSetLabel={to('not_set')}
           action={
             <button
               type="button"
@@ -95,17 +97,19 @@ export default function OutboundRouteCard({
       <Row
         index={idx++}
         title={to('destination')}
-        hint="Final drop-off"
+        hint={to('destination_hint')}
         value={destination?.address ?? null}
         action={null}
+        notSetLabel={to('not_set')}
       />
 
       {hasPickupPoint && (
         <Row
           index={idx++}
           title={to('pickup')}
-          hint="Meeting point for pickup"
+          hint={to('pickup_hint')}
           value={pickupPoint?.address ?? null}
+          notSetLabel={to('not_set')}
           action={
             <button
               type="button"
@@ -128,7 +132,7 @@ export default function OutboundRouteCard({
               className="text-xs font-medium text-[#5A6A7A] hover:text-[#0B1E3D] hover:underline"
               style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
             >
-              + Add stop (optional)
+              {to('add_stop_optional')}
             </button>
           )}
 

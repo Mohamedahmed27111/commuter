@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react';
 import { DriverDocuments } from '@/types/driver';
 import { Upload, FileText, Eye, RefreshCw } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 interface DocumentUploadFieldProps {
   label: string;
@@ -31,6 +32,7 @@ export default function DocumentUploadField({
   acceptedTypes = 'image/jpeg,image/png,application/pdf',
   maxSizeMb = 5,
 }: DocumentUploadFieldProps) {
+  const t = useTranslations('document_upload');
   const [state, setFieldState] = useState<FieldState>(currentUrl ? 'has-file' : 'empty');
   const [progress, setProgress] = useState(0);
   const [errorMsg, setErrorMsg] = useState('');
@@ -42,12 +44,12 @@ export default function DocumentUploadField({
 
     if (!acceptedTypes.split(',').some((t) => file.type === t.trim())) {
       setFieldState('error');
-      setErrorMsg(`Invalid file type. Accepted: JPG, PNG, PDF`);
+      setErrorMsg(t('invalid_type'));
       return;
     }
     if (file.size > maxSizeMb * 1024 * 1024) {
       setFieldState('error');
-      setErrorMsg(`File exceeds maximum size of ${maxSizeMb}MB`);
+      setErrorMsg(t('max_size', { max: maxSizeMb }));
       return;
     }
 
@@ -76,7 +78,7 @@ export default function DocumentUploadField({
     } catch (e) {
       clearInterval(interval);
       setFieldState('error');
-      setErrorMsg(e instanceof Error ? e.message : 'Upload failed. Please try again.');
+      setErrorMsg(e instanceof Error ? e.message : t('upload_failed'));
     }
   }
 
@@ -116,12 +118,12 @@ export default function DocumentUploadField({
           onClick={() => inputRef.current?.click()}
           role="button"
           tabIndex={0}
-          aria-label={`Upload ${label}`}
+          aria-label={t('upload_label', { label })}
           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') inputRef.current?.click(); }}
         >
           <Upload size={24} className={state === 'error' ? 'text-danger' : 'text-secondary'} aria-hidden="true" />
-          <p className="text-sm font-medium text-primary">Upload {label}</p>
-          <p className="text-xs text-text-muted">JPG, PNG, PDF — max {maxSizeMb}MB</p>
+          <p className="text-sm font-medium text-primary">{t('upload_label', { label })}</p>
+          <p className="text-xs text-text-muted">{t('formats', { max: maxSizeMb })}</p>
         </div>
       )}
 
@@ -150,13 +152,13 @@ export default function DocumentUploadField({
               rel="noopener noreferrer"
               className="flex items-center gap-1.5 text-xs text-secondary font-medium hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary rounded"
             >
-              <Eye size={13} aria-hidden="true" /> View
+              <Eye size={13} aria-hidden="true" /> {t('view')}
             </a>
             <button
               onClick={() => inputRef.current?.click()}
               className="flex items-center gap-1.5 text-xs text-text-muted font-medium hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary rounded"
             >
-              <RefreshCw size={13} aria-hidden="true" /> Replace
+              <RefreshCw size={13} aria-hidden="true" /> {t('replace')}
             </button>
           </div>
         </div>
@@ -173,7 +175,7 @@ export default function DocumentUploadField({
             onClick={() => inputRef.current?.click()}
             className="flex items-center gap-1.5 text-xs text-text-muted hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary rounded"
           >
-            <RefreshCw size={13} aria-hidden="true" /> Replace
+            <RefreshCw size={13} aria-hidden="true" /> {t('replace')}
           </button>
         </div>
       )}
@@ -183,7 +185,7 @@ export default function DocumentUploadField({
         <div className="border border-[#C8E8E4] rounded-md p-5 bg-secondary-lt space-y-2">
           <div className="flex items-center gap-2 text-sm text-primary font-medium">
             <Upload size={16} aria-hidden="true" />
-            Uploading {label}…
+            {t('uploading', { label })}
           </div>
           <div
             className="h-2 rounded-full bg-gray-200 overflow-hidden"

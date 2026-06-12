@@ -14,12 +14,17 @@ import { useTranslations } from 'next-intl';
 
 const UserMap = dynamic(() => import('@/components/user/map/UserMap'), {
   ssr: false,
-  loading: () => (
-    <div style={{ width: '100%', height: '100%', background: '#E2E8F0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#5A6A7A', fontSize: 14 }}>
-      Loading map…
-    </div>
-  ),
+  loading: () => <MapLoadingPlaceholder />,
 });
+
+function MapLoadingPlaceholder() {
+  const tr = useTranslations('route_picker');
+  return (
+    <div style={{ width: '100%', height: '100%', background: '#E2E8F0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#5A6A7A', fontSize: 14 }}>
+      {tr('loading_map')}
+    </div>
+  );
+}
 
 // ── Props ──────────────────────────────────────────────────────────────────────
 
@@ -178,12 +183,12 @@ function RoutePickerInner({
               display: 'flex', alignItems: 'center', gap: 10,
             }}
           >
-            <span>Tap the map to set {pickingField === 'from' ? 'origin' : 'destination'}</span>
+            <span>{pickingField === 'from' ? tr('pick_map_from') : tr('pick_map_to')}</span>
             <button
               onClick={() => setPickingField(null)}
               style={{ background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: 12, color: '#fff', padding: '3px 10px', cursor: 'pointer', fontSize: 12, fontWeight: 700 }}
             >
-              Cancel
+              {tc('cancel')}
             </button>
           </div>
         )}
@@ -206,7 +211,7 @@ function RoutePickerInner({
               className="px-5 py-2.5 bg-[#00C2A8] text-[#0B1E3D] font-semibold rounded-xl text-sm disabled:opacity-40"
               style={{ border: 'none', cursor: canConfirm ? 'pointer' : 'default', fontFamily: 'inherit' }}
             >
-              Use this route ✓
+              {tr('use_route')}
             </button>
           </>
         ) : error ? (

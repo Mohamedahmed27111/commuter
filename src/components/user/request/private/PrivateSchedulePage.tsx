@@ -229,11 +229,11 @@ export default function PrivateSchedulePage() {
     if (!routeReady) errors.push(trf('set_route_first'));
     for (let i = 0; i < slots.length; i++) {
       const s = slots[i];
-      if (s.days.length === 0) errors.push(`Select days for Time slot ${i + 1}`);
-      if (!s.pickup_from || !s.pickup_to) errors.push(`Set pickup time for Time slot ${i + 1}`);
-      if (!s.arrival_from || !s.arrival_to) errors.push(`Set arrival time for Time slot ${i + 1}`);
+      if (s.days.length === 0) errors.push(trs('select_days', { n: i + 1 }));
+      if (!s.pickup_from || !s.pickup_to) errors.push(trs('set_pickup_time', { n: i + 1 }));
+      if (!s.arrival_from || !s.arrival_to) errors.push(trs('set_arrival_time', { n: i + 1 }));
       if (tripType === 'round_trip' && (!s.return_pickup_from || !s.return_arrival_from)) {
-        errors.push(`Set return times for Time slot ${i + 1}`);
+        errors.push(trs('set_return_times', { n: i + 1 }));
       }
     }
     return errors;
@@ -414,7 +414,7 @@ export default function PrivateSchedulePage() {
             <div className="space-y-3">
               {/* Time slot 1 always has the route + trip type controls above */}
               <div className="bg-white border border-[#E2E8F0] rounded-2xl p-4 space-y-4">
-                <span className="text-sm font-semibold text-[#0B1E3D]">Time slot 1</span>
+                <span className="text-sm font-semibold text-[#0B1E3D]">{tsl('label', { n: 1 })}</span>
 
                 {/* Global route card */}
                 <OutboundRouteCard

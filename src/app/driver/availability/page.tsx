@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import {
   Plus, Trash2, Loader2, CalendarCheck, Clock, MapPin, X,
 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import driverApi from '@/lib/api/driver';
 import LocationPickerMap from '@/components/map/LocationPickerMap';
 import { reverseGeocode, formatDisplayName } from '@/lib/nominatim';
@@ -26,12 +27,12 @@ interface AvailabilityItem {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-const DAY_LABEL: Record<Day, string> = {
-  monday: 'Mon', tuesday: 'Tue', wednesday: 'Wed',
-  thursday: 'Thu', friday: 'Fri', saturday: 'Sat', sunday: 'Sun',
+const DAY_I18N: Record<Day, 'day_mon' | 'day_tue' | 'day_wed' | 'day_thu' | 'day_fri' | 'day_sat' | 'day_sun'> = {
+  monday: 'day_mon', tuesday: 'day_tue', wednesday: 'day_wed',
+  thursday: 'day_thu', friday: 'day_fri', saturday: 'day_sat', sunday: 'day_sun',
 };
 
-function dayPills(days: Day[]) {
+function dayPills(days: Day[], dayLabel: (d: Day) => string) {
   return days.map((d) => (
     <span
       key={d}
@@ -41,7 +42,7 @@ function dayPills(days: Day[]) {
         background: '#EFF7F5', color: '#00C2A8', border: '1px solid #C8E6E2',
       }}
     >
-      {DAY_LABEL[d]}
+      {dayLabel(d)}
     </span>
   ));
 }
@@ -62,6 +63,8 @@ interface AddModalProps {
 }
 
 function AddModal({ onClose, onAdded }: AddModalProps) {
+  const t = useTranslations('driver_availability');
+  const tc = useTranslations('common');
   const [lat,       setLat]       = useState('');
   const [lng,       setLng]       = useState('');
   const [locName,   setLocName]   = useState('');
@@ -79,11 +82,11 @@ function AddModal({ onClose, onAdded }: AddModalProps) {
 
   function validate() {
     const e: Record<string, string> = {};
-    if (!lat || !lng) e.location = 'Pick a location on the map or search for one.';
-    if (days.length === 0) e.days = 'Select at least one day.';
-    if (!startTime) e.start = 'Start time is required.';
-    if (!endTime)   e.end   = 'End time is required.';
-    if (startTime && endTime && startTime >= endTime) e.end = 'End time must be after start time.';
+    if (!lat || !lng) e.location = t('err_location');
+    if (days.length === 0) e.days = t('err_days');
+    if (!startTime) e.start = t('err_start');
+    if (!endTime)   e.end   = t('err_end');
+    if (startTime && endTime && startTime >= endTime) e.end = t('err_end_after_start');
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -102,11 +105,11 @@ function AddModal({ onClose, onAdded }: AddModalProps) {
       });
       const raw = res as Record<string, unknown>;
       const item = ((raw.data ?? raw) as AvailabilityItem);
-      toast.success('Availability added!');
+      toast.success(t('added_toast'));
       onAdded(item);
       onClose();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to add availability');
+      toast.error(err instanceof Error ? err.message : t('add_failed'));
     } finally {
       setSaving(false);
     }
@@ -149,10 +152,10 @@ function AddModal({ onClose, onAdded }: AddModalProps) {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
               <h2 style={{ margin: 0, fontSize: 19, fontWeight: 800, color: '#0B1E3D', letterSpacing: '-0.2px' }}>
-                Add availability
+                {t('modal_title')}
               </h2>
               <p style={{ margin: '4px 0 0', fontSize: 13, color: '#94A3B8' }}>
-                Set your working area, days and hours
+                {t('modal_subtitle')}
               </p>
             </div>
             <button
@@ -171,7 +174,7 @@ function AddModal({ onClose, onAdded }: AddModalProps) {
           <div>
             <label style={labelStyle}>
               <CalendarCheck size={13} style={{ display: 'inline', marginRight: 5, color: '#00C2A8', verticalAlign: 'middle' }} />
-              Available days
+              {t('available_days')}
             </label>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               {ALL_DAYS.map((d) => {
@@ -188,10 +191,9 @@ function AddModal({ onClose, onAdded }: AddModalProps) {
                       background: sel ? '#00C2A8' : '#fff',
                       color: sel ? '#0B1E3D' : '#5A6A7A',
                       transition: 'all .15s',
-                      textTransform: 'capitalize',
                     }}
                   >
-                    {d.charAt(0).toUpperCase() + d.slice(1)}
+                    {t(DAY_I18N[d])}
                   </button>
                 );
               })}
@@ -205,7 +207,7 @@ function AddModal({ onClose, onAdded }: AddModalProps) {
           <div>
             <label style={{ ...labelStyle, marginBottom: 8 }}>
               <MapPin size={13} style={{ display: 'inline', marginRight: 5, color: '#00C2A8', verticalAlign: 'middle' }} />
-              Pickup area
+              {t('pickup_area')}
             </label>
             <LocationPickerMap
               lat={lat} lng={lng} name={locName}
@@ -225,7 +227,7 @@ function AddModal({ onClose, onAdded }: AddModalProps) {
             <div>
               <label style={labelStyle}>
                 <Clock size={13} style={{ display: 'inline', marginRight: 5, color: '#00C2A8', verticalAlign: 'middle' }} />
-                Start time
+                {t('start_time')}
               </label>
               <input
                 type="time" value={startTime}
@@ -242,7 +244,7 @@ function AddModal({ onClose, onAdded }: AddModalProps) {
             <div>
               <label style={labelStyle}>
                 <Clock size={13} style={{ display: 'inline', marginRight: 5, color: '#00C2A8', verticalAlign: 'middle' }} />
-                End time
+                {t('end_time')}
               </label>
               <input
                 type="time" value={endTime}
@@ -269,7 +271,7 @@ function AddModal({ onClose, onAdded }: AddModalProps) {
               cursor: saving ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
             }}
           >
-            Cancel
+            {tc('cancel')}
           </button>
           <button
             type="button" onClick={handleSave} disabled={saving}
@@ -282,7 +284,7 @@ function AddModal({ onClose, onAdded }: AddModalProps) {
             }}
           >
             {saving && <Loader2 size={15} style={{ animation: 'spin 1s linear infinite' }} />}
-            {saving ? 'Saving…' : 'Add availability'}
+            {saving ? t('saving_btn') : t('add_btn')}
           </button>
         </div>
       </div>
@@ -295,6 +297,8 @@ function AddModal({ onClose, onAdded }: AddModalProps) {
 const COORD_PATTERN = /^-?\d+\.\d+[,\s]+-?\d+\.\d+/;
 
 function AvailabilityCard({ item, onDelete }: { item: AvailabilityItem; onDelete: () => void }) {
+  const t = useTranslations('driver_availability');
+  const tc = useTranslations('common');
   const [deleting, setDeleting] = useState(false);
   const [displayName, setDisplayName] = useState<string>(
     item.location_name && !COORD_PATTERN.test(item.location_name)
@@ -317,10 +321,10 @@ function AvailabilityCard({ item, onDelete }: { item: AvailabilityItem; onDelete
     setDeleting(true);
     try {
       await driverApi.deleteAvailability(item.id);
-      toast.success('Availability removed');
+      toast.success(t('removed_toast'));
       onDelete();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to delete');
+      toast.error(err instanceof Error ? err.message : t('delete_failed'));
       setDeleting(false);
     }
   }
@@ -362,7 +366,7 @@ function AvailabilityCard({ item, onDelete }: { item: AvailabilityItem; onDelete
         <button
           onClick={handleDelete}
           disabled={deleting}
-          title="Delete"
+          title={tc('delete')}
           style={{
             flexShrink: 0, width: 34, height: 34, borderRadius: 9,
             border: '1.5px solid #FEE2E2', background: '#FFF5F5',
@@ -389,7 +393,7 @@ function AvailabilityCard({ item, onDelete }: { item: AvailabilityItem; onDelete
 
       {/* Days */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-        {dayPills(item.days)}
+        {dayPills(item.days, (d) => t(DAY_I18N[d]))}
       </div>
     </div>
   );
@@ -398,6 +402,7 @@ function AvailabilityCard({ item, onDelete }: { item: AvailabilityItem; onDelete
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function AvailabilityPage() {
+  const t = useTranslations('driver_availability');
   const [items,   setItems]   = useState<AvailabilityItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [addOpen, setAddOpen] = useState(false);
@@ -429,10 +434,10 @@ export default function AvailabilityPage() {
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 28 }}>
         <div>
           <h1 style={{ fontSize: 28, fontWeight: 800, color: '#0B1E3D', margin: '0 0 4px', letterSpacing: '-0.4px' }}>
-            Availability
+            {t('page_title')}
           </h1>
           <p style={{ fontSize: 14, color: '#94A3B8', margin: 0 }}>
-            Manage the areas, days and hours you&apos;re available to drive
+            {t('page_subtitle_manage')}
           </p>
         </div>
         <button
@@ -450,7 +455,7 @@ export default function AvailabilityPage() {
           onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.opacity = '1'; }}
         >
           <Plus size={17} strokeWidth={2.5} />
-          Add availability
+          {t('add_btn')}
         </button>
       </div>
 
@@ -475,10 +480,10 @@ export default function AvailabilityPage() {
             <CalendarCheck size={30} color="#00C2A8" strokeWidth={1.8} />
           </div>
           <p style={{ fontSize: 17, fontWeight: 700, color: '#0B1E3D', margin: '0 0 8px' }}>
-            No availability set
+            {t('empty_title')}
           </p>
           <p style={{ fontSize: 14, color: '#6B7280', margin: '0 0 20px', lineHeight: 1.6 }}>
-            Add your working areas, days and hours so passengers can find you.
+            {t('empty_desc')}
           </p>
           <button
             onClick={() => setAddOpen(true)}
@@ -491,7 +496,7 @@ export default function AvailabilityPage() {
               boxShadow: '0 4px 14px rgba(0,194,168,0.3)',
             }}
           >
-            <Plus size={16} strokeWidth={2.5} /> Add availability
+            <Plus size={16} strokeWidth={2.5} /> {t('add_btn')}
           </button>
         </div>
       ) : (

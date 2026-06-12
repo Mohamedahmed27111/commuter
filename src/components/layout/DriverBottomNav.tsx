@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 
 const NAV_ICONS = {
   cycles: (active: boolean) => (
@@ -29,18 +30,18 @@ const NAV_ICONS = {
   ),
 } as const;
 
-const NAV_ITEMS = [
-  { key: 'cycles'       as const, label: 'My Cycles',    href: '/driver/my-cycles'    },
-  { key: 'availability' as const, label: 'Availability', href: '/driver/availability' },
-  { key: 'profile'      as const, label: 'Profile',      href: '/driver/profile'      },
-];
-
 export default function DriverBottomNav() {
+  const t = useTranslations('nav');
   const pathname = usePathname();
+
+  const NAV_ITEMS = [
+    { key: 'cycles'       as const, label: t('my_cycles'),    href: '/driver/my-cycles'    },
+    { key: 'availability' as const, label: t('availability'), href: '/driver/availability' },
+    { key: 'profile'      as const, label: t('profile'),      href: '/driver/profile'      },
+  ];
 
   return (
     <nav
-      dir="ltr"
       className="flex md:hidden"
       style={{
         position: 'fixed',

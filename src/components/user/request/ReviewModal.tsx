@@ -152,7 +152,7 @@ export default function ReviewModal({
                 <div key={slot.id} className="mb-3 p-3 bg-[#F8F9FA] rounded-xl border border-[#E2E8F0]">
                   {/* Slot header */}
                   <div className="flex items-center justify-between mb-2.5">
-                    <span className="text-xs font-semibold text-[#0B1E3D]">Time slot {i + 1}</span>
+                    <span className="text-xs font-semibold text-[#0B1E3D]">{tsl('label', { n: i + 1 })}</span>
                     <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${slot.trip_type === 'round_trip' ? 'bg-[#EFF7F6] text-[#00C2A8]' : 'bg-[#F1F3F4] text-[#5A6A7A]'}`}>
                       {slot.trip_type === 'round_trip' ? tsl('round_trip') : tsl('one_way')}
                     </span>

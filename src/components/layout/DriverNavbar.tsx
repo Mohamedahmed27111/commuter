@@ -21,7 +21,7 @@ export default function DriverNavbar() {
     { label: t('profile'),      href: '/driver/profile'     },
   ];
   const [dropdownOpen,  setDropdownOpen]  = useState(false);
-  const [driverName,    setDriverName]    = useState('Driver');
+  const [driverName,    setDriverName]    = useState(t('default_driver'));
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { name: authName, logout, profilePhoto } = useAuth();
 
@@ -84,7 +84,7 @@ export default function DriverNavbar() {
           <div style={{ width: 32, height: 32, borderRadius: 8, background: '#00C2A8', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <span style={{ color: '#0B1E3D', fontWeight: 900, fontSize: 16, lineHeight: 1 }}>C</span>
           </div>
-          <span style={{ color: '#fff', fontWeight: 600, fontSize: 18 }}>commuter</span>
+          <span style={{ color: '#fff', fontWeight: 600, fontSize: 18 }}>{tCommon('app_name')}</span>
         </Link>
 
         {/* Center nav links — true center of full navbar width */}
@@ -120,7 +120,7 @@ export default function DriverNavbar() {
         </div>
 
         {/* Right slot — language toggle + user dropdown (desktop) */}
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, position: 'relative', zIndex: 1 }} className="hidden md:flex">
+        <div style={{ marginInlineStart: 'auto', display: 'flex', alignItems: 'center', gap: 8, position: 'relative', zIndex: 1 }} className="hidden md:flex">
           <LanguageToggle inverted />
         <div ref={dropdownRef} style={{ position: 'relative' }}>
           <button
@@ -156,7 +156,7 @@ export default function DriverNavbar() {
 
           {dropdownOpen && (
             <div style={{
-              position: 'absolute', right: 0, top: 'calc(100% + 10px)',
+              position: 'absolute', insetInlineEnd: 0, top: 'calc(100% + 10px)',
               background: '#fff', borderRadius: 10,
               border: '1px solid #E2E8F0',
               boxShadow: '0 8px 24px rgba(0,0,0,0.12)',

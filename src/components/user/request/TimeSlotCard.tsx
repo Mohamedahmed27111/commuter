@@ -144,7 +144,7 @@ export default function TimeSlotCard({
           className="text-sm font-semibold px-2.5 py-1 rounded-full"
           style={{ color: palette.deep, background: palette.soft }}
         >
-          Time slot {slotNumber}
+          {tsl('label', { n: slotNumber })}
         </span>
         {canRemove && (
           <button
@@ -195,7 +195,7 @@ export default function TimeSlotCard({
                   ✏ {to('edit_route')}
                 </button>
               ) : (
-                <span className="text-[10px] text-[#9AA0A6] italic">Locked · route from Time slot 1</span>
+                <span className="text-[10px] text-[#9AA0A6] italic">{tsl('locked_from_slot1')}</span>
               )}
             </div>
 
@@ -203,14 +203,14 @@ export default function TimeSlotCard({
             {slotIndex > 0 && !routeIsCustom && (
               <p className="text-xs text-[#5A6A7A] mt-1.5 flex items-center gap-1">
                 <span className="text-[#00C2A8]">↑</span>
-                Same route as Time slot 1.{' '}
+                {tsl('same_route_as_slot1')}{' '}
                 <button
                   type="button"
                   onClick={onSetRoute}
                   className="text-[#00C2A8] underline"
                   style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 'inherit' }}
                 >
-                  Change route
+                  {tsl('change_route')}
                 </button>
               </p>
             )}
@@ -218,7 +218,7 @@ export default function TimeSlotCard({
         ) : slotIndex === 0 ? (
           <div className="border-2 border-dashed border-[#E2E8F0] rounded-xl p-4 flex flex-col items-center gap-2 text-center">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#00C2A8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-            <p className="text-sm text-[#5A6A7A]">No route selected</p>
+            <p className="text-sm text-[#5A6A7A]">{tsl('no_route_selected')}</p>
             <button
               type="button"
               onClick={onSetRoute}
@@ -230,7 +230,7 @@ export default function TimeSlotCard({
           </div>
         ) : (
           <div className="border border-[#E2E8F0] rounded-xl p-4 text-center bg-[#F8F9FA]">
-            <p className="text-sm text-[#9AA0A6]">Route will be set from Time slot 1</p>
+            <p className="text-sm text-[#9AA0A6]">{tsl('route_from_slot1')}</p>
           </div>
         )}
       </div>
@@ -261,7 +261,7 @@ export default function TimeSlotCard({
 
         {/* Pickup time */}
         <div>
-          <label className="block text-xs font-medium text-[#5A6A7A] mb-2">Pickup time</label>
+          <label className="block text-xs font-medium text-[#5A6A7A] mb-2">{tsl('pickup_time')}</label>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-[#9AA0A6] mb-1">{tf('arrival_from')}</label>
@@ -293,14 +293,14 @@ export default function TimeSlotCard({
             </div>
           </div>
           <p className="text-xs text-[#9AA0A6] mt-1">
-            {pickupGap} min window · Min 30 min, Max 2 hours
+            {tsl('pickup_window_note', { gap: pickupGap })}
           </p>
         </div>
 
         {/* Estimated arrival — editable selects */}
         {!routeLocked && (
           <div>
-            <label className="block text-xs font-medium text-[#5A6A7A] mb-2">Arrival time</label>
+            <label className="block text-xs font-medium text-[#5A6A7A] mb-2">{tsl('arrival_time')}</label>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs text-[#9AA0A6] mb-1">{tf('arrival_from')}</label>
@@ -343,14 +343,14 @@ export default function TimeSlotCard({
             {/* Return route summary */}
             <div className="bg-[#F8F9FA] rounded-xl p-3 border border-[#E2E8F0]">
               <div className="flex items-center justify-between mb-1">
-                <span className="text-xs font-semibold text-[#0B1E3D]">↩ Return route</span>
+                <span className="text-xs font-semibold text-[#0B1E3D]">↩ {tsl('return_route')}</span>
                 <button
                   type="button"
                   onClick={onEditReturnRoute}
                   className="text-xs font-medium hover:underline"
                   style={{ color: palette.accent, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
                 >
-                  ✏ Edit
+                  ✏ {tc('edit')}
                 </button>
               </div>
               {slot.return_origin && slot.return_destination ? (
@@ -362,17 +362,17 @@ export default function TimeSlotCard({
                     <span className="ml-1 text-[#9AA0A6]">· {slot.return_route.distance_km.toFixed(1)} km</span>
                   )}
                   {slot.return_customized && (
-                    <span className="ml-1 text-[#00C2A8] text-[10px]">(edited)</span>
+                    <span className="ml-1 text-[#00C2A8] text-[10px]">{tsl('edited_tag')}</span>
                   )}
                 </div>
               ) : (
-                <p className="text-xs text-[#9AA0A6] italic">Click &quot;Edit&quot; to confirm return route</p>
+                <p className="text-xs text-[#9AA0A6] italic">{tsl('return_confirm_edit')}</p>
               )}
             </div>
 
             {/* Return pickup time */}
             <div>
-              <label className="block text-xs font-medium text-[#5A6A7A] mb-2">Return pickup time</label>
+              <label className="block text-xs font-medium text-[#5A6A7A] mb-2">{tsl('return_pickup_time')}</label>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs text-[#9AA0A6] mb-1">{tf('arrival_from')}</label>
@@ -405,7 +405,7 @@ export default function TimeSlotCard({
 
             {/* Return arrival — editable selects */}
             <div>
-              <label className="block text-xs font-medium text-[#5A6A7A] mb-2">Return arrival time</label>
+              <label className="block text-xs font-medium text-[#5A6A7A] mb-2">{tsl('return_arrival_time')}</label>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs text-[#9AA0A6] mb-1">{tf('arrival_from')}</label>
@@ -473,9 +473,9 @@ export default function TimeSlotCard({
           })}
         </div>
         {routeLocked ? (
-          <p className="text-xs text-[#9AA0A6] mt-1.5">Set a route above to choose days for this slot.</p>
+          <p className="text-xs text-[#9AA0A6] mt-1.5">{tsl('set_route_for_days')}</p>
         ) : slot.days.length === 0 && (
-          <p className="text-xs text-[#E74C3C] mt-1.5">Select at least one day for this slot</p>
+          <p className="text-xs text-[#E74C3C] mt-1.5">{tsl('select_one_day')}</p>
         )}
       </div>
     </div>

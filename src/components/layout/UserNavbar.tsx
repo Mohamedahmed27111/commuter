@@ -70,7 +70,6 @@ export default function UserNavbar() {
 
       {/* Desktop only */}
       <nav
-        dir="ltr"
         className={`hidden md:flex ${isMapPage ? 'navbar-glass' : ''}`}
         style={{
           position: 'sticky',
@@ -152,7 +151,7 @@ export default function UserNavbar() {
         </div>
 
         {/* Right: language toggle + user avatar + dropdown */}
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, position: 'relative', zIndex: 1 }}>
+        <div style={{ marginInlineStart: 'auto', display: 'flex', alignItems: 'center', gap: 8, position: 'relative', zIndex: 1 }}>
           <LanguageToggle />
         <div ref={dropdownRef} style={{ position: 'relative' }}>
           <button
@@ -197,7 +196,7 @@ export default function UserNavbar() {
                   style={{
                     position: 'absolute',
                     top: -2,
-                    right: -2,
+                    insetInlineEnd: -2,
                     width: 10,
                     height: 10,
                     background: '#E74C3C',
@@ -223,7 +222,7 @@ export default function UserNavbar() {
               style={{
                 position: 'absolute',
                 top: 'calc(100% + 6px)',
-                right: 0,
+                insetInlineEnd: 0,
                 background: '#fff',
                 border: '1px solid #E2E8F0',
                 borderRadius: 10,
@@ -247,7 +246,7 @@ export default function UserNavbar() {
                 {unreadCount > 0 && (
                   <span
                     style={{
-                      marginLeft: 'auto',
+                      marginInlineStart: 'auto',
                       background: '#E74C3C',
                       color: '#fff',
                       fontSize: 11,

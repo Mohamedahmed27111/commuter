@@ -137,7 +137,7 @@ export default function ReviewModal({
           const hasAnyDayStop = Object.values(slot.day_stops ?? {}).some(arr => arr && arr.length > 0);
 
           return (
-            <Section key={slot.id} title={`Time slot ${i + 1}`}>
+            <Section key={slot.id} title={tsl('label', { n: i + 1 })}>
               {/* Days */}
               <div>
                 <p className="text-[10px] font-semibold text-[#9AA0A6] uppercase tracking-wide mb-1.5">Days</p>
