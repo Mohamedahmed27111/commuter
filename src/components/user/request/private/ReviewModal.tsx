@@ -146,7 +146,7 @@ export default function ReviewModal({
                 <p className="text-[10px] font-semibold text-[#9AA0A6] uppercase tracking-wide mb-1.5">{trs('days')}</p>
                 <div className="flex flex-wrap gap-1.5">
                   {sortedDays.map(d => (
-                    <DayChip key={d} day={d} label={td(d.toLowerCase() as 'sun')} />
+                    <DayChip key={d} _day={d} label={td(d.toLowerCase() as 'sun')} />
                   ))}
                 </div>
               </div>
