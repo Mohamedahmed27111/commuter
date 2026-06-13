@@ -1138,7 +1138,17 @@
     "status_pending": "معلّق",
     "status_matched": "متطابق",
     "status_ongoing": "جاري",
-    "status_confirmed": "مؤكّد"
+    "status_confirmed": "مؤكّد",
+    "wallet_waiting": "في انتظار الدفع",
+    "wallet_paid": "مدفوع",
+    "wallet_refunded": "مسترجع",
+    "wallet_success": "تم الدفع بنجاح",
+    "pay_now": "ادفع الآن",
+    "confirm_payment_title": "تأكيد الدفع",
+    "confirm_payment_message": "أنت على وشك دفع",
+    "confirm_payment_for": "لهذه الدورة من",
+    "confirm_payment_to": "إلى",
+    "cancel": "إلغاء"
   },
 
   "cycle_days": {

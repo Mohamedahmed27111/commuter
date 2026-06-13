@@ -1140,7 +1140,17 @@
     "status_pending": "Pending",
     "status_matched": "Matched",
     "status_ongoing": "Ongoing",
-    "status_confirmed": "Confirmed"
+    "status_confirmed": "Confirmed",
+    "wallet_waiting": "Waiting for payment",
+    "wallet_paid": "Paid",
+    "wallet_refunded": "Refunded",
+    "wallet_success": "Paid successfully",
+    "pay_now": "Pay now",
+    "confirm_payment_title": "Confirm Payment",
+    "confirm_payment_message": "You are about to pay",
+    "confirm_payment_for": "for this cycle from",
+    "confirm_payment_to": "to",
+    "cancel": "Cancel"
   },
 
   "cycle_days": {

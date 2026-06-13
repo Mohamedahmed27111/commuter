@@ -95,13 +95,21 @@ export default function ProfileDesktop() {
   const [passOpen,     setPassOpen]     = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
 
-  function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     const MAX_SIZE = 2 * 1024 * 1024; // 2 MB
     if (file.size > MAX_SIZE) { alert(tp('photo_size_error')); return; }
     const reader = new FileReader();
-    reader.onload = () => updateProfilePhoto(reader.result as string);
+    reader.onload = async () => {
+      const base64 = reader.result as string;
+      updateProfilePhoto(base64);
+      try {
+        await userApi.updateProfileImage(base64);
+      } catch (error) {
+        console.error('Failed to upload profile photo:', error);
+      }
+    };
     reader.readAsDataURL(file);
     e.target.value = '';
   }
