@@ -83,7 +83,7 @@ export default function SeatLayoutPicker({ passengers, assignments, onChange }: 
             <span className="text-[11px] font-semibold mt-1">{t('driver')}</span>
           </div>
           <SeatButton
-            seat="front"
+            _seat="front"
             label={seatLabel('front')}
             assigneeName={
               passengers.find(p => p.key === assignedKeyForSeat('front'))?.name ?? null
@@ -101,7 +101,7 @@ export default function SeatLayoutPicker({ passengers, assignments, onChange }: 
             return (
               <SeatButton
                 key={seat}
-                seat={seat}
+                _seat={seat}
                 label={seatLabel(seat)}
                 assigneeName={name}
                 onClick={() => setActiveSeat(seat)}
